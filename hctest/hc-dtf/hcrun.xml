@@ -1,0 +1,177 @@
+<?xml version="1.0" ?>
+<project>
+	<taskdef resource="net/sf/antcontrib/antlib.xml">
+    	<classpath>
+			<pathelement location="apache-ant-1.6.0/lib/ant-contrib-1.0b3.jar"/>
+		</classpath>
+	</taskdef>
+	<import file="build.xml"/>
+			
+	<condition property="hc.cluster.type" value="hccluster">
+		<not>
+			<isset property="hc.cluster.type"/>
+		</not>
+	</condition>
+	
+	<target name="run_components" depends="init">
+		<parallel>
+    		<sequential>
+    			<ant antfile="build.xml" target="run_components">
+    				<property name="dtf.dtfa.ids" value="1"/>
+    			</ant>
+			</sequential>
+			<sequential>
+  				<!-- XXX: temporary hack -->
+				<sleep seconds="3"/>
+				<java classname="com.sun.dtf.DTFNode"
+					  fork="true"
+					  failonerror="true"
+					  output="${logdir}/cluster.out.log"
+					  error="${logdir}/cluster.err.log">
+					
+					<classpath refid="dtf.classpath"/>
+					<syspropertyset refid="dtf.default.propertyset"/>
+					<sysproperty key="dtf.node.type" value="dtfa"/>
+    				<sysproperty key="hc.cluster.type" value="${hc.cluster.type}"/>
+    				<sysproperty key="hc.cluster.adminvip" value="${hc.cluster.adminvip}"/>
+					
+					<jvmarg line="${dtf.jvm.arg}"/>
+				</java>
+		</sequential>
+		</parallel>
+	</target>
+
+	<target name="run_smokeperf" 
+		    depends="init" 
+		    description="run smoke performance test from the current client">
+		<parallel>
+			<antcall target="run_components"/>
+				<trycatch>
+					<try>
+            			<sequential>
+            				<!-- XXX: temporary hack -->
+                    		<sleep seconds="10"/>
+                    		<ant antfile="build.xml"
+                    			 target="run_dtfx"
+                    		 	 output="${logdir}/dtfx.log">
+                    			<property name="hc.cluster.type" 
+                                          value="${hc.cluster.type}"/>
+                    			<property name="dtf.xml.filename"
+                                          value="tests/hc-dtf/hc_smokeperf.xml"/>
+                    		</ant>
+            			</sequential>
+					</try>
+				<finally>
+					<ant antfile="build.xml" target="stop_dtfc"/>
+    			</finally>
+    		</trycatch>
+		</parallel>
+	</target>
+	
+	<target name="run_checkfrags" 
+		    depends="init" 
+		    description="run check frags test from the current client">
+		<parallel>
+			<antcall target="run_components"/>
+				<trycatch>
+					<try>
+            			<sequential>
+            				<!-- XXX: temporary hack -->
+                    		<sleep seconds="10"/>
+                    		<ant antfile="build.xml"
+                    			 target="run_dtfx"
+                    		 	 output="${logdir}/dtfx.log">
+                    			<property name="hc.cluster.type" 
+                                          value="${hc.cluster.type}"/>
+                    			<property name="dtf.xml.filename"
+                                          value="tests/hc-dtf/checkfrags.xml"/>
+                    		</ant>
+            			</sequential>
+					</try>
+				<finally>
+					<ant antfile="build.xml" target="stop_dtfc"/>
+    			</finally>
+    		</trycatch>
+		</parallel>
+	</target>
+	
+	<target name="run_regression"
+		    depends="init" 
+		    description="run smoke performance test from the current client">
+		<parallel>
+			<antcall target="run_components"/>
+				<trycatch>
+					<try>
+            			<sequential>
+            				<!-- XXX: temporary hack -->
+                    		<sleep seconds="10"/>
+                    		<ant antfile="build.xml"
+                    			 target="run_dtfx"
+                    		 	 output="${logdir}/dtfx.log">
+                    			<property name="hc.cluster.type" 
+                                          value="${hc.cluster.type}"/>
+                    			<property name="dtf.xml.filename"
+                                          value="tests/hc-dtf/hc_regression.xml"/>
+                    		</ant>
+            			</sequential>
+					</try>
+				<finally>
+					<ant antfile="build.xml" target="stop_dtfc"/>
+    			</finally>
+    		</trycatch>
+		</parallel>
+	</target>
+	
+	<target name="run_test" 
+		    depends="init" 
+		    description="run smoke performance test from the current client">
+		<parallel>
+			<antcall target="run_components"/>
+ 
+			<trycatch>
+				<try>
+        			<sequential>
+          				<!-- XXX: temporary hack -->
+                		<sleep seconds="10"/>
+                		<ant antfile="build.xml"
+                			 target="run_dtfx"
+                		 	 output="${logdir}/dtfx.log">
+                		</ant>
+        			</sequential>
+				</try>
+				<finally>
+					<ant antfile="build.xml" target="stop_dtfc"/>
+    			</finally>
+    		</trycatch>	
+		</parallel>
+	</target>
+
+	<target name="run_snapshot"
+		    depends="init"
+	        description="Snap-shooting tool.">
+		<parallel>
+			<antcall target="run_components"/>
+		
+			<trycatch>
+				<try>
+        			<sequential>
+          				<!-- XXX: temporary hack -->
+                		<sleep seconds="10"/>
+                		<ant antfile="build.xml"
+                			 target="run_dtfx"
+                		 	 output="${logdir}/dtfx.log">
+                			<property name="hc.cluster.type" 
+                                      value="${hc.cluster.type}"/>
+                			<property name="dtf.xml.filename"
+                                      value="tests/hc-dtf/snapshot.xml"/>
+                		</ant>
+        			</sequential>
+				</try>
+				<finally>
+					<ant antfile="build.xml" target="stop_dtfc"/>
+    			</finally>
+    		</trycatch>	
+		</parallel>
+	</target>
+		
+</project>

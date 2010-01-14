@@ -1,0 +1,67 @@
+<?xml version='1.0'?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<!--
+	Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+	Use is subject to license terms.
+
+	$Id: honeycomb-configuration.xml 10855 2007-05-19 02:54:08Z bberndt $
+
+	Service manifest for the Honeycomb Configuration Service.
+-->
+
+<service_bundle type='manifest' name='SUNWhcserver:honeycomb-configuration'>
+
+<service
+	name='application/honeycomb-configuration'
+	type='service'
+	version='1'>
+
+        <create_default_instance enabled='true' />
+
+        <single_instance />
+
+        <dependency
+                name='multi-user'
+                grouping='require_all'
+                restart_on='none'
+                type='service'>
+                <service_fmri value='svc:/milestone/multi-user' />
+        </dependency>
+
+	<exec_method
+		type='method'
+		name='start'
+		exec='/opt/honeycomb/bin/node_configuration'
+		timeout_seconds='300' />
+
+        <exec_method
+                type='method'
+                name='stop'
+                exec=':true'
+                timeout_seconds='5' />
+
+        <property_group name='startd' type='framework'>
+                <propval name='duration' type='astring' value='transient' />
+        </property_group>
+
+	<stability value='Unstable' />
+
+	<template>
+		<common_name>
+			<loctext xml:lang='C'>
+				Honeycomb Configuration
+			</loctext>
+		</common_name>
+		<description>
+			<loctext xml:lang='C'>
+This is the Honeycomb Configuration Service.
+			</loctext>
+		</description>
+		<documentation>
+			<manpage title='honeycomb-configuration' section='1M'
+				manpath='/usr/share/man' />
+		</documentation>
+	</template>
+</service>
+
+</service_bundle>

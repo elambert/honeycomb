@@ -1,0 +1,111 @@
+# @(#) cdk.libx 1.8@(#)
+
+#	This file contains extra cdkit code that is Sun's environment 
+#	specific and is intended for internal use only.
+#
+
+
+if [[ $(domainname) == *.ireland.sun.com ]] ; then
+	typeset -r INTEG_HOST=utopia.ireland
+else
+	typeset -r INTEG_HOST=paradise.sfbay
+fi
+
+CreatePkgpool() {
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+
+	typeset -r src=$1
+	typeset -r dest=$2
+	shift 2
+	typeset -r dirs="$*"
+
+	_ObjCheck -d $src || return $?
+
+	for dir in $dirs ; do
+		if [ ! -d "$src/$dir" ] ; then
+			continue
+		fi
+		_Tracing SplitDirAndDupContentsInParallel \
+			4 link $src/$dir $dest/pkgpool || return $?
+	done
+
+	return 0
+}
+
+BringoverBuildStage() {
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+
+	_NeedToCreatePkgpool() {
+		typeset -r rel=$1
+		[[ "$rel" != *wos* ]] && return 1
+		return 0
+	}
+
+	typeset -r release=$1
+	typeset -r newsrc=$2
+
+	mkdir -p $newsrc || {
+		PrintErr "Failed to create $newsrc directory"
+		return 1
+	}
+
+
+	(
+		dir=/net/$INTEG_HOST/export/integrate_dock/products/$release
+	if [ "$MODEL" == 'ReleaseModel' ] ; then
+		typeset major=${release%%_*}
+		major=${major%s}
+		major=${major%x}
+		dir=/net/$INTEG_HOST/export/integrate_dock/$major/$release
+		contracts_dir=contracts
+	else
+		dir=/net/$INTEG_HOST/export/integrate_dock/products/$release
+		contracts_dir=component_contracts
+	fi
+
+
+		if [ ! -d "$dir" ] ; then
+			echo "Warning: $dir does not exist"
+			return 0
+		fi
+
+		cd $dir			|| return $?
+
+		[ ! -d "$contracts_dir" ] && {
+			PrintErr "ERROR: $PWD/$contracts_dir does not exist."
+			return 1
+		}
+
+		for dir in i386 sparc patch all rpm parisc; do
+			if [ ! -d "$dir" ] ; then
+				continue
+			fi
+			_Tracing SplitDirAndDupContentsInParallel \
+				4 copy $PWD/$dir $newsrc/$dir  \
+				|| return $?
+		done
+
+		typeset -r dirs="MiscFiles contracts component_contracts
+				meta_contracts file"
+
+		for dir in $dirs ; do
+			if [ -d "$dir" ] ; then
+				_Tracing _CpioCopy copy $PWD/$dir \
+				$newsrc/$dir || return $?
+			fi
+		done
+
+		if _NeedToCreatePkgpool $release ; then
+			# In this case the source & destination are at the
+			# same level and hence the 1st & 2nd args are same.
+
+			CreatePkgpool $newsrc $newsrc sparc i386 all patch parisc\
+				|| return $?
+		fi
+
+		return 0
+	) || return $?
+
+	return 0
+}
+

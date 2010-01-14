@@ -1,0 +1,13 @@
+
+NAME
+       RetrieveSchema - print metadata attributes
+
+SYNOPSIS
+       java RetrieveSchema <IP | HOST> [OPTIONS]
+
+OPTIONS
+       -h
+              print this message
+
+EXAMPLES
+       java RetrieveSchema archivehost

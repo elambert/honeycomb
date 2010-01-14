@@ -1,0 +1,106 @@
+#!/bin/bash
+#
+# $Id: wipe-linux.sh.in 10855 2007-05-19 02:54:08Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+#
+# Wipe script for Linux -- both Rig1U and HON
+#
+
+if [ ".$1" = ".-f" ]; then
+    FORCE=y
+fi
+
+DISKS="/dev/[sh]d?"
+
+for d in $DISKS; do
+    DEVS="$DEVS $d"
+done
+
+echo "All data on" $DEVS "will be erased!"
+echo "You have 5 seconds to hit ^C"
+sleep 5
+echo
+echo "Erasing disks" $DEVS
+
+# Unmount all NFS so other nodes can unshare
+umount -a -t nfs
+
+for DISK in $DISKS; do
+    # Only wiping the data partition for now
+    PART="${DISK}2"
+    QUOTED=`echo "${PART}" | sed -e 's/\//\\\\\\//g'`
+
+    echo
+
+    if mount | egrep -q "^$PART"; then
+        echo -n "Partition $PART is mounted: "
+        if [ "y" != "$FORCE" ]; then
+            echo "skipping $DISK"
+            continue
+        fi
+        echo "trying to unmount"
+
+        MOUNTPOINT=`mount | awk "/^$QUOTED/{print \\$3}"`
+        echo "Unexporting $MOUNTPOINT"
+        exportfs -uv "hcb*:$MOUNTPOINT"
+
+        echo "Unmounting $PART <-> $MOUNTPOINT"
+        umount "$PART" || {
+            echo "Couldn't unmount ${PART}; skipping $DISK"
+            continue
+        }
+    fi
+
+    echo "Wiping out $PART"
+    CMD="dd if=/dev/zero of=$PART bs=512 count=2048"
+    echo "$CMD"
+    $CMD
+
+    echo "Wiping disk label" 
+    CMD="dd if=/dev/zero of=$DISK bs=512 count=1 seek=62"
+    echo "$CMD"
+    $CMD
+
+    echo "Wiping out partition table"
+    CMD="dd if=/dev/zero of=$DISK bs=512 count=1"
+    echo $CMD
+    $CMD
+
+    echo "Writing new partition table"
+    CMD="sfdisk -q -D -uM $DISK"
+    echo "echo  -e ',1024\n,' | $CMD"
+    echo -e ",1024\n," | $CMD
+done

@@ -1,0 +1,103 @@
+#
+# $Id: code-freeze-quality-report.tmpl 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+Code-freeze Quality Report
+
+Module: ________________
+
+Author: _________________
+
+Table of Contents
+
+1 Introduction
+2 Testing During Development
+3 Scope of Qualification
+4 Risks
+5 Code Reviews
+6 Test Software
+
+
+
+1 Introduction
+
+  The purpose of this document is to generate and 
+  capture information about product quality from it's 
+  source, the developers. This should be written as 
+  quickly as possible after code-freeze before 
+  redirecting effort to qualification, defect 
+  resolution, etc.
+
+2 Testing During Development
+
+  Summarize the set or style of tests that have been 
+  conducted during development. Include mention of 
+  which tests are automated or not. Reference unit-test 
+  plan documents if available.
+
+3 Scope of Qualification
+
+  Summarize the set of features to be qualified for
+  your component.  Prioritize which areas/layers 
+  should be qualified first, second, etc.
+
+4 Risks
+
+  Discuss areas of the software component that you 
+  consider particularly risky and why. Consider ...
+
+* areas of the design that are complex, bleeding-edge, 
+  not thoroughly reviewed, where uncertain assumptions 
+  have been made, etc.
+
+* areas of implementation which are complex, have 
+  received little or no unit-testing, where uncertain 
+  assumptions have been made, etc.
+
+  For each risky area, describe targetted testing which 
+  could be done to verify correctness.
+
+5 Code Reviews
+
+  Describe the level of code review (formal or 
+  informal) that has occurred for this module. Who else 
+  is familiar with this code base?
+
+6 Test Software
+
+  Discuss the type and design of test software needed
+  for your component.  Are there any test tricks or 
+  optimizations to target that could be used to more
+  effectively validate your software.

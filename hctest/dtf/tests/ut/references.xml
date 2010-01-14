@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="references">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF references unit test.</description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+        <createstorage id="TINPUT" path="${dtf.xml.path}"/>
+      
+        <loadproperties uri="storage://INPUT/ut.properties"/>
+        
+       	<import uri="storage://TINPUT/util.xml"/> 
+       	
+       	<lockcomponent id="DTFA1"/>
+    </local>
+    
+    <event name="general.event1" 
+           id="event_ref1">
+   		<attribute name="ref1.prop1" value="${index}"/> 
+   		<attribute name="ref1.prop2" value="${dtf.timestamp}"/> 
+    </event>
+
+	<event name="general.event2"
+	       id="event_ref2">
+   		<attribute name="ref2.prop1" value="${index}"/> 
+   		<attribute name="ref2.prop2" value="${dtf.timestamp}"/> 
+    </event>
+    
+	<event name="general.event3"
+	       id="event_ref3">
+   		<attribute name="ref3.prop1" value="${index}"/> 
+   		<attribute name="ref3.prop2" value="${dtf.timestamp}"/> 
+   		<echo>Remote echo on iteration ${index}</echo>
+    </event>
+    
+	<record type="txt"
+	        uri="storage://OUTPUT/references_test1.txt"
+	        append="false">
+        <for property="index" range="[1..10]">
+        	<event refid="event_ref1"/>
+        </for>
+    </record>
+    
+	<record type="txt"
+	        uri="storage://OUTPUT/references_test2.txt"
+	        append="false">
+        <for property="index" range="[1..10]">
+        	<event refid="event_ref2"/>
+        </for>
+    </record>
+    
+	<record type="txt"
+	        uri="storage://OUTPUT/remote_references_test.txt"
+	        append="false">
+        <for property="index" range="[1..10]">
+        	<component id="DTFA1">
+        		<event refid="event_ref3"/>
+        	</component>
+        </for>
+    </record>
+   
+    <call function="checkRecordCount">
+    	<property name="recorder.location" value="storage://OUTPUT/references_test1.txt"/>	
+    	<property name="recorder.type" value="txt"/>	
+    	<property name="event.name" value="general.event1"/>
+    	<property name="record.count" value="10"/>
+    </call>
+    
+	<call function="checkRecordCount">
+    	<property name="recorder.location" value="storage://OUTPUT/references_test2.txt"/>	
+    	<property name="recorder.type" value="txt"/>	
+    	<property name="event.name" value="general.event2"/>
+    	<property name="record.count" value="10"/>
+    </call>
+    
+	<call function="checkRecordCount">
+    	<property name="recorder.location" value="storage://OUTPUT/remote_references_test.txt"/>	
+    	<property name="recorder.type" value="txt"/>	
+    	<property name="event.name" value="general.event3"/>
+    	<property name="record.count" value="10"/>
+    </call>
+</script>

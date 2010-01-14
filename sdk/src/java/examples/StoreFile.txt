@@ -1,0 +1,35 @@
+
+NAME
+       StoreFile - store a file and associated metadata
+
+SYNOPSIS
+       java StoreFile <IP | HOST>  <FILE>  [OPTIONS]
+
+DESCRIPTION
+       Store a file and associated metadata record. If no -m options are
+       specified, a metadata record without user content is generated. 
+       The OID of the metadata record is printed to stdout.
+
+OPTIONS
+       -m <name>=<value>
+              Any number of --metadata options can be specified. Each -m 
+              option specifies a single (name,value) pair. <name> should be 
+              specified in the format <namespace>.<attribute>. Use double 
+              quotes if <value> is a string containing spaces.
+
+       -h
+              print this message
+
+EXAMPLES
+       java StoreFile 10.152.0.12 myFile
+       java StoreFile server myFile.jpg -m filesystem.mimetype=image/jpeg
+       java StoreFile server myFile -m system.test.type_char="do re mi"
+       java StoreFile server myFile -m system.test.type_string="fa so la"
+       java StoreFile server myFile -m system.test.type_long=123
+       java StoreFile server myFile -m system.test.type_double=1.23
+       java StoreFile server myFile -m system.test.type_binary=0789abcdef
+       java StoreFile server myFile -m system.test.type_date=2010-10-20
+       java StoreFile server myFile -m system.test.type_time=23:30:29
+       java StoreFile server myFile \
+                    -m system.test.type_timestamp="2010-10-20 23:30:29.999"
+       java StoreFile server myFile -m name1=value1 -m name2="value 2"

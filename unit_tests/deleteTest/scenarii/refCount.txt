@@ -1,0 +1,70 @@
+/*
+ * Copyright © 2008, Sun Microsystems, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+
+import com.sun.honeycomb.delete.Constants;
+
+ECHO("Test basic refcount functionality with delete");
+
+ECHO("--> Store");
+STORE(1);
+DEREF(1, 0);
+REFCNTCHECK(0, Constants.ALL_FRAGS, 1, 1);
+ECHO("--> Retrieve");
+RETRIEVE(1, true);
+RETRIEVE(0, true);
+
+ECHO("--> Add MD");
+ADDM(1, 2);
+REFCNTCHECK(0, Constants.ALL_FRAGS, 2, 2);
+
+ECHO("--> Delete orig MD");
+DELETE(1, true);
+REFCNTCHECK(0, Constants.ALL_FRAGS, 1, 2);
+ECHO("--> Retrieve by second MD");
+RETRIEVE(2, true);
+RETRIEVE(0, true);
+
+ECHO("--> Delete second MD");
+DELETE(2, true);
+ECHO("--> Check ref cnt...expect 0");
+REFCNTCHECK(0, Constants.ALL_FRAGS, 0, 2);
+ECHO("--> Check frags are all deleted");
+FRAGISDELETED(0, Constants.ALL_FRAGS, true);
+FRAGISDELETED(1, Constants.ALL_FRAGS, true);
+FRAGISDELETED(2, Constants.ALL_FRAGS, true);
+
+ECHO("--> Retrieve from first MD, second MD, data OID (should fail)");
+RETRIEVE(0, false);
+RETRIEVE(1, false);
+RETRIEVE(2, false);
+

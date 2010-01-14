@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="stats_perf">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF stats unit test.</description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+        
+        <property name="iterations" value="1000"/>
+        <property name="clients" value="1"/>
+        
+        <property name="runid" value="${dtf.timestamp}"/>
+    </local>
+
+	<function name="recorderTest1">
+		<param name="recorder.type" type="required"/>
+		<param name="recorder.filename" type="required"/>
+		
+    	<record type="${recorder.type}" 
+                uri="storage://OUTPUT/${recorder.filename}">
+            <parallelloop property="client" range="1..${clients}">
+                <for property="index" range="1..${iterations}">
+                    <event name="dtf.event">
+                        <attribute name="iteration" value="${index}"/>
+                        <attribute name="client" 	value="${client}"/>
+                        <attribute name="runid" 	value="${runid}"/>
+                    </event>
+                </for>
+           </parallelloop>
+        </record>
+     
+        <query uri="storage://OUTPUT/${recorder.filename}" 
+               type="${recorder.type}" 
+               event="dtf.event"
+               cursor="cursor1">
+           <where>
+           		<eq op1="runid" op2="${runid}"/>
+           </where>
+        </query>
+               
+        <record type="object" uri="property://txtrecorder"> 
+        	<stats cursor="cursor1" event="stats"/>
+        </record>
+        
+        <local>
+       		<echo>
+                  ${recorder.type} Performance Stats 
+                  -----------------
+                  Events per second: ${txtrecorder.avg_occ}
+                  Total of Events:   ${txtrecorder.tot_occ}
+                  Total Duration:    ${txtrecorder.tot_dur}s
+            </echo> 
+        </local>
+    </function>
+   
+    <!-- 
+        This function records the runid at the recorder level instead of the
+      	event level. 
+     --> 
+    <function name="recorderTest2">
+		<param name="recorder.type" type="required"/>
+		<param name="recorder.filename" type="required"/>
+		
+    	<record type="${recorder.type}" 
+                uri="storage://OUTPUT/${recorder.filename}">
+            <attribute name="runid" value="${runid}"/>
+            <parallelloop property="client" range="1..${clients}">
+                <for property="index" range="1..${iterations}">
+                    <event name="dtf.event">
+                        <attribute name="iteration" value="${index}"/>
+                        <attribute name="client" 	value="${client}"/>
+                    </event>
+                </for>
+           </parallelloop>
+        </record>
+     
+        <query uri="storage://OUTPUT/${recorder.filename}" 
+               type="${recorder.type}" 
+               event="dtf.event"
+               cursor="cursor1">
+           <where>
+           		<eq op1="runid" op2="${runid}"/>
+           </where>
+        </query>
+               
+        <record type="object" uri="property://txtrecorder"> 
+        	<stats cursor="cursor1" event="stats"/>
+        </record>
+        
+        <local>
+       		<echo>
+                  ${recorder.type} Performance Stats 
+                  -----------------
+                  Events per second: ${txtrecorder.avg_occ}
+                  Total of Events:   ${txtrecorder.tot_occ}
+                  Total Duration:    ${txtrecorder.tot_dur}s
+            </echo> 
+        </local>
+    </function>
+    
+    <call function="recorderTest1">
+   		<property name="recorder.type" value="txt"/> 
+   		<property name="recorder.filename" value="recorder_stats.txt"/> 
+    </call>
+
+    <call function="recorderTest1">
+   		<property name="recorder.type" value="database"/> 
+   		<property name="recorder.filename" value="recorder_stats.db"/> 
+    </call>
+
+    <call function="recorderTest2">
+   		<property name="recorder.type" value="txt"/> 
+   		<property name="recorder.filename" value="recorder_stats2.txt"/> 
+    </call>
+
+    <call function="recorderTest2">
+   		<property name="recorder.type" value="database"/> 
+   		<property name="recorder.filename" value="recorder_stats2.db"/> 
+    </call>
+    
+</script>

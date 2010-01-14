@@ -1,0 +1,85 @@
+/*
+ * Copyright © 2008, Sun Microsystems, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+
+import com.sun.honeycomb.delete.Constants;
+import com.sun.honeycomb.oa.OAClient;
+import com.sun.honeycomb.oa.FragmentFaultEvent;
+import com.sun.honeycomb.oa.FragmentFault;
+import com.sun.honeycomb.oa.daal.nfs.FaultyNfsDAAL;
+
+new bsh.Interpreter().source(System.getProperty("deletefmk.script.dir") +
+                             File.separatorChar + "utils" + File.separatorChar +
+                             "faultUtils.java", this.namespace);
+
+ECHO("Tests read failures--reproduce known corruption issue");
+ECHO("This version does NOT use RS for one missing frag like the bug");
+ECHO("Bug 6381721: corruption observed on retrieve when there is an unexpected exception during OA read");
+
+OAClient oac = OAClient.getInstance();
+
+// we want to be able to fail within a chunk read, so make chunk
+// big enough
+chunksize = Constants.MAX_CHUNK_SIZE = oac.blockSize*10;
+oac.setMaxChunkSize(Constants.MAX_CHUNK_SIZE);
+storesize = chunksize - 1;
+
+ECHO(oac.blockSize + " " + chunksize + " " + storesize);
+
+frag = 1;
+offset = 289828;  // this is a random number that causes the problem
+
+ECHO("--> Add fault");
+Fault fault = addFragmentFault("read fault",
+                               FragmentFaultEvent.RETRIEVE,
+                               FaultyNfsDAAL.READ,
+                               FragmentFault.UNDECLARED_ERROR,
+                               frag,
+                               0,
+                               OAClient.OBJECT_TYPE_DATA,
+                               offset,
+                               10,
+                               Integer.MAX_VALUE);
+
+ECHO("--> Store object of size " + storesize);
+STORE(1, storesize, true);
+DEREF(1,0);
+
+//ECHO("--> Remove frag 4 of it...");
+//FRAGREMOVE(0, 4, 0);
+
+assertNotTriggered(fault);
+ECHO("--> Retrieve data obj w/ fault point for unexpected read fault on frag " + frag);
+RETRIEVE(0, true);
+assertTriggered(fault);
+
+ECHO("Success.");

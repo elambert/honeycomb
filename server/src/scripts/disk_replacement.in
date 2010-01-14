@@ -1,0 +1,314 @@
+#!/bin/sh
+#
+# $Id: disk_replacement.in 11918 2008-03-16 18:15:23Z ks202890 $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+#
+# Determine which disks are new "replacement" disks.
+# Such disks should be formatted and used.
+#
+# Valid replacement disks are disks which don't have a valid Honeycomb disk
+# label, but have an unrecognized serial number.
+# 
+
+# Target diskmap file
+DISKMAP=/config/diskmap
+
+# Common functions
+COMMON=/opt/honeycomb/bin/node_common.sh
+FORMAT=/opt/honeycomb/bin/format_common.sh
+GETDEVID=/opt/honeycomb/bin/getdevid.pl
+UPDATE_BOOTMENU=/opt/honeycomb/bin/update_bootmenu
+DISKLABEL=/opt/honeycomb/bin/disklabel.sh
+ONLINE_MIRRORS=/opt/honeycomb/bin/online_mirrors.pl
+OFFLINE_MIRRORS=/opt/honeycomb/bin/offline_mirrors.pl
+ONLINE_OFFLINE=/opt/honeycomb/bin/handle_online_offline.pl
+
+# String we use as a serial number to indicate a missing disk
+MISSING_DISK="MISSINGDISK"
+
+# Define disks in cX[tY]dZ format
+# WARNING!!! This sequence is also in DiskLabel -- if this sequence
+# changes, fix that too.
+disk0=c0t0d0
+disk1=c0t1d0
+disk2=c1t0d0
+disk3=c1t1d0
+
+# Output messages to stdout and the log
+log() {
+    logger -t disk_replacement -p local0.info "$*"
+}
+
+# Usage message
+usage() {
+  echo
+  echo "Usage: disk_replacement [-w] [-r <root path>] [-j ramdisk root ]"
+  echo
+  echo "       disk_replacement"
+  echo "       disk_replacement -w -r /a -j /a/honeycomb-ramdisk"
+  echo
+  echo "       Use without arguments to add new disks to the node."
+  echo "       During Jumpstart installation, use the -w, -r, -j"
+  echo "       flags to indicate alternate paths for the diskmap"
+  echo "       file and common library file.  Do not run without"
+  echo "       -w during Jumpstart. Use -w alone to rewrite a "
+  echo "       corrupted or missing diskmap file on a running"
+  echo "       node without formatting any disks."
+  echo
+}
+
+# Get the live serial number for the specified disk
+# If the disk is not present, return a fake "disk missing" serial number.
+getserial() {
+    ldisk=
+
+    ldisk="/dev/dsk/${1}p0"
+    # Is the disk there?
+    `/usr/bin/dd if=$ldisk of=/dev/null bs=1b count=1 2>/dev/null >/dev/null`
+    if [ $? -ne 0 ] ; then
+       echo $MISSING_DISK
+       return
+    fi
+    echo `$GETDEVID -d $ldisk | perl -n -e 's/_/ /g; split; print "$_[$#_]\n";'`
+}
+
+# Get the serial nunber from the diskmap file for the specified disk
+getdiskmap() {
+    dmserial=`grep $1 $DISKMAP | cut -f2 -d' '`
+    echo $dmserial
+}
+
+DEVICE_SERIAL=
+# Write the diskmap file for all disks on the system
+writediskmap() {
+    sndisk=
+    rm -f $DISKMAP
+    for sndisk in $disk0 $disk1 $disk2 $disk3; do
+	# Don't put missing disk psuedo device serial numbers in the map!
+	if [ `getserial $sndisk`xx != ${MISSING_DISK}xx ] ; then
+	   echo "$sndisk `getserial $sndisk`" >> $DISKMAP
+           log "writediskmap: wrote serial `getserial $sndisk` for $sndisk" 
+	fi
+    done
+}
+
+# Returns "true" if the disk has a valid honeycomb label, "false" otherwise.
+has_hc_label() {
+    disklabeldev="/dev/rdsk/${disk}p0"
+
+    # disklabel output looks like this:
+    #
+    #    0,0,101,0;1 /dev/rdsk/c0d0p0
+    #    - /dev/rdsk/c1d0p0
+    #    0,0,101,2;1 /dev/rdsk/c2d0p0
+    #    0,0,101,3;1 /dev/rdsk/c3d0p0
+    # the leading dash indicates no label
+
+    has_no_label=`$DISKLABEL $disklabeldev 2>/dev/null |egrep "^- /"`
+
+    if [ $? -eq 0 ] ; then
+	echo "false"
+    else
+	echo "true"
+    fi
+}
+
+
+# Compare the recorded and live serial numbers for the given disk
+comparedisks() {
+    disk=$1
+    new=$2
+    old=$3
+    serial=`getserial $disk`
+
+    log "comparedisks disk $disk new $new old $old"
+
+    if [ "$serial" = $MISSING_DISK ] ; then
+	log "REPLACEMENT DETECTION: disk $disk is not present"
+    elif [ "$new" != "$old" ]; then
+	log "REPLACEMENT DETECTION: disk $disk serial $new does not match existing serial $old"
+
+	SAW_NEW_DISK="yes"
+
+	# We only want to subject the disk to full replacement processing
+	# if it does not have a valid honeycomb label
+
+        if [ `has_hc_label $disk` = "false" ] ; then
+	    log "REPLACEMENT DETECTION: disk $disk serial $serial is a blank disk"
+            newdisk $disk
+        else
+            log "REPLACEMENT DETECTION: disk $disk serial $serial has a label, not reformatting"
+	fi
+    else
+	log "No disk replacement to do: Disk $disk serial $new unchanged"
+    fi
+}
+
+# is the disk in use?
+# input disk name in the form cXtXdX; return 0 if in use
+disk_in_use() {
+    disk=$1
+
+    # mounted?
+    mount | egrep dsk/$disk 2>&1 >/dev/null
+    if [ $? -eq 0 ]; then
+	return 0
+    fi
+
+    # dump device?
+    # Look for the device.  If we were dumping to a file, the
+    # file system would be mounted, which would be caught
+    # by the previous check.
+    dumpadm | egrep $disk 2>&1 >/dev/null
+    if [ $? -eq 0 ]; then
+	return 0
+    fi
+
+    return 1
+}
+
+# Main
+
+log "disk_replacement args: $*"
+
+# some shells are picky about testing uninitialized vars
+
+WRITEDISKMAP=
+SAW_NEW_DISK=
+RDISKROOT=
+INSTALLROOT=
+UPDATED_CONFIG=
+
+# Get the options
+set -- `getopt j:r:w $*`
+if [ $? != 0 ]
+then
+  usage
+  do_exit 3
+fi
+    
+for i in $*
+do
+    case $i in
+	-w) WRITEDISKMAP=1; shift;;
+	-j) RDISKROOT=$2; shift 2;;
+	-r) INSTALLROOT=$2; shift 2;;
+	--) shift; break;;
+    esac
+done
+
+# Set paths and includes based on the ramdisk root path
+if [ -n "$RDISKROOT" ]; then
+    . $RDISKROOT$COMMON
+    . $RDISKROOT$FORMAT
+    GETDEVID=$RDISKROOT$GETDEVID
+    DISKLABEL=$RDISKROOT$DISKLABEL
+    UPDATE_BOOTMENU=$RDISKROOT$UPDATE_BOOTMENU
+else
+    . $COMMON
+    . $FORMAT
+fi
+
+# Set the new diskmap file with the install root path
+if [ -n "$INSTALLROOT" ]; then
+    DISKMAP=$INSTALLROOT$DISKMAP
+fi
+
+# Write the diskmap file and exit if -w was specified
+if [ -n "$WRITEDISKMAP" ]; then
+    log "Creating $DISKMAP..."
+    writediskmap
+    do_exit 0
+fi
+
+# Complain if /config/diskmap doesn't exist. This means it may have been
+# corrupted or removed by accident.  A missing diskmap file won't
+# lead to data loss, because we don't reformat disks that have valid
+# HC labels.
+# in this case.
+if [ ! -f $DISKMAP ]; then
+    log "Error: cannot find $DISKMAP"
+fi
+
+# Required for determining expected disk size and 
+# for formatting and partitioning drives
+init_disk_format_info
+
+# Determine the expected disk size
+expected_disk_size
+if [ $? -ne 0 ]; then
+    log "Error: can't determine the expected disk size"
+    do_exit 8
+fi
+
+# Get recorded serial numbers
+map0=`getdiskmap $disk0`
+map1=`getdiskmap $disk1`
+map2=`getdiskmap $disk2`
+map3=`getdiskmap $disk3`
+
+# Get live serial numbers
+serial0=`getserial $disk0`
+serial1=`getserial $disk1`
+serial2=`getserial $disk2`
+serial3=`getserial $disk3`
+
+# Compare serial numbers
+comparedisks $disk0 $serial0 $map0
+comparedisks $disk1 $serial1 $map1
+comparedisks $disk2 $serial2 $map2
+comparedisks $disk3 $serial3 $map3
+
+# Update the config if we modified anything
+if [ -n "$UPDATED_CONFIG" ]; then
+
+    # sync the bootslices
+    log "Syncing bootslices..."
+    sync_bootslices
+
+    # Update the grub boot configs
+    log "Updating boot menus"
+    update_bootmenus
+fi
+
+if [ -n "$SAW_NEW_DISK" ]; then
+    # Write out the new diskmap
+    log "Creating $DISKMAP..."
+    writediskmap
+fi
+
+log "done"
+
+do_exit 0

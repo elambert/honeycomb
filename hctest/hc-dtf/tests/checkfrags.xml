@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="checkfrags">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>Checkfrags tool.</description>
+    </info>
+
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input" />
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+        <createstorage id="FRAGOUTPUT" path="${dtf.xml.path}/output/frags-${dtf.timestamp}" />
+        <createstorage id="TINPUT" path="${dtf.xml.path}" />
+
+        <loadproperties uri="storage://INPUT/hc.properties" />
+    </local>
+
+    <local>
+        <lockcomponent id="CLUSTER" timeout="${hc.lockcomponent.timeout}">
+            <attrib name="hc.cluster.type" value="${hc.cluster.type}" />
+        </lockcomponent>
+    </local>
+
+    <component id="CLUSTER">
+        <checkfrags/>
+    </component>
+    
+</script>

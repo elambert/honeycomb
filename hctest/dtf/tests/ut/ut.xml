@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="ut">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>
+        Test suite that groups the other unit tests for the DTF framework. 
+        </description>
+    </info>
+
+    <local>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+        <createstorage id="INPUT" path="${dtf.xml.path}"/>
+    </local>
+ 
+	<local>    
+       <echo>*** Executing DTF Unit Tests ***</echo>
+    </local>
+
+	<result uri="storage://OUTPUT/ut_results.xml"
+	        type="xml">
+    	<testsuite name="unittests" >
+            <!-- Storage Tests -->
+            <testscript uri="storage://INPUT/storage.xml"/>
+               
+            <!-- Basic Tests --> 
+            <testscript uri="storage://INPUT/echo.xml"/>
+            <testscript uri="storage://INPUT/sleep.xml"/>
+            <testscript uri="storage://INPUT/loadproperties.xml"/>
+            <testscript uri="storage://INPUT/property_resolution.xml"/>
+            <testscript uri="storage://INPUT/cat.xml"/>
+            <testscript uri="storage://INPUT/log.xml"/>
+               
+            <!-- Flow Control Tests --> 
+            <!-- Loops -->
+            <testscript uri="storage://INPUT/for.xml"/>
+            <testscript uri="storage://INPUT/parallel.xml"/>
+            <testscript uri="storage://INPUT/parallelloop.xml"/>
+            <testscript uri="storage://INPUT/sequence.xml"/>
+            <testscript uri="storage://INPUT/timer.xml"/>
+           
+            <!-- Failure Handling --> 
+            <testscript uri="storage://INPUT/try_catch_fail.xml"/>
+            <testscript uri="storage://INPUT/fail.xml"/>
+
+			<!-- Advanced Flow Control -->
+            <testscript uri="storage://INPUT/distribute.xml"/>
+			
+			<!-- Conditional Tests -->
+            <testscript uri="storage://INPUT/if.xml"/>
+            
+            <!-- Range Generation Tests -->
+            <testscript uri="storage://INPUT/range.xml"/>
+            
+            <!-- Function Tests -->
+            <testscript uri="storage://INPUT/functions.xml"/>
+            <testscript uri="storage://INPUT/import.xml"/>
+            
+            <!-- References Tests -->
+            <testscript uri="storage://INPUT/references.xml"/>
+            
+            <!-- Remote Tests -->
+            <testscript uri="storage://INPUT/component.xml"/>
+                
+            <!-- Event Tests -->
+            <testscript uri="storage://INPUT/recorder.xml"/>
+            <testscript uri="storage://INPUT/query.xml"/>
+            <testscript uri="storage://INPUT/event.xml"/>
+            <testscript uri="storage://INPUT/concurrentdb.xml"/>
+            
+            <!-- Testsuite and Testscript Tests -->
+            <testscript uri="storage://INPUT/testsuite.xml"/>
+            
+            <!-- Stats Calculation Tests -->
+            <testscript uri="storage://INPUT/stats.xml"/>
+            
+            <!-- File tags are used to move files between components -->
+            <testscript uri="storage://INPUT/file.xml"/>
+            
+            <!-- Graph tags -->
+            <!-- @todo can only run these tests once I've figured out to 
+                      disable X11 access from the JFreeChart classes  -->
+            <!--  <testscript uri="storage://INPUT/graph.xml"/> --> 
+      	</testsuite>
+	</result>
+</script>

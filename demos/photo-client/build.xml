@@ -1,0 +1,160 @@
+<!--
+ $Id: build.xml 11627 2007-10-31 01:31:41Z ds158322 $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for honeycomb server component.
+--> 
+
+<project name="photo-client" default="dist">
+
+  <property name="buildir" value="${demos.build.basedir}/photo-client/classes"/>
+  <property name="buildsrc" value="${demos.build.basedir}/photo-client/src"/>
+  <property name="dist.dir" value="${demos.dist.basedir}/photo-client"/>
+  <property name="jarfile" value="${dist.dir}/hc_jdai.jar"/>
+  <property name="jarfile.cmdline" value="${dist.dir}/hc_jdai.cmdline.jar"/>
+  <property name="dist.extra" value="${dist.dir}/extra"/>
+
+  <property name="libdir" value="${basedir}/extra"/>
+  <property name="JFAIcons.jar" value="${libdir}/JFAIcons.jar"/>
+  <property name="dom4j.jar" value="${libdir}/dom4j.jar"/>
+  <property name="jlfgr-1_0.jar" value="${libdir}/jlfgr-1_0.jar"/>
+  <property name="kunststoff.jar" value="${libdir}/kunststoff.jar"/>
+  <property name="piccolo.jar" value="${libdir}/piccolo.jar"/>
+  <property name="piccolox.jar" value="${libdir}/piccolox.jar"/>
+  <property name="metadata-extractor.jar" value="${libdir}/metadata-extractor-2.2.1.jar"/>
+
+  <property name="honeycomb-client.jar" value="${dist.extra}/honeycomb-client.jar"/>
+
+  <path id="classpath">
+    <pathelement location="${JFAIcons.jar}"/>
+    <pathelement location="${dom4j.jar}"/>
+    <pathelement location="${jlfgr-1_0.jar}"/>
+    <pathelement location="${kunststoff.jar}"/>
+    <pathelement location="${piccolo.jar}"/>
+    <pathelement location="${piccolox.jar}"/>
+    <pathelement location="${metadata-extractor.jar}"/>
+    <pathelement location="${honeycomb-client.jar}"/>
+  </path>
+
+  <target name="prepare">
+    <tstamp/>
+    <mkdir dir="${buildir}"/>
+    <mkdir dir="${dist.dir}"/>
+    <mkdir dir="${dist.extra}"/>
+    <copy file="${client.dist.libdir}/${jarname.client}"
+      todir="${dist.extra}"/>
+  </target>
+
+  <target name="clean">
+    <delete dir="${buildir}"/>
+    <delete dir="${dist.dir}"/>
+  </target>
+
+  <target name="parser.check" if="parser.prefix">
+    <uptodate property="parser.notrequired"
+      srcfile="${parser.directory}/${parser.prefix}.jj"
+      targetfile="${parser.directory}/${parser.prefix}.java"/>
+  </target>
+
+  <target name="parser.compile"
+    depends="parser.check"
+    unless="parser.notrequired">
+    <mkdir dir="${buildsrc}/${parser.directory}"/>
+    <java
+      classname="javacc"
+      classpath="${basedir}/javacc.jar"
+      fork="yes"
+      failonerror="yes">
+      <arg value="-OUTPUT_DIRECTORY=${buildsrc}/${parser.directory}"/>
+      <arg value="${parser.directory}/${parser.prefix}.jj"/>
+    </java>
+  </target>
+
+  <target name="compile" depends="prepare">
+    <antcall target="parser.compile">
+      <param name="parser.directory"
+        value="src/com/sun/honeycomb/fs"/>
+      <param name="parser.prefix"
+        value="SchemaParser"/>
+    </antcall>
+    <javac classpathref="classpath"
+      destdir="${buildir}"
+      source="1.4"
+      debug="true">
+      <src path="${basedir}/src"/>
+      <src path="${buildsrc}"/>
+      <compilerarg line="-encoding utf-8 -nowarn"/>
+    </javac>
+    <copy file="${basedir}/src/splash-screen.jpg"
+          todir="${buildir}"/>
+    <copy file="${basedir}/src/about.jpg"
+          todir="${buildir}"/>
+  </target>
+
+  <target name="jar" depends="compile">
+    <jar jarfile="${jarfile}"
+         manifest="MANIFEST.MF"
+         compress="false">
+      <fileset dir="${buildir}"/>
+    </jar>
+    <jar jarfile="${jarfile.cmdline}"
+         manifest="MANIFEST.MF.cmdline"
+         compress="false">
+      <fileset dir="${buildir}"
+        includes="dk/jdai/cmdline/*,
+                  com/sun/honeycomb/exif/*,
+                  com/sun/honeycomb/oa/*,
+                  com/sun/honeycomb/adapter/*"/>
+    </jar>
+  </target>
+  
+  <target name="pkg"
+    depends="dist"
+    description="build the solaris package">
+    <exec executable="${pkgmk.bin}" failonerror="yes">
+      <!-- arg value="" does not work here for some reason -->
+      <arg line="-o -d ${demos.dist.pkgdir} -f ${basedir}/pkgdef/prototype -r ${demos.dist.basedir}/photo-client"/>
+    </exec>
+    
+    <exec executable="${pkgtrans.bin}" failonerror="yes">
+      <arg line="-s ${demos.dist.pkgdir} SUNWhcphotoclient.pkg SUNWhcphotoclient"/>
+    </exec>
+  </target>
+
+  <target name="dist" depends="jar">
+    <copy todir="${dist.extra}">
+      <fileset dir="${libdir}"/>
+    </copy>
+  </target>
+
+</project>

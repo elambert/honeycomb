@@ -1,0 +1,56 @@
+<!--
+    $Id: build.xml 11349 2007-08-13 21:49:33Z ks202890 $
+    
+    Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+    Use is subject to license terms.
+    
+    ant buildfile for extractor
+  --> 
+
+<project name="extractor" default="extractor">
+  <description>
+    Honeycomb Extractor
+  </description>
+
+  <!-- first, local, user specified .ant.properties files take precedence -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <!-- lastly, use the top-level builds properties file -->
+  <property file="../build/build.properties"/>
+
+  <!-- reference environment variables as env.X -->
+  <!-- ie. ${env.USER} -->
+  <property environment="env"/>
+
+  <target name="prepare">
+    <mkdir dir="${extractor.dist.basedir}"/>
+    <copy todir="${extractor.dist.basedir}">
+      <fileset dir="${extractor.srcdir}">
+        <exclude name="pkgdefs"/>
+      </fileset>
+    </copy>
+  </target>
+
+  <target name="clean">
+    <delete dir="${extractor.build.basedir}"/>
+  </target>
+
+  <!-- PKG **************************************************************** -->
+  <target name="pkg"
+          depends="prepare" 
+          description="build the solaris package">
+      <exec executable="${pkgmk.bin}" failonerror="yes">
+        <!-- arg value="" does not work here for some reason -->
+        <arg line="-o -d ${extractor.build.basedir} -f ${extractor.pkgdefs}/prototype -r ${extractor.dist.basedir}"/>
+      </exec>
+
+      <exec executable="${pkgtrans.bin}" failonerror="yes">
+        <arg line="-s ${extractor.build.pkgdir} ${sun.pkgname.extractor}.pkg ${sun.pkgname.extractor}"/>
+      </exec>
+  </target>
+
+  <!-- ************************************************************** -->
+  <target name="build_pkg" depends="pkg"
+    description="compile sources and create the solaris package" />
+
+</project>

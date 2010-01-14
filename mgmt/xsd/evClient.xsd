@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+    $Id: evClient.xsd 10846 2007-05-19 02:34:13Z bberndt $
+
+    Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+    Use is subject to license terms.
+-->
+
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns:jaxb="http://java.sun.com/xml/ns/jaxb"
+  xmlns:xjc="http://java.sun.com/xml/ns/jaxb/xjc"
+  xmlns:hc="http://www.sun.com/honeycomb"
+  jaxb:extensionBindingPrefixes="xjc hc"
+  jaxb:version="2.0">
+
+  <xs:annotation>
+     <xs:appinfo>
+        <jaxb:globalBindings>
+          <xjc:superClass name="com.sun.honeycomb.mgmt.client.ClientData"/>
+        </jaxb:globalBindings>
+     </xs:appinfo>
+  </xs:annotation>
+
+  <xs:complexType name="HCMGMTEvent">
+    <xs:sequence>
+      <xs:element name="sequence"
+        type="xs:integer"/>
+      <xs:element name="cookie"
+        type="xs:integer"/>
+      <xs:element name="message"
+        type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="JAXBHCMGMTEvent" type="HCMGMTEvent"/>
+</xs:schema>

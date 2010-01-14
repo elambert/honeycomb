@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 
+  $Id: metadata_config_stanford.xml 10855 2007-05-19 02:54:08Z bberndt $
+
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+-->
+
+<!-- DO NOT EDIT-->
+
+<metadataConfig>
+<schema>
+  <namespace name="sdr" writable="true" extensible="true">
+    <field name="uuid" type="string" length="64" queryable="true" />
+    <field name="DOuuid" type="string" length="64" queryable="true" />
+    <field name="isMetadata" type="long" queryable="true" />
+    <field name="isSDRFile" type="long" queryable="true" />
+    <field name="user" type="string" length="32" queryable="true" />
+    <field name="version" type="string" length="8" queryable="true" />
+  </namespace>
+</schema>
+
+<fsViews>
+</fsViews>
+
+<tables>
+  <table name="sdr" >
+    <column name="sdr.uuid"/>
+    <column name="sdr.DOuuid"/>
+    <column name="sdr.isMetadata"/>
+    <column name="sdr.isSDRFile"/>
+    <column name="sdr.version"/>
+  </table>
+</tables>
+</metadataConfig> 

@@ -1,0 +1,171 @@
+<!--
+ $Id: build.xml 10856 2007-05-19 02:58:52Z bberndt $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for generic test component.
+--> 
+<project name="test" default="test_jar">
+  <description>
+    Generic test framework. Building this project results in a 
+    Solaris package named SUNWhctest-base.pkg
+  </description>
+
+  <!-- first, local, user specified .ant.properties files take precedence -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <!-- second, use the build.properties for this package -->
+  <property file="build.properties"/>
+
+  <!-- lastly, use the top-level builds properties file -->
+  <property file="../build/build.properties"/>
+
+  <!-- INIT ******************************************************** -->
+  <target name="test_init">
+
+    <path id="classpath">
+      <pathelement location="${test.dist.libdir}/jug.jar"/>
+      <pathelement location="${test.dist.libdir}/junit-3.8.1.jar"/>
+      <pathelement location="${test.dist.libdir}/getopt.jar"/>
+    </path>
+
+  </target>
+
+  <!-- PREPARE ************************************************************ -->
+  <target name="test_prepare" depends="test_init">
+    <condition property="compliantOS">
+      <os name="SunOS"/>
+    </condition>
+
+    <mkdir dir="${test.build.basedir}"/>
+    <mkdir dir="${test.build.classdir}"/>
+    <mkdir dir="${test.build.pkgdir}"/>
+    <mkdir dir="${test.dist.basedir}"/>
+    <mkdir dir="${test.dist.bindir}"/>
+    <mkdir dir="${test.dist.libdir}"/>
+    <mkdir dir="${test.dist.docdir}"/>
+    <mkdir dir="${test.dist.etcdir}"/>
+
+    <copy file="${test.basedir}/lib/jug.jar" todir="${test.dist.libdir}"/>
+    <copy file="${test.basedir}/lib/junit-3.8.1.jar" todir="${test.dist.libdir}"/>
+    <copy file="${test.basedir}/lib/getopt.jar" todir="${test.dist.libdir}"/>
+  </target>
+
+  <!-- COMPILE_JAVA ******************************************************* -->
+  <target name="test_compile_java" depends="test_prepare">
+
+    <depend
+           srcdir="${test.java.srcdir}"
+           destdir="${test.build.classdir}"
+           cache="${test.build.classdir}"
+           closure="yes">
+        <include name="**/*.java"/>
+    </depend>
+
+    <javac classpathref="classpath"
+           srcdir="${test.java.srcdir}"
+           destdir="${test.build.classdir}"
+           debug="${javac.debug}"
+           deprecation="${javac.deprecation}"
+           source="1.4"
+           optimize="${javac.optimize}"/>
+
+  </target>
+
+  <!-- JAR **************************************************************** -->
+  <target name="test_jar" depends="test_compile_java">
+    <jar jarfile="${test.dist.libdir}/${jarname.test}">
+      <fileset dir="${test.build.classdir}"/>
+    </jar>
+  </target>
+
+  <!-- JAVADOC ********************************************************** -->
+  <target name="test_javadoc" depends="test_jar">
+    <javadoc
+            destdir="${test.dist.docdir}"
+            classpathref="classpath" >
+      <packageset dir="${test.java.srcdir}" defaultexcludes="yes">
+        <include name="com/sun/honeycomb/test/**" />
+      </packageset>
+      <doctitle><![CDATA[<h1>Test</h1>]]></doctitle>
+    </javadoc>
+  </target>
+
+  <!-- SCRIPTS ********************************************************** -->
+  <target name="test_scripts" depends="test_prepare">
+    <exec executable="cp" >
+      <arg file="${test.scripts.srcdir}/runtest" />
+      <arg path="${test.dist.bindir}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${test.scripts.srcdir}/runtestquiet" />
+      <arg path="${test.dist.bindir}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${test.scripts.srcdir}/testtest" />
+      <arg path="${test.dist.bindir}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${test.srcdir}/db/qb/qb_cli.sh" />
+      <arg path="${test.dist.bindir}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${test.srcdir}/db/qb/qb_batch_submit.sh" />
+      <arg path="${test.dist.bindir}"/>
+    </exec>
+    <!-- runtest script will set permissions on ssh-private-key file -->
+    <copy file="${test.basedir}/etc/cluster_id_dsa"
+          todir="${test.dist.etcdir}"/>
+  </target>
+
+  <!-- TEST ********************************************************** -->
+  <target name="test"
+          depends="test_jar,test_scripts"
+          description="build generic test setup">
+  </target>
+
+  <!-- PKG **********************************************************
+    dummy target for now waiting for the real package code ... -->
+  <target name="pkg"
+	depends="test"/>
+
+  <!-- ************************************************************** -->
+  <target name="build_pkg" depends="pkg"
+    description="compile sources and create the solaris package" />
+
+  <!-- CLEAN ************************************************************** -->
+  <target name="clean" depends="test_init"
+          description="cleans workspace of all generated files">
+    <delete dir="${test.build.basedir}"/>
+  </target>
+
+</project>

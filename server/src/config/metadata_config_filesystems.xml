@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+ $Id: metadata_config_filesystems.xml 10855 2007-05-19 02:54:08Z bberndt $
+
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+-->
+
+<metadataConfig>
+  
+  <schema>
+    <field name="filesystemviewsarepresent" type="long" />
+  </schema>
+
+  <fsViews>
+    <fsView name="oidByGidUid" filename="${system.object_id}">
+      <attribute name="filesystem.gid" unset="unk" />
+      <attribute name="filesystem.uid" unset="unk" />
+    </fsView>
+    <fsView name="oidByGidUidWithTar" filename="${system.object_id}" fsattrs="true" zopen="tar,cpio">
+      <attribute name="filesystem.gid" unset="unk" />
+      <attribute name="filesystem.uid" unset="unk" />
+    </fsView>
+    <fsView name="oidByGidUidMimetype" filename="${system.object_id}" zopen="tar,cpio">
+      <attribute name="filesystem.gid" unset="unk" />
+      <attribute name="filesystem.uid" unset="unk" />
+      <attribute name="filesystem.mimetype" unset="unk" />
+    </fsView>
+  </fsViews>
+
+</metadataConfig>

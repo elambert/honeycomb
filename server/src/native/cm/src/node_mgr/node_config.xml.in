@@ -1,0 +1,178 @@
+<?xml version="1.0"?>
+
+<!-- This is the default node configuration for HoneyComb.
+
+$Id: node_config.xml.in 10855 2007-05-19 02:54:08Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+-->
+
+<!-- The list of accepted attributes is :
+    - type = [PROCESS | JVM | JAVA_SERVICE | PROBE]
+    - group = [SYSTEM | USER]. Default is USER
+      The SYSTEM group is reserved for cm components and are managed
+      differently
+    - location = [MASTER | ANY] determines is the service should be started
+      only on the MASTER node or on any node.
+      The default is ANY
+    - heartbeat is the heartbeat timeout (in s.)
+
+    - start_cmd gives an hint on how to start a service (command line
+      for PROCESS type, routine for PROBE, class for JAVA_SERVICE, ...
+    _ env specifies the environment (for PROCESS and JVM only), It has
+      the format var1=val1;var2=val2
+    - arg specifies the argument string which will be passed back as an
+      argument to getInstance (for JAVA_SERVICE services only)
+
+    - restart_nb specifies the number of restarts within the
+      restart_window time
+    - restart_window (see restart_nb). It is in s.
+
+    - mailbox_tag is the tag for the mailbox library
+    - mailbox_size is the size of the mailbox (in bytes)
+
+    Note: for the actual cluster, change the start_cmd command of the 
+    PROBE to "probe_disk".
+    The command "fake_disk" simulates local disks. 
+    The "arg" parameter specifies the number of disks and the size
+    of one disk in MB (.i.e 8x100 = 8 disks of 100MB).
+-->
+
+<node>
+    <service
+        type="PROCESS"
+        group="SYSTEM"
+        start_cmd="@prefix/sbin/hcmboxd"
+        heartbeat="20"
+        mailbox_tag="Mboxd"
+        mailbox_size="1"/>
+
+    <!--<service
+        type="PROCESS"
+        location="MASTER"
+        group="SYSTEM"
+        start_cmd="@prefix/bin/ifconfig_service 129.144.83.117 129.0.0.0/8 255.255.255.0 129.144.83.2"
+        heartbeat="20"
+        mailbox_tag="ifconfig"
+        mailbox_size="1"/>-->
+
+    <service
+        type="PROCESS"
+        group="SYSTEM"
+        start_cmd="/opt/honeycomb/sbin/hcstat"
+        heartbeat="20"
+        mailbox_tag="NodeStats"
+        mailbox_size="512"/>
+
+    <service
+        type="JVM"
+        group="SYSTEM"
+        location="MASTER"
+        heartbeat="20"
+        start_cmd="@JAVA -server -Xms64m -Xmx64m -Dhc.mailbox=$HC_MAILBOX -Djava.library.path=@prefix/lib -Djava.util.logging.config.file=@prefix/share/hccm/hc_logging.properties com.sun.honeycomb.cm.CMMain"
+        env="CLASSPATH=@prefix/lib/honeycomb.jar:@prefix/lib/jetty-4.2.20.jar:@prefix/lib/servlet-4.2.19.jar:@prefix/lib/db-4.1.25.jar:@prefix/lib/mysql-connector-java-3.0.9-stable-bin.jar"
+        mailbox_tag="MngtServerJVM"
+        mailbox_size="1">
+
+        <service
+            type="JAVA_SERVICE"
+            group="SYSTEM"
+            location="MASTER"
+            heartbeat="20"
+            start_cmd="com.sun.honeycomb.cm.CellManagerServer"
+            arg="8090"
+            mailbox_tag="MngtServer"
+            mailbox_size="40"/>
+
+    </service>
+
+    <!-- TEMPORARY the Cell configuration is read-only -->
+    <service
+        type="JVM"
+        heartbeat="20"
+        group="SYSTEM"
+        start_cmd="@JAVA -server -Xms16m -Xmx16m -Dhc.mailbox=$HC_MAILBOX -Djava.library.path=@prefix/lib -Djava.util.logging.config.file=@prefix/share/hccm/hc_logging.properties com.sun.honeycomb.cm.CMMain"
+        env="CLASSPATH=@prefix/lib/honeycomb.jar:@prefix/lib/jetty-4.2.20.jar:@prefix/lib/servlet-4.2.19.jar:@prefix/lib/db-4.1.25.jar:@prefix/lib/mysql-connector-java-3.0.9-stable-bin.jar"
+        mailbox_tag="JVMConfig"
+        mailbox_size="20">
+
+        <service
+            type="JAVA_SERVICE"
+            group="SYSTEM"
+            heartbeat="20"
+            start_cmd="com.sun.honeycomb.cm.ClusterConfig"
+            mailbox_tag="Config"
+            mailbox_size="12288"/>
+
+    </service>
+
+    <service
+        type="JVM"
+        heartbeat="20"
+        start_cmd="@JAVA -server -Xms64m -Xmx64m -Dhc.mailbox=$HC_MAILBOX -Djava.library.path=@prefix/lib -Djava.util.logging.config.file=@prefix/share/hccm/hc_logging.properties com.sun.honeycomb.cm.CMMain"
+        env="CLASSPATH=@prefix/lib/honeycomb.jar:@prefix/lib/jetty-4.2.20.jar:@prefix/lib/servlet-4.2.19.jar:@prefix/lib/db-4.1.25.jar:@prefix/lib/mysql-connector-java-3.0.9-stable-bin.jar"
+        mailbox_tag="JVMProtocol"
+        mailbox_size="20">
+
+        <service
+            type="JAVA_SERVICE"
+            heartbeat="20"
+            start_cmd="com.sun.honeycomb.protocol.server.ProtocolService"
+            arg="8080"
+            mailbox_tag="ProtocolService"
+            mailbox_size="40"/>
+    </service>
+
+    <service
+        type="JVM"
+        heartbeat="20"
+        start_cmd="@JAVA -server -Xms64m -Xmx64m -Dhc.mailbox=$HC_MAILBOX -Djava.library.path=@prefix/lib -Djava.util.logging.config.file=@prefix/share/hccm/hc_logging.properties com.sun.honeycomb.cm.CMMain"
+        env="CLASSPATH=@prefix/lib/honeycomb.jar:@prefix/lib/jetty-4.2.20.jar:@prefix/lib/servlet-4.2.19.jar:@prefix/lib/db-4.1.25.jar:@prefix/lib/mysql-connector-java-3.0.9-stable-bin.jar"
+        mailbox_tag="JVMNFS"
+        mailbox_size="20">
+
+        <service
+            type="JAVA_SERVICE"
+            heartbeat="20"
+            start_cmd="com.sun.honeycomb.nfs.NFSService"
+            mailbox_tag="NFS"
+            mailbox_size="1"/>
+    </service>
+
+    <service
+        type="JVM"
+        heartbeat="20"
+        start_cmd="/usr/lib/java/bin/java -server -Xms64m -Xmx64m -Dhc.mailbox=$HC_MAILBOX -Djava.library.path=/opt/honeycomb/lib -Djava.util.logging.config.file=/opt/honeycomb/share/hccm/hc_logging.properties com.sun.honeycomb.cm.CMMain"
+        env="CLASSPATH=/opt/honeycomb/lib/honeycomb.jar:/opt/honeycomb/lib/jetty-4.2.20.jar:/opt/honeycomb/lib/servlet-4.2.19.jar:/opt/honeycomb/lib/db-4.1.25.jar:/opt/honeycomb/lib/mysql-connector-java-3.0.9-stable-bin.jar"
+        mailbox_tag="JVMOA"
+        mailbox_size="20">
+ 
+        <service
+            type="JAVA_SERVICE"
+            heartbeat="20"
+            start_cmd="com.sun.honeycomb.oa.OAServer"
+            arg="60"
+            mailbox_tag="OAServer"
+            mailbox_size="4096"/>
+    </service>
+ 
+    <service
+        type="JVM"
+        heartbeat="20"
+        start_cmd="/usr/lib/java/bin/java -server -Xms64m -Xmx64m -Dhc.mailbox=$HC_MAILBOX -Djava.library.path=/opt/honeycomb/lib -Djava.util.logging.config.file=/opt/honeycomb/share/hccm/hc_logging.properties com.sun.honeycomb.cm.CMMain"
+        env="CLASSPATH=/opt/honeycomb/lib/honeycomb.jar:/opt/honeycomb/lib/jetty-4.2.20.jar:/opt/honeycomb/lib/servlet-4.2.19.jar:/opt/honeycomb/lib/db-4.1.25.jar:/opt/honeycomb/lib/mysql-connector-java-3.0.9-stable-bin.jar"
+        mailbox_tag="JVMMD"
+        mailbox_size="20">
+ 
+        <service
+            type="JAVA_SERVICE"
+            heartbeat="20"
+            start_cmd="com.sun.honeycomb.emd.server.MDService"
+            mailbox_tag="MDServer"
+            mailbox_size="100"/>
+     
+    </service>
+
+</node>

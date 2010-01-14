@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="store">
+	<info>
+		<author>
+			<name>Rodney Gomes</name>
+			<email>rodney.gomes@sun.com</email>
+		</author>
+		<description>Honeycomb Performance utility functions.</description>
+	</info>
+
+	<local>
+		<createstorage id="INPUT" path="${dtf.xml.path}/input" />
+		<loadproperties uri="storage://INPUT/hc.properties" />
+	</local>
+
+	<function name="perfOutput">
+		<param name="action.name" type="required"/>
+		<param name="recorder.type" type="required"/>
+		<param name="recorder.uri" type="required"/>
+		<param name="event.name" type="required"/>
+		<param name="runid" type="required"/>
+		
+    	<query type="${recorder.type}"
+    	       event="${event.name}"
+    		   uri="${recorder.uri}"
+    		   cursor="stats">
+    		<where>
+    			<eq op1="runid" op2="${runid}"/>
+    		</where>
+    	</query>
+    	
+    	<record type="object" uri="property://stats"> 
+    		<stats cursor="stats" event="stats"/>	
+    	</record>
+    	
+    	<local>
+    		<echo>
+                   ${action.name} Performance
+                   
+                   Average events/second: ${stats.avg_occ}
+                   Total events:          ${stats.tot_occ}
+                   Total time:            ${stats.tot_dur}    	
+    		</echo>
+    	</local>
+	</function>
+	
+</script>

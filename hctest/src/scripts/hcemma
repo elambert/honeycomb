@@ -1,0 +1,405 @@
+#!/usr/bin/perl -w
+
+# $Id: report 4945 2005-06-22 21:07:03Z jd151549 $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# Manage emma code coverage on Honeycomb clusters and clients.
+
+use strict;
+use Getopt::Long qw(:config no_ignore_case bundling);
+
+my @mepath = split(/\//, $0);
+$0 = $mepath[$#mepath];
+
+my @actions = undef;
+my @clients = ();
+my @clusters = ();
+my $default_node_spec = "1..16";
+my $dir = undef;
+my $default_dir = `pwd`; chomp($default_dir); $default_dir .= "/$0out";
+my $force = undef;
+my $help = undef;
+
+my $whereami = `cd \`dirname $0\`; pwd`; chomp($whereami);
+my $svnroot = `cd ${whereami}/../../..; pwd`; chomp($svnroot);
+my $emma_jar = "${svnroot}/tools/emma/lib/emma.jar";
+my $cluster_id_dsa = "${svnroot}/test/etc/cluster_id_dsa";
+
+my $ecdir = undef;
+my $reportdir = under;
+
+my @emma_rt_control_ports = (10101, 10102, 10103, 10104, 10105, 47653);
+
+my $usage = "
+NAME
+     $0 - generate an emma coverage report
+
+SYNOPSIS
+     $0 <ACTIONS> [OPTIONS]
+
+DESCRIPTION
+     Manage code coverage on Honeycomb clusters and clients.
+
+     Valid actions are 'reset', 'collect' and 'report'.
+     Multiple actions can be specified and will be executed
+     sequentially.
+
+     'reset' will reset coverage data on the specified 
+     cluster(s) and client(s).  It will not delete local
+     coverage data that has already been collected.
+
+     'collect' will collect coverage data from the cluster(s)
+     and client(s) specified and place it in a specified
+     output directory (see --dir option).
+
+     'report' will generate a report.using the emma metadata
+     in the directory specified and for source files in your
+     working svn repository (${svnroot}).
+
+OPTIONS
+     --client, -c <client spec>
+              Multiple -c options can be provided.
+
+              example: -c cl8 -c cl36..40
+
+              In the example above, `$0` will retrieve coverage
+              information from client, cl8, and from clients
+              cl36 through cl40.
+
+     --cluster, -C <cluster spec>
+              Multiple -C options can be provided.
+
+              example: -C dev318-1..5,7,8
+
+              In the example above, `$0` will retrieve coverage
+              information from nodes 1, 2, 3, 4, 5, 7 and 8 in
+              cluster dev318.  If only the cluster name is 
+              specified, <cluster>-1..16 is assumed.
+
+     --dir, -d <directory>
+              In report mode, the directory to be used to collect
+              coverage data and to generate the report.  
+              Default: ${default_dir}
+
+     --force, -f
+              Do not prompt for confirmation.
+
+     --help, -h
+              Print this message.
+
+EXAMPLES
+     $0 --client cl8 --client cl36..40 --cluster dev318-1..5,7,8
+
+";
+
+sub parse_client_spec($)
+{
+    my ($client_spec) = @_;
+    if ($client_spec =~ /\.\..+$/)
+    {
+        return ($client_spec =~ /^(.*)([0-9]+)(..[0-9]+)?$/) ;
+    }
+    else
+    {
+        return ($client_spec);
+    }
+}
+
+sub parse_cluster_spec($)
+{
+    my ($cluster_spec) = @_;
+    if ($cluster_spec !~ /^(.+-)+(([0-9]+(\.\.[0-9]+)?)(,([0-9]+(\.\.[0-9]+)?))*)$/);
+        $cluster_spec .= "-${default_node_spec}";
+    }
+    return ($cluster_spec =~ /^(.+-)+(([0-9]+(\.\.[0-9]+)?)(,([0-9]+(\.\.[0-9]+)?))*)$/);
+}
+
+sub validate_args()
+{
+    my $num_errors = 0;
+ 
+    @actions = @ARGV;
+
+    foreach my $action (@actions) {
+        if ($action !~ /reset|collect|report/) {
+            print(STDERR "Invalid action: ${action}\n");
+            $num_errors++;
+        } elsif ($action =~ /reset|collect/ &&
+                 ($#clients < 0 && $#clusters < 0))
+        {
+            $num_errors++;
+            print(STDERR "At least one --client or --cluster option must be specified.\n");
+        }
+    }
+
+    foreach my $client (@clients) 
+    {
+        if (!parse_client_spec($client))
+        {
+            $num_errors++;
+            print(STDERR "Invalid --client specification: ${client}\n");
+        }
+    }
+
+    foreach my $cluster (@clusters)
+    {
+        if (!parse_cluster_spec($cluster))
+        {
+            $num_errors++;
+            print(STDERR "Invalid --cluster specification: ${cluster}\n");
+        }
+    }
+
+    if (defined($dir)) {
+        my $rc = run("mkdir -p ${dir}");
+        if ($rc != 0) {
+            print(STDERR "error: unable to create ${dir}\n");
+            $num_errors++;
+        } else {
+            $dir = `cd $dir; pwd`; chomp($dir);
+        }
+    }
+    else {
+        $dir = $default_dir;
+    }
+    $ecdir = "${dir}/data";
+    $reportdir = "${dir}/report";
+
+    return $num_errors;
+}
+
+if (!GetOptions("c|client=s" => \@clients,
+                "C|cluster=s" => \@clusters,
+                "d|dir=s" => \$dir,
+                "h|help" => \$help))
+{
+    print($usage);
+    exit(-1);
+}
+
+if (defined($help)) {
+    print($usage);
+    exit 0;
+}
+
+my $num_errors;
+if (($num_errors = validate_args()) > 0)
+{
+    print(STDERR "See `$0 --help`\n");
+    exit($num_errors);
+}
+
+sub run($)
+{
+    my ($cmd) = @_;
+    print("${cmd}\n");
+    system($cmd);
+    return ($? >> 8);
+}
+
+sub run_or_die($)
+{
+    my ($cmd) = @_;
+
+    my $rc = run($cmd);
+    if ($rc != 0) {
+        print(STDERR "exit code ${rc}: ${cmd}\n");
+        exit($rc);
+    }
+}
+
+sub parse_range($)
+{
+    my ($range) = @_;
+    my ($a, $b) = split(/\.\./, $range);
+    my ($min, $max) = ($a, $b);
+    if (!defined($max)) { 
+        $max = $min;
+    } elsif ($max <= $min) { 
+        ($min, $max) = ($b, $a); 
+    }
+    return ($min, $max);
+}
+
+sub do_setup()
+{
+    run_or_die("chmod 600 ${cluster_id_dsa}");
+    run_or_die("mkdir -p ${ecdir}");
+    run_or_die("mkdir -p ${reportdir}");
+}
+
+sub do_reset()
+{
+    foreach my $client (@clients) {
+        # XXX: TODO
+    }
+
+    foreach my $cluster_spec (@clusters) {
+
+        my $doit = $force;
+        if (!$doit) {
+            print(STDERR "Reset ${cluster_spec} (yes/no)? ");
+            my $answer = <STDIN>; chomp($answer);
+            if ($answer =~ /^yes$/) {
+                $doit = 1;
+            }
+        }
+
+        if ($doit) {
+            my ($cluster, $nodes) = parse_cluster_spec($cluster_spec);
+            foreach my $range (split(/,/, $nodes))
+            {
+                my ($min, $max) = parse_range($range);
+                while ($min <= $max) {
+                    my $node = $min;
+                    my $port = 2000 + $node;
+                    run_or_die("ssh ${cluster}admin -q -o StrictHostKeyChecking=no -i ${cluster_id_dsa} -p ${port} -l root 'rm -rf /opt/honeycomb/etc/emma/*.ec'");
+                    $min++;
+                }
+            }
+        }
+    }
+}
+
+sub do_collect()
+{
+    foreach my $client (@clients) {
+        # XXX: TODO
+    }
+
+    foreach my $cluster_spec (@clusters) {
+        my ($cluster, $nodes) = parse_cluster_spec($cluster_spec);
+
+        foreach my $range (split(/,/, $nodes))
+        {
+            my ($min, $max) = parse_range($range);
+            while ($min <= $max) {
+                my $node = $min;
+                my $port = 2000 + $node;
+                my $nodedir = "${ecdir}/${cluster}${node}";
+                run_or_die("mkdir -p ${nodedir}");
+                run_or_die("cd ${nodedir}; ssh ${cluster}admin -q -o StrictHostKeyChecking=no -i ${cluster_id_dsa} -p ${port} -l root tar cvf - -C /opt/honeycomb/etc/emma . | tar xvf -");
+                run_or_die("cd ${nodedir}; for f in `ls`; do mv \$f ../${cluster}${node}_\$f; done");
+                run_or_die("/bin/rm -rf ${nodedir}");
+                $min++;
+            }
+        }
+    }
+}
+
+sub do_report($$)
+{
+    my $pwd = `pwd`; chomp($pwd);
+    chdir(${dir});
+    my @ecfiles = `find ecfiles ! -type d`;
+    my $inopts = "";
+    my $spopts = " -sp ";
+    foreach my $ecfile (@ecfiles) {
+        chomp($ecfile);
+        $inopts .= " -in $ecfile";
+    }
+    print(scalar(@clusters) . "\n");
+    if ($#clusters >= 0) {
+        $spopts .= ":${svnroot}/common/src/java/";
+        $inopts .= " -in ${svnroot}/build/common/classes/common.em";
+        $spopts .= ":${svnroot}/server/src/java/";
+        $inopts .= " -in ${svnroot}/build/server/classes/server.em";
+        $spopts .= ":${svnroot}/md_caches/bdb_common/";
+        $inopts .= " -in ${svnroot}/build/md_caches/classes/bdb_common/singlecache.em";
+        $spopts .= ":${svnroot}/md_caches/bdb_system/";
+        $inopts .= " -in ${svnroot}/build/md_caches/classes/bdb_system/singlecache.em";
+        $spopts .= ":${svnroot}/md_caches/sqlite_extended/";
+        $inopts .= " -in ${svnroot}/build/md_caches/classes/sqlite_extended/singlecache.em";
+    }
+    if ($#clients >= 0) {
+        $spopts .= ":${svnroot}/client/src/java/";
+        $inopts .= " -in ${svnroot}/build/client/classes/client.em";
+    }
+    run_or_die("java -classpath ${emma_jar} -Demma.report.html.out.file=report/index.html emma report ${inopts}${spopts} -r html");
+    chdir($pwd);
+}
+
+do_setup();
+foreach my $action (@actions) {
+    if ($action =~ /reset/) {
+        do_reset();
+    } elsif ($action =~ /collect/) {
+        do_collect();
+    } elsif ($action =~ /report/) {
+        do_report(\@clients, \@clusters);
+    }
+}
+
+#$foreach my $cluster (@clusters)
+#${
+    #$my ($base, $node_spec) = parse_cluster_spec($cluster);
+#$
+    #$foreach my $part (split(/,/, $node_spec))
+    #${
+        #$my ($from, $to) = split(/\.\./, $part);
+        #$print("from ${from}" . (defined($to) ? " to ${to}" : ""));
+        #$print("\n");
+        #$my ($min, $max) = ($from, $to);
+        #$if (!defined($to)) { 
+            #$($min, $max) = ($from, $from); 
+        #$} elsif ($from <= $to) { 
+            #$($min, $max) = ($from, $to); 
+        #$}
+        #$while ($min <= $max) {
+            #$collect($base, $min);
+            #$$min++;
+        #$}
+    #$}
+#$}
+#$report(\@clients, \@clusters);
+
+exit(0);
+
+my $apps_jarfile = "${whereami}/../lib/honeycomb-sdk.jar";
+my $hc_jar = "${whereami}/../lib/honeycomb-client.jar";
+my $classpath = "${hc_jar}:${apps_jarfile}:${emma_jar}";
+
+my $in = shift; # merged emma coverage file 
+my $sp = shift; # path to source files for emma-instrumented build
+my $out = shift; # dir where to place report files
+my $emmalib = shift; # optional: path to emma.jar (not needed if emma is installed as JRE extension)
+
+# clean up old reports
+if (-d $out) {
+    system("rm -rf ${out}.old");
+    system("mv $out ${out}.old");
+}
+
+my $report = "java -cp $emmalib emma report -in $in -sp $sp -r txt,html -Dreport.html.out.file=${out}/index.html -Dreport.txt.out.file=${out}/coverage.txt";
+system($report);

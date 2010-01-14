@@ -1,0 +1,4 @@
+[profile]
+merge_dir=%HC_BUILD%/honeycomb/src
+tree=%HC_SRC%/honeycomb/common
+tree=%HC_SRC%/honeycomb/%OS%

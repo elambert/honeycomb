@@ -1,0 +1,57 @@
+#
+# $Id: storage-api.mtx 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+# currently these are pretty arbitrary to record random tests
+# that were run and their results
+12nodes.15clients.2stores/client.2mb.30%full.11hours.stability
+12nodes.15clients.2stores/client.2mb.30%full.11hours.performance
+12nodes.15clients.2stores/client.2mb.0%full.64hours.stability
+12nodes.15clients.2stores/client.2mb.0%full.64hours.performance
+12nodes.15clients.2retrieves/client.2mb.65%full.12hours.stability
+12nodes.15clients.2retrieves/client.2mb.65%full.12hours.performance
+
+# more miscellaneous tests that may not be repeated
+3nodes.1client.1thread.store.1-33extents.0%full.88hours
+3nodes.1client.1thread.store.1-15extents.0%full.performance
+5nodes.2clients.4threads.cedars.0%full.performance
+
+# here's a section for the biggest single file that can be
+# stored/retrieved overnight
+3nodes.1client.1thread.storeretrieve.30extents.0%full.11hours
+
+# regular tests
+short.grid
+cedars.forever

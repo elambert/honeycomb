@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="component">
+    <info>
+         <author>
+             <name>Rodney Gomes</name>
+             <email>rodney.gomes@sun.com</email>
+         </author> 
+         <description>
+             Test the basic functionality of the component tag which is used to
+             execute remote tasks on remote components in the DTF architecture.
+         </description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <loadproperties uri="storage://INPUT/ut.properties"/>
+    </local>
+	
+    <for property="iteration" range="[0..20]">
+        <sequence>
+            <local>
+                <echo>Iteration ${iteration}: Locking and Unlocking one DTFA</echo>
+                <lockcomponent id="DTFA1" timeout="10s">
+                	<attrib name="type" value="DTFA"/>
+                </lockcomponent>
+                <unlockcomponent id="DTFA1"/>
+            </local>
+        </sequence>
+    </for>
+    
+    <try>
+        <sequence>
+            <local>
+                <echo>About to lock a dtfa by name and this will fail.</echo>
+                <lockcomponent id="DTFA2" timeout="0">
+                	<attrib name="type" value="DTFA"/>
+                	<attrib name="name" value="INEXISTENT"/>
+                </lockcomponent>
+                <fail message="The previous lockcomponent should have failed."/>
+            </local>
+        </sequence>
+        <catch exception="${dtf.LockException}">
+            <sequence>
+                <local>
+                    <echo>Caught the exception correctly</echo>
+                </local>
+            </sequence>
+        </catch>
+    </try>
+    
+    <local>
+        <lockcomponent id="DTFA1">
+        	<attrib name="type" value="DTFA"/>
+        </lockcomponent>
+       
+        <echo>Remotely executing an echo on the locked agent DTFA1</echo>
+    </local>
+    
+    <component id="DTFA1">
+        <echo>***********************************</echo>
+        <echo>This is being printed from the dtfx</echo>
+        <echo>***********************************</echo>
+    </component>
+    
+    <component id="DTFA1">
+        <echo>********************************************</echo>
+        <echo>Echo property on component: ${dtf.node.name}</echo>
+        <echo>********************************************</echo>
+    </component>
+    
+</script>

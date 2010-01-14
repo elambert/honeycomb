@@ -1,0 +1,72 @@
+$Id: ADV_QUERY_QUICKSTART_README 11701 2007-12-13 15:43:18Z dr129993 $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+Advanced Query Tests (using the Java API)
+
+Many of the class files and scripts are based on the performance smoke test 
+infrastrucure.
+
+A brief explanation of how to run the advanced query tests. For more information
+see the README file in the 
+<trunk>/performance/src/java/com/sun/sun/honeycomb/advquery/README file
+and the <trunk>/performance/src/scripts/ADV_QUERY_RAND_GEN_README file
+
+1. You must have loaded one of the schema file for advanced query.
+   Namely either the single table or three table schema. The schemas
+   have the same field names and descriptions. The only differences are
+   the namespace names and the tables the fields are located in.
+
+   In <trunk>/performance/src/config:
+   metadata_config_advquery_onetable_idx.xml  - single table schema with indexes
+   metadata_config_advquery_onetable.xml - single table schema no indexes
+   metadata_config_advquery_three_tables.xml - three table schema
+
+2. Install the client performance and advanced query test framework.
+   cd <trunk>/performance
+   ant
+   cd <trunk>/build
+   make client=clXX intall_perf
+
+   Software is installed on client in the /opt/performance directory
+
+3. Both the generation of metadata to store and the advanced query generation
+   are based on randomly generated metadata. The metadata generation is
+   based on patterns specified for each attribute/field. 
+
+   You MUST specify the same metadata random data pattern file for the
+   store and the query operations. By default the advquery_md_randgen_idx.txt 
+   file is used as the metadata patterns file.
+ 
+   advquery_md_randgen_idx.txt - used with onetable_idx schema
+   advquery_md_randgen.txt - used with onetable schema
+   advquery_md_randgen_three_tables.txt - used with three_tables schema
+
+   See the ADV_QUERY_RAND_GEN_README for a detail explanation of the random
+   data patterns and data generated. You can specify a different file if 
+   needed using the -m switch. 
+
+4. Load the cluster with objects and HADB with metadata.
+
+   The advquery_mdstore_run.sh convenience routine runs default store and
+   and add metadata operations. Run advquery_mdstore_run.sh with no arguments
+   for more information.
+
+   By default it runs 20 threads for 2 hours loading data into the single
+   table using the default onetable schema and the 
+   advquery_md_randgen_idx.txt file to generate metadata.
+
+5. Run advanced query tests.
+
+   The advquery_advquery_run.sh convenience routine runs the ADVQUERY set
+   of queries using the default one table schema and pattern file.
+
+   Or can run advquery_stress_run to run the STRESS set of queries using
+   the default one table schema and pattern file.
+
+6. Alternative to running separate store and query scipts.
+
+   The advquery_store_query_run.sh script runs a STORE operation for an hour
+   if no time limit is specified and then executes the ADVQUERY tests (about
+   an hour).

@@ -1,0 +1,102 @@
+<!--
+ $Id: build.xml 10858 2007-05-19 03:03:41Z bberndt $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for honeycomb.
+ --> 
+<project name="errsrv" default="errsrv" basedir=".">
+
+  <!-- allow users to override properties without editing this file
+       and without having to type -Dinstalldir=$HOME/opt/hc everytime -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <property name="debug" value="on"/>
+  <property name="deprecation" value="on"/>
+  <property name="optimize" value="off"/>
+
+  <!-- general -->
+
+  <property name="hc.dist" value="${basedir}/../../../dist"/>
+  <property name="hc.client" value="${hc.dist}/lib/honeycomb-xmlclient.jar"/>
+  <property name="hc.jar" value="${hc.dist}/lib/honeycomb.jar"/>
+  <property name="jug.jar" value="${hc.dist}/lib/jug.jar"/>
+
+  <property name="test.root" value="${basedir}/../.."/>
+  <property name="test.dist" value="${test.root}/dist"/>
+  <property name="test.lib" value="${test.root}/lib"/>
+  <property name="honeycomb-test.jar" value="${test.dist}/honeycomb-test.jar"/>
+
+  <!-- override in ${user.home}/.ant.properties or specify on cmdline as
+       -Dstyledir=layout to specify which directory to run checkstyle/pmd in.
+       default is to run in all java source directories. -->
+  <property name="styledir" value=""/>
+
+  <target name="prepare">
+    <tstamp/>
+    <mkdir dir="${test.dist}"/>
+  </target>
+
+  <!-- ERRSRV -->
+  <property name="errsrv" value="${test.dist}/errsrv"/>
+  <property name="errsrv.lib" value="${errsrv}/lib"/>
+  <property name="errsrv.bin" value="${errsrv}/bin"/>
+  <property name="errsrv.etc" value="${errsrv}/etc"/>
+
+  <target name="prepare.errsrv" depends="prepare">
+    <mkdir dir="${errsrv}"/>
+    <mkdir dir="${errsrv.lib}"/>
+    <mkdir dir="${errsrv.bin}"/>
+    <mkdir dir="${errsrv.etc}"/>
+  </target>
+
+  <target name="errsrv" depends="prepare.errsrv">
+    <exec dir="${basedir}" executable="pwd"/>
+
+    <copy todir="${errsrv.lib}" file="${honeycomb-test.jar}"/>
+    <copy todir="${errsrv.lib}" file="${hc.client}"/>
+    <copy todir="${errsrv.lib}" file="${hc.jar}"/>
+    <copy todir="${errsrv.lib}" file="${jug.jar}"/>
+
+    <!-- copy scripts to dist/errsrv/bin (use cp to keep permissions) -->
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/RunServer" />
+      <arg file="${basedir}/scripts/TestClient" />
+      <arg path="${errsrv.bin}"/>
+    </exec>
+    <!-- copy runtime config stuff -->
+    <copy file="${basedir}/etc/hc_logging.properties" todir="${errsrv.etc}"/>
+    <copy file="${basedir}/etc/security.policy" todir="${errsrv.etc}"/>
+
+  </target>
+
+</project>

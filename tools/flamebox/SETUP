@@ -1,0 +1,90 @@
+INSTALLATION
+------------
+
+Untar the flamebox tarball into install location under the
+Apache document root, called $TARGET here.
+For example: $TARGET -> /var/www/flamebox
+
+Flamebox cgi scripts will be in $TARGET/bin
+Flamebox html and image files will be in $TARGET/html
+Flamebox config files will be in $TARGET/config
+ - The default config files used by flamebox are:
+	- params.pl & tasks.pl
+ - There are samples for svn and CVS support:
+	- params.cvs
+	- params.svn
+
+Additional samples are available in $TARGET/samples
+
+
+DATABASE SETUP
+--------------
+
+As root:
+
+For mysql setup:
+
+$ mysqladmin create flamebox
+$ mysql
+mysql> use flamebox;
+mysql> grant all privileges on flamebox.* to nobody@localhost;
+mysql> exit;
+$
+
+Now, you can run maketables.sh to create the tables.
+$ $TARGET/bin/maketables.sh
+
+
+WEBSERVER SETUP
+---------------
+
+Flamebox cgi scripts are run by your Apache Web Server.
+You need to configure Apache to allow execution of CGI
+scripts in $TARGET/bin. Apache also needs access to a
+few directories listed below.
+
+1) $TARGET/html/task_img is a directory to store the task images (the vertical text).
+This directory must be accessible through your web server. 
+Make sure this directory is writable by the uid your web server is going to use 
+to run the flambox cgi scripts.
+
+Edit $TARGET/config/params.pl accordingly:
+
+$imagepath = "/var/www/flamebox/html/task_img";
+$imageurl = "http://mywebserver/flamebox/task_img";
+
+2) $TARGET/html/logs is a directory to store the logs (the output of each run).
+Make sure this directory is writable by the uid your web server 
+is going to use to run the flamebox cgi scripts (note that this 
+directory need not be accessible by your web server). 
+
+Edit $TARGET/config/params.pl accordingly:
+
+$logpath = "/var/www/flamebox/html/logs";
+
+Edit your apache configuration:
+
+#
+# Flamebox
+#
+Alias /flamebox "/var/www/flamebox/html/"
+
+<Directory "/var/www/flamebox/html">
+   DirectoryIndex query.html
+</Directory>
+
+ScriptAlias /fbox-cgi/ /var/www/flamebox/bin/
+
+<Directory "/var/www/flamebox/bin">
+   Options +ExecCGI
+   AddHandler cgi-script .cgi
+</Directory>
+
+
+Access
+------------
+You should now be able to access flamebox website via
+the following URL:
+
+http://yourwebserver/flamebox/
+

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="hc_devmode">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>Honeycomb devmode test, that takes the current cluster
+                     and tests out basic functionality of dev mode. Dev mode 
+                     is established by placing the /config/nohoneycomb and 
+                     /config/noreboot files in place on all nodes. At this point
+                     the nodes are able to shutdown honeycomb without powering
+                     off or rebooting the nodes. This basic functionality makes
+                     it possible for some interesting white box testing.</description>
+    </info>
+
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input" />
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+        <createstorage id="TINPUT" path="${dtf.xml.path}" />
+
+        <loadproperties uri="storage://INPUT/hc.properties" />
+    </local>
+
+    <local>
+        <lockcomponent id="CLUSTER">
+            <attrib name="hc.cluster.type" value="${hc.cluster.type}" />
+        </lockcomponent>
+    </local>
+
+    <component id="CLUSTER">
+        <setdevmode node="1"/>
+        <sleep time="5s"/>
+        <stophoneycomb mode="pkill" node="1"/>
+        <sleep time="5s"/>
+        <stophoneycomb mode="commandline" node="1"/>
+        <sleep time="5s"/>
+        <unsetdevmode node="1"/>
+    </component>
+    
+</script>

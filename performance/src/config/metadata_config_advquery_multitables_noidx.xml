@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 
+
+  $Id:$
+
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+
+Use /opt/honeycomb/bin/metadata_merge_config.sh to add this config to
+the existing one -->
+
+<!-- This file contains the performance schema, used to pass the performance and
+blockstore suite tests. Merge accordingly before running those ! -->
+
+<metadataConfig>
+  <schema>
+
+    <namespace name="advquery_multitable_noidx" writable="true" extensible="true">
+      <field name="test_start_timestamp" type="long" />
+      <field name="test_id" type="string" length="64" />
+      <field name="iteration" type="long" />
+      <field name="current_timestamp" type="long" />
+      <field name="client" type="string" length="64" />
+            
+      <field name="one" type="string" length="64" />
+      <field name="two" type="string" length="64" />
+      <field name="three" type="string" length="64" />
+      <field name="four" type="string" length="64" />
+      <field name="five" type="string" length="64" />
+      <field name="six" type="string" length="64" />
+      <field name="seven" type="string" length="64" />
+      <field name="eight" type="string" length="64" />
+      <field name="nine" type="string" length="64" />
+      <field name="ten" type="string" length="64" />
+      <field name="eleven" type="string" length="64" />
+      <field name="twelve" type="string" length="64" />
+      <field name="thirteen" type="string" length="64" />
+      <field name="fourteen" type="string" length="64" />
+      <field name="fifteen" type="string" length="64" />
+      <field name="sixteen" type="string" length="64" />
+      <field name="seventeen" type="string" length="64" />
+      <field name="eighteen" type="string" length="64" />
+      <field name="nineteen" type="string" length="64" />
+      <field name="twenty" type="string" length="64" />
+      <field name="twenty_one" type="string" length="64" />
+      <field name="twenty_two" type="string" length="64" />
+      <field name="twenty_three" type="string" length="64" />
+      <field name="twenty_four" type="string" length="64" />
+      <field name="twenty_five" type="string" length="64" />
+      
+    </namespace>
+  </schema>
+
+<fsViews>
+</fsViews>
+
+  <tables>
+      <table name="advquery_one">
+          <column name="advquery_multitable_noidx.one"/>
+      </table>
+      <table name="advquery_two">
+        <column name="advquery_multitable_noidx.two"/>
+      </table>
+      <table name="advquery_three">
+        <column name="advquery_multitable_noidx.three"/>
+      </table>
+      <table name="advquery_four">
+        <column name="advquery_multitable_noidx.four"/>
+      </table>
+      <table name="advquery_five">
+        <column name="advquery_multitable_noidx.five"/>
+      </table>
+      <table name="advquery_six">
+        <column name="advquery_multitable_noidx.six"/>
+      </table>
+      <table name="advquery_seven">
+        <column name="advquery_multitable_noidx.seven"/>
+      </table>
+      <table name="advquery_eight">
+        <column name="advquery_multitable_noidx.eight"/>
+      </table>
+      <table name="advquery_nine">
+        <column name="advquery_multitable_noidx.nine"/>
+      </table>
+      <table name="advquery_ten">
+        <column name="advquery_multitable_noidx.ten"/>
+      </table>
+      <table name="advquery_eleven">
+        <column name="advquery_multitable_noidx.eleven"/>
+      </table>
+      <table name="advquery_twelve">
+          <column name="advquery_multitable_noidx.twelve"/>
+      </table>
+      <table name="advquery_thirteen">
+        <column name="advquery_multitable_noidx.thirteen"/>
+      </table>
+      <table name="advquery_fourteen">
+        <column name="advquery_multitable_noidx.fourteen"/>
+      </table>
+      <table name="advquery_fifteen">
+        <column name="advquery_multitable_noidx.fifteen"/>
+      </table>
+      <table name="advquery_sixteen">
+        <column name="advquery_multitable_noidx.sixteen"/>
+      </table>
+      <table name="advquery_seventeen">
+        <column name="advquery_multitable_noidx.seventeen"/>
+      </table>
+      <table name="advquery_eighteen">
+        <column name="advquery_multitable_noidx.eighteen"/>
+      </table>
+      <table name="advquery_nineteen">
+        <column name="advquery_multitable_noidx.nineteen"/>
+      </table>
+      <table name="advquery_twenty">
+        <column name="advquery_multitable_noidx.twenty"/>
+      </table>
+      <table name="advquery_twenty_one">
+        <column name="advquery_multitable_noidx.twenty_one"/>
+      </table>
+      <table name="advquery_twenty_two">
+        <column name="advquery_multitable_noidx.twenty_two"/>
+      </table>
+      <table name="advquery_twenty_three">
+        <column name="advquery_multitable_noidx.twenty_three"/>
+      </table>
+      <table name="advquery_twenty_four">
+        <column name="advquery_multitable_noidx.twenty_four"/>
+      </table>
+      <table name="advquery_twenty_five">
+        <column name="advquery_multitable_noidx.twenty_five"/>
+      </table>
+
+  </tables>
+
+</metadataConfig>

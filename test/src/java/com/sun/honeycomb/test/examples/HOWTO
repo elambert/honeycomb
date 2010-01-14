@@ -1,0 +1,181 @@
+#
+# $Id: HOWTO 10856 2007-05-19 02:58:52Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+---- UNIT TEST HOWTO
+
+This howto targets new unit-test developers using Honeycomb test
+harness. For background info on the harness, see ../README.
+
+---- HOW TO WRITE UNIT TESTS
+
+Unit tests are based on "simple test" concept: they are Java programs
+with a public class which has methods named test<MeaningfulNameHere>,
+taking no parameters and returning a boolean. When the class name is
+passed to "runtest" script, all such test methods get run and produce
+pass/fail results. 
+
+Test methods get called in alphabetical order, so if you want to
+ensure certain ordering, name your methods testA<MeaningfulName>,
+testB<OtherMeaningfulName> etc. (or test1<Name>, test2<Name> - you get
+the idea).
+
+See examples SampleUnitTest.java, DemoSimpleTest.java 
+
+public class FunUnitTest {
+
+     // whatever variables you need... 
+     private int someCount; 
+     private String sayWord = "word";
+
+     // you can have a default constructor,
+     // but no args please! test harness won't pass args
+
+     // if methods like setUp() and tearDown() are needed,
+     // we will add that functionality (file an RFE)
+
+     // this is a test method
+     public boolean testXXX() {
+            boolean result;
+            // do anything you want here
+            doSomeStuff();
+            if (pass) {
+               result = true; // test passed
+            } else {
+               result = false; // test failed
+            }
+            return result;
+     }
+
+     // this is another test method
+     public boolean testYYY() {
+            // same here
+     }
+
+     private void doSomeStuff() {
+            // do whatever you want here,
+            // test harness will not call this method
+            // because it's not of test<Name> form
+     }
+
+     public void doOtherStuff() {
+            // similarly, test harness will ignore this
+     }
+}
+
+---- HOW TO RUN UNIT TESTS
+
+You will need script "runtest" from the test subtree, and a few jar files. 
+Check out test module (or obtain it from some release) and build:
+
+> cd test; ant
+> ls dist/bin/runtest
+ dist/bin/runtest
+> ls dist/lib
+ honeycomb-test.jar 
+ getopt.jar
+ ...
+
+Only the two jar files above are required, but if your unit test is
+linking into honeycomb libraries, obviously you'll need those jar
+files too. You can get them all from test/dist/lib.
+
+To run your unit test, pass the class name as a command-line argument
+to "runtest" script:
+
+> dist/bin/runtest FunUnitTest
+
+That's it, all test<Name> methods from FunUnitTest class will get
+run. Test log will be written to stdout. Test results and run entry
+will be posted to QB database, unless you give qb=no argument:
+
+> dist/bin/runtest FunUnitTest -ctx qb=no
+> dist/bin/runtestquiet FunUnitTest
+
+The second command is a wrapper that executes "runtest qb=no" for you.
+Run with qb=no, the test will not generate database entries. This is
+useful during test development and rapid dev/unit-test cycle. Note a
+harmless side effect: logged run ID and result IDs will all be zero,
+because they only make sense in QB database context.
+
+If you want to run tests from several Java classes, it's easy:
+
+> dist/bin/runtest FunUnitTest BoringUnitTest AnotherUnitTest
+
+All test<Name> methods from each class will get run. The order of
+classes ("suites" in test harness terminology) will be the same as
+given on the command line. Inside each class, methods will be run in
+alphabetical order.
+
+If you want to run most test methods from your unit test classes, but
+not all of them, you have the ability to exclude some:
+
+> dist/bin/runtest FunUnitTest -ctx exclude=XXX
+
+Test methods whose names contain substring "XXX" will not be run;
+instead, for each of them a "skipped" result will be posted to QB
+database, making it obvious that the tests were excluded on purpose
+and not simply forgotten by mistake. (Running with qb=no will print
+log messages about skipped tests, but create no database entries).
+
+To exclude multiple substrings, list them comma-separated:
+
+> dist/bin/runtest FunUnitTest -ctx exclude=XXX,YYY
+
+---- HOW TO READ UNIT TEST RESULTS
+
+When unit tests are run via "runtest", they print log messages to
+stdout. Grep for "SUM" to view a summary of the run - runtime
+environment, which test methods were executed, what were their
+results, count of passed/failed/skipped tests. Be worried if the last
+summary line does not have FAIL=0 !
+
+You can also view unit test results through Web query interface of QB
+database. Obviously, tests run with qb=no will not appear there.
+Access query interface at: 
+
+http://qb.sfbay.sun.com/qb_query.cgi
+
+You can query by specific result ID (which you saw in the test log) or
+run ID ("run" is a single execution of "runtest" command, which can
+contain many test results; ID also came from the test log). If you
+don't remember IDs, you can also query by time (incl. "last X
+minutes/hours/days"), your username, or test name with substring
+match.
+
+
+
+
+

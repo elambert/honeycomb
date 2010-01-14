@@ -1,0 +1,157 @@
+#
+# $Id: README 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+---- README for com.sun.honeycomb.hctest
+
+NOTE: OBSOLETE (since honeycomb-specific stuff was moved to
+hctest and the build has changed), but maybe of some value.
+
+
+Notes for new developers in com.sun.honeycomb.hctest:
+
+  -- The honeycomb.hctest tree is intended to hold a set of tests, 
+     all of which use the HoneycombSuite format (an extension of
+     test.Suite).
+
+     The main classes that a new programmer would need to
+     reference are supposed to be in the test and hctest packages;
+     underlying functionality is in the test.util, hctest.util, and 
+     hctest.rmi packages. Test cases should be in hctest.cases.
+
+  -- There are two main Suite classes for Honeycomb API access:
+
+       hctest.HoneycombLocalSuite  - to run on the commandline host
+       hctest.HoneycombRemoteSuite - to run on (multiple) remote hosts
+
+  -- Implementors of unit tests may want to use test.Suite
+     or do not extend Suite at all, write a "simple" test
+
+       Read on below about simple tests.
+       See examples/HOWTO, examples/SampleUnitTest.java
+       
+
+  -- See hctest/cases/ for implemented tests.
+
+  -- We distinguish between "simple" and "generic" tests. A simple
+     test is any java program (it doesn't have to extend a Suite
+     class) which has methods named "test<CaseName>" returning a
+     boolean (true on success, false on test failure). When the class
+     name is passed to runtest launcher (described below), all methods
+     "test<CaseName>" get run in alphabetical order. Output is
+     logged, and results are automatically generated and posted to QB
+     repository (described at the end of this doc). There will be one
+     result per method, for the testcase named after the method.
+
+     See examples/DemoSimpleTest.java, examples/SampleUnitTest.java
+
+  -- A generic test extends Suite class or one of its subclasses and
+     has direct access to all Suite methods. This richer functionality
+     allows one test method to generate multiple results for testcases
+     with arbitrary names (not necessarily matching the method
+     name). The test author has more control over logic for skipping
+     testcases, filing bugs and metrics on a per-testcase basis.
+
+     See examples/TestSuiteA.java
+
+  -- To run tests from the command line, use the runtest script
+     which is placed in dist/bin/ by the build.
+
+         # runtest -h
+
+     This should be able to run all tests that don't require the
+     remote testbed. Ideally the Service Processor RMI server would
+     be running (and specified to runtest), so that cluster start/end 
+    state could be gathered, but this is not required yet.
+
+  -- The runtest script takes a list of class names to run in the
+     context of java Suites. Additionally, you can specify an exclude
+     list with names of testcases to skip (substring match). Other
+     command-line arguments describe your honeycomb run environment
+     (dataVIP and adminVIP of your cluster, for example).
+     
+  -- Remote tests require that client rmi servers be running, and 
+     failure injection tests require both the Service Processor 
+     and cluster node RMI servers to be running.
+
+  -- To install/start the rmi servers:
+
+       -- in trunk/test/:
+
+          > ant
+          > mv dist test
+          > scp -r test root@<client>:/opt/
+          > scp -r test root@<devxxx-sp>:/opt/
+
+       -- on clients:
+
+          # /opt/test/bin/RunClntSrv &
+
+       -- on Service Processor:
+
+          # /opt/test/bin/RunSPSrv &
+
+       -- TODO: node server 
+
+  -- The test/rmi/ tree holds remote servers for implementing 
+     multi-host honeycomb API tests and failure injection.
+
+        rmi/clntsrv/    honeycomb API
+        rmi/spsrv/      logging to cluster log, power control
+                        functions, and gateway to nodesrv
+        rmi/nodesrv/    per-cluster-node failure injection and
+                        possibly application breakpointing
+
+  -- The test/task/ tree holds thread classes for running remote
+     actions in parallel, used by test.HoneycombRemoteSuite.
+
+
+  -- Tests post their results, run context, metrics, and bugs to a
+     data repository known as QB ("cube"), backed by a MySQL
+     database. For simple tests, all QB interactions are taken care of
+     behind the scenes, so the test author needs to do
+     nothing. Generic tests can access QB interfaces directly:
+
+     -- createResult() - initialize ("I started running")
+     -- manipulate fields in Result data structure ("status = fail")
+     -- addResult() - post test result to QB ("I failed this time")
+     -- addBug() - post test-related bug ("I failed on bug 123")
+     -- addTag() - declare a tag ("I am a long-running test")
+     -- addDep() - declare a dependency ("I run if test 789 passed")
+     -- addMetric() - post a data point ("Measured throughput 5MB/s")
+
+     More information on QB can be found in the Master Test Plan.
+
+--

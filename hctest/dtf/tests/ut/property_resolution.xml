@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="property_resolution">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF unit test for complex property resolution.</description>
+    </info>
+
+    <local>
+        <createstorage id="INPUT"  path="${dtf.xml.path}/input" />
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+
+        <loadproperties uri="storage://INPUT/ut.properties"/>
+
+        <echo message="*** Property resolution unit test ***" />
+    </local>
+
+    <for property="i" range="1..10">
+        <for property="j" range="1..10">
+            <local>
+                <property name="property${i}${j}" value="${i}-${j}"/>
+            </local> 
+        </for>
+    </for>
+   
+    <for property="i" range="1..10">
+        <for property="j" range="1..10">
+            <if>
+                <neq  op1="${property${i}${j}}" op2="${i}-${j}"/>
+                <then>
+                    <fail message="property mismatch for property${i}${j}: ${property${i}${j}} != ${i}-${j}"/>
+                </then>
+            </if>
+        </for>
+    </for>
+    
+    <for property="i" range="1..10">
+        <for property="j" range="1..10">
+            <local>
+                <property name="a${i}b${j}c" value="${i}-${j}"/>
+            </local> 
+        </for>
+    </for>
+   
+    <for property="i" range="1..10">
+        <for property="j" range="1..10">
+            <if>
+                <neq  op1="${a${i}b${j}c}" op2="${i}-${j}"/>
+                <then>
+                    <fail message="property mismatch for [a${i}b${j}c]: ${a${i}b${j}c} != ${i}-${j}"/>
+                </then>
+            </if>
+        </for>
+    </for>
+    
+
+</script>

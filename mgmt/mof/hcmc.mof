@@ -1,0 +1,202 @@
+//
+// $Id: hcmc.mof 11859 2008-02-28 17:28:51Z ktripp $
+//
+// Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+// Use is subject to license terms.
+//
+
+// This file is the Honeycomb MOF file that describe the Honeycomb
+// cell management objects
+
+
+[Description (
+"CellCapacity contains the capacity for a given cell")]
+class HC_CellCapacity {
+
+    [Description ("The cellid of the cell"), Read]
+    sint8 cellid;
+
+    [Description ("The major version "), Read]
+    sint64 versionMajor;
+
+    [Description ("The minor version "), Read]
+    sint64 versionMinor;
+
+    [Description ("The total capacity of the Disk in bytes"), Read]
+    sint64 totalCapacity;
+
+    [Description ("The used capacity of the Disk in bytes"), Read]
+    sint64 usedCapacity;
+};
+
+
+[Description (
+"PowerOfTwo object contains the capacity for all the cells")]
+class HC_PowerOfTwo {
+
+    [Description ("The list of cell and their capacity"), Read]    
+    HC_CellCapacity Ref cellCapacity[];
+
+    // STEPH
+    sint8 pushNewPowerOfTwo(HC_PowerOfTwo Ref newPOT);
+};
+
+
+
+[Description (
+"Cell object contains management information related to the "
+"cell")]
+class HC_CellInfo {
+
+    [Description ("The cellid of the cell"), Read]
+    sint8 cellid;
+
+    [Description ("The name of the cell"), Read]
+    string domainName;
+     
+    [Description ("The adminVIP of the cell"), Read]
+    string adminVIP;
+
+    [Description ("The dataVIP of the cell"), Read]
+    string dataVIP;
+
+    [Description ("The spVIP of the cell"), Read]
+    string spVIP;
+
+    [Description ("The subnet of the cell"), Read]
+    string subnet;
+
+    [Description ("The gateway of the cell"), Read]
+    string gateway;
+     
+    [Description ("The total capacity of the Disk in bytes"), Read]
+    sint64 totalCapacity;
+
+    [Description ("The used capacity of the Disk in bytes"), Read]
+    sint64 usedCapacity;
+
+    [Description ("The list of intervals associated with that cell"), Read]
+    HC_Rule Ref rules[];
+
+    [Description ("Service Tag Data associated with this cell."), Read]
+    HC_Service_Tag_Info Ref serviceTagInfo;
+
+    [Description ("Check the schema with the master cell")]
+    sint8 checkSchema(String schemaPiece, sint8 mask);
+
+    [Description ("Check the common 'silo' properties")]
+    sint8 checkConfig(HC_SiloProps Ref props);
+    
+    [Description ("Update existing cells with the new cell")]
+    sint8 addCell(HC_CellInfo Ref newCell, sint64 versionMajor);
+
+    [Description ("Notify all cells, that we a remove cell")]
+    sint8 delCell(sint8 cellid, sint64 versionMajor);
+
+    [Description ("Push init config on the new cell")]
+    sint8 pushInitConfig(HC_SiloInfo Ref init, sint64 versionMajor);
+};
+
+//
+// Redefined from hcadm.mof
+//
+[Description (
+"Cell object contains management information related to the "
+"cell")]
+class HC_SiloProps {
+
+    [Description ("The ntp server")]
+    string ntpServer;
+
+    [Description ("The smtp server")]
+    string smtpServer;
+
+    [Description ("The smtp port")]
+    string smtpPort;
+
+    [Description ("The list of authorized clients")]
+    string authorizedClients;
+
+    [Description ("The external logger")]
+    string extLogger;
+
+    [Description ("DNS server")]
+    string dns;
+
+    //[Description ("Domain name")]
+    string domainName;
+
+    [Description ("DNS Search")]
+    string dnsSearch;
+
+    [Description ("Primary DNS server")]
+    string primaryDnsServer;
+
+    [Description ("Secondary DNS server")]
+    string secondaryDnsServer;
+};
+
+
+
+[Description (
+"Contains a list of all the cells")]
+class HC_SiloInfo {
+    
+    [Description ("The initial cells in the hive"), Write]
+    HC_CellInfo Ref cells[];
+};
+
+
+
+class HC_Rule {
+
+    [Description ("The ruleNumber for that rule"), Read]
+    sint8 ruleNumber;
+
+    [Description ("The origin cellid for that rule"), Read]
+    sint8 originCellId;
+
+    //
+    // Decscribes the associated interval
+    //
+    [Description ("The start of the interval"), Read]
+    sint16 start;
+
+    [Description ("The end of the interval"), Read]
+    sint16 end;
+
+
+    [Description ("The end of the interval"), Read]
+    sint16 distance;
+
+    [Description ("The initial capacity associated with the interval"), Read]
+    sint64 initialCapacity;
+};
+
+[Description ("The service tag information for a given cell."
+"NOTE: This structure is almost of carbon copy of the HC_Service_Tag_Cell_Data"
+"declared in hcadm.mof. Declarations in one mof file can't be shared and used"
+"by another so we have to have two different versions.")]
+class HC_Service_Tag_Info {
+    [Description ("The id of the cell this data pertains to."), Read]
+    sint8 cellId;
+
+    [Description ("The Manufacturing product number for the top level "
+    "assembly # that cells resides in.")]
+    String productNumber;
+
+    [Descritpion ("The product serial # that the cell resides in.  Today "
+    "this corresponds to the top level assembly #.")]
+    String productSerialNumber;
+
+    [Descritpion ("The Marketing number for the top level "
+    "assembly # that cells resides in.")]
+    String marketingNumber;
+
+    [Descritpion ("The instanceURN that corresponds the service tag registry"
+    "entry associated with this entity.")]
+    String instanceURN;
+};
+
+
+

@@ -1,0 +1,120 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+<!--
+    $Id: overview.html 11216 2007-07-13 15:15:57Z bberndt $
+
+    Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+    Use is subject to license terms.
+-->
+</head>
+<body bgcolor="white">
+
+This document is the API specification for the @HoneycombFullProductName@ 
+Java client library.
+
+<h3>Introduction</h3>
+
+The @HoneycombProductName@ client library provides a simple way of communicating 
+with the @HoneycombProductName@ servers. 
+It provides programmatic access to the @HoneycombProductName@ server using 
+an HTTP-based network protocol.
+
+<!-- Most applications can be implemented using a handful of these classes, 
+but access to "expert" features is also provided. -->
+
+<h3>Basic Concepts and Key Classes</h3>
+
+<!--
+The root of the Honeycomb client API is the <code>ObjectArchive</code> class, which 
+represents a connection to a single Honeycomb cluster. All operations are initiated 
+by invoking methods on an <code>ObjectArchive</code> instance after initializing it 
+with the address of a cluster, and the fact that a cluster of machines, rather than 
+a single server, is handling the requests is transparent to the application programmer.
+<p>
+An <code>ObjectArchive</code> uses instances of the <code>ObjectIdentifier</code> 
+class to uniquely identify stored objects. That is, there is a one-to-one 
+correspondence between <code>ObjectIdentifers</code> and Honeycomb objects. 
+<code>ObjectIdentifers</code> are created by the cluster at store time and 
+returned to the client. These identifiers can be serialized and stored
+ externally as byte arrays or strings to be reconstituted later, or can
+ be discarded and retrieved later using metadata queries. 
+<p>
+Most applications will make use of an <code>ObjectArchive</code> subclass 
+called <code>NameValueObjectArchive</code>. This class hides some of the 
+more advances details of Honeycomb metadata and makes it easy to implement 
+applications. When using <code>NameValueObjectArchive</code>, all metadata 
+queries are executed against Honeycomb's user-configurable index of name-value
+ pair lists. This class also ensures that a metadata entry is created for 
+every object stored even if no metadata is provided at store time (see 
+<a href="#AdvancedConcepts">Advanced Concepts and Classes</a> for details).
+<p>
+-->
+The <a href="com/sun/honeycomb/client/NameValueObjectArchive.html"<code>
+NameValueObjectArchive</code></a> is the main entry for programmatic access 
+to the @HoneycombProductName@ server. An instance of this class functions 
+as a proxy for the @HoneycombProductName@ server. Instantiation incurs some 
+overhead in establishing communication, so reusing a single instance is the 
+recommended practice. Multithreading is supported with the same instance.
+The <code>NameValueObjectArchive</code> class provides methods to store,
+retrieve, query and delete data and metadata records.
+
+<p>
+Metadata is accessed through two classes that represent structured data: 
+<a href="com/sun/honeycomb/client/SystemRecord.html">
+<code>SystemRecord</code></a> and 
+<a href="com/sun/honeycomb/client/NameValueRecord.html">
+<code>NameValueRecord</code></a>. These classes
+ represent @HoneycombProductName@ metadata entries. 
+Every stored object has at least one corresponding <code>NameValueRecord</code> 
+that contains the metadata attributes, and each 
+<code>NameValueRecord</code> has a reference to its <code>SystemRecord</code>, 
+which contains built-in system attributes such as object size and creation 
+time.
+<p>
+The results of 
+a @HoneycombProductName@ metadata query are returned using instances of the 
+<code>QueryResultSet</code> class which the application can step through to 
+retrieve metadata or <code>ObjectIdentifier</code>s.
+
+<!--
+<h3>@HoneycombProductName@ Semantics</h3>
+
+The @HoneycombProductName@ distinguishes between two types of data: 
+Object data and metadata records. Object data is opaque to 
+the @HoneycombProductName@ and may be large. Metadata records are 
+used to associate structured data with Object data. There are one or more 
+metadata records for each unstructured Data Object. An <code>ObjectIdentifer</code> 
+returned to the client at store time corresponds to a
+metadata record, and can be used to retrieve the metadata record or the underlying 
+Object data. If only Object data (and no metadata) is provided during a store 
+operation, an empty metadata record is implicitly created.
+-->
+
+<p>
+<!--
+In addition to distinguishing between object types, a Honeycomb cluster 
+maintains a number of different metadata caches, or indexes, each for 
+a specific purpose. Most applications make use only of the configurable 
+name-value cache, but some advances users may want to access the others 
+directly. <code>ObjectArchive</code> provides methods to perform metadata 
+stores and searches using a specific cache. The caches currently supported 
+are System, for built-in attributes; Name-Value, for extended attributes; 
+and Directory, for information specific to hierarchical file protocols 
+like NFS. Access to these caches allows the creation of cross-cache 
+metadata entries, for example adding name-value entries for files written 
+through NFS based on metadata extracted from the content of those files. 
+These name-value entries could then be used in the creation of virtual 
+NFS views based on metadata queries.
+<p>
+Each metadata cache in the cluster is represented on the client by an 
+implementation of the <code>MetadataCache</code> interface, and each 
+<code>MetadataCache</code> produces instances of a corresponding 
+<code>MetadataRecord</code> class. Each cache class can also vend 
+its server-side runtime configuration as an instance of a specific 
+<code>CacheConfiguration</code> class, allowing for the dynamic 
+discovery of cluster configuration such as the attributes supported 
+by the extended name-value cache.
+-->
+</body>
+</html>

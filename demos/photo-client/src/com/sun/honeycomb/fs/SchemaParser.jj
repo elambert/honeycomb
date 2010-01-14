@@ -1,0 +1,162 @@
+/*
+ * Copyright © 2008, Sun Microsystems, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+
+/**
+ * This class parses both the schema specification and the view specifications
+ */
+
+options {
+  LOOKAHEAD = 1;
+  STATIC = false;
+  DEBUG_PARSER = false;
+  DEBUG_LOOKAHEAD = false;
+  DEBUG_TOKEN_MANAGER = false;
+}
+
+PARSER_BEGIN(SchemaParser)
+
+package com.sun.honeycomb.fs;
+
+import java.io.*;
+import java.util.*;
+
+public class SchemaParser {
+
+    public static class ViewResult {
+        public String[] attributes;
+        public Representation representation;
+        
+        public ViewResult(String[] newAttributes,
+                          Representation newRepresentation) {
+            attributes = newAttributes;
+            representation = newRepresentation;
+        }
+    }
+
+    public static ViewResult parseView(String view) 
+        throws ParseException {
+        InputStream input = new ByteArrayInputStream(view.getBytes());
+        SchemaParser parser = new SchemaParser(input);
+        
+        ViewResult result = parser.view();
+        
+        return(result);
+    }
+
+    private String fixNamespace(String input) {
+	if ( input.startsWith("photo.") || input.startsWith("system.") ) {
+	    return(input);
+	}
+	return("photo."+input);
+    }
+}
+
+PARSER_END(SchemaParser)
+
+SKIP:
+{
+    " " | "\t" | "\n" | "\r"
+}
+
+TOKEN:
+{
+    <LONG: "long">
+|   <DOUBLE: "double">
+|   <STRING_TYPE: "string">
+|   <BLOB: "blob">
+|   <STRING: ["a"-"z","A"-"Z","_","."] ( ["a"-"z","A"-"Z","_","0"-"9","."] )*>
+|   <COMMA: ",">
+|   <PERCENT: "%">
+|   <PIPE: "|">
+}
+
+/****************************************
+ *
+ * View parser
+ *
+ ****************************************/
+
+ViewResult view():
+{
+    ArrayList attributes = new ArrayList();
+    Token attr;
+    Representation representation = null;
+    ArrayList elements = null;
+}
+{
+    attr=<STRING> {
+        attributes.add(fixNamespace(attr.image));
+    } ( <COMMA> attr=<STRING> {
+            attributes.add(fixNamespace(attr.image));
+        } )* [ elements = parseRepresentation() ] <EOF> {
+        String[] atts = new String[attributes.size()];
+        attributes.toArray(atts);
+
+        if (elements != null) {
+            Representation.Element[] els =
+                new Representation.Element[elements.size()];
+            elements.toArray(els);
+
+            representation = new Representation(els);
+        }
+        
+        return(new ViewResult(atts, representation));
+    }
+}
+
+ArrayList parseRepresentation():
+{
+    ArrayList result = new ArrayList();
+    Representation.Element element;
+}
+{
+    <PIPE> ( element=parseElement() {
+                 result.add(element);
+             } )+ {
+        return(result);
+    }
+}
+
+Representation.Element parseElement():
+{
+    Token t;
+}
+{
+    t=<STRING> {
+        return(new Representation.Element(Representation.REPRESENTATION_STRING,
+                                          t.image));
+    } | <PERCENT> t=<STRING> <PERCENT> {
+        return(new Representation.Element(Representation.REPRESENTATION_VARIABLE,
+                                          fixNamespace(t.image)));
+    }
+}

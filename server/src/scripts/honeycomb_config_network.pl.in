@@ -1,0 +1,180 @@
+#!/usr/bin/perl -w
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# $Id: honeycomb_config_network.pl.in 10855 2007-05-19 02:54:08Z bberndt $
+
+use FileHandle;
+use Sys::Hostname;
+use File::stat;
+use strict;
+
+my $resolv_conf_handle = "/etc/resolv.conf";
+my $config_properties_handle_node = "/config/config.properties";
+my $domainname = "";
+my $dnssearch  = "";
+my $primarydnsserver = "";
+my $secondarydnsserver = "";
+my $dns_enabled="0";
+my $SWITCH_INTERNAL_IP = "10.123.45.1";
+
+# NTP related variables
+my @ntpservers = undef;
+my $NTP_CONF_FILE = "/etc/inet/external_ntp.conf";
+my $NTP_DRIFT_FILE = "/etc/inet/ntp.drift";
+
+#function decl
+sub check_config_update();
+sub create_resolv_conf();
+sub update_nsswitch_conf();
+sub create_ntp_conf();
+
+sub check_config_update() {
+    open CONFIG_PROPERTIES,  "<  $config_properties_handle_node"  or die "can't open $config_properties_handle_node: $!";
+    while (<CONFIG_PROPERTIES>) {
+           chomp $_;
+           if ( /honeycomb.cell.dns\s*=\s*(.*)/ ) {
+               $dns_enabled = qq{$1};
+               if ((!defined $dns_enabled) || ($dns_enabled ne "y"))  {
+                  $dns_enabled = "0";
+                  last ;
+               } else {
+                  $dns_enabled = "1";
+                  next;
+               }
+           }
+           if ( /honeycomb.cell.domain_name\s*=\s*(.*)/ ) {
+               $domainname = qq{$1};
+               if ((!defined $domainname) || ($domainname eq "")) {
+                   warn  "Please check the domainname entered, disabling DNS\n";
+                   $dns_enabled = "0";
+                   last;
+               }
+           }
+           if ( /honeycomb.cell.dns_search\s*=\s*(.*)/ ) {
+               $dnssearch = qq{$1};
+               if ((!defined $dnssearch) || ($dnssearch eq "")) {
+                   warn  "Please check the dnssearch entered, disabling DNS\n";
+                   $dns_enabled = "0";
+                   last;
+               }
+           }
+           if ( /honeycomb.cell.primary_dns_server\s*=\s*(.*)/ ) {
+               $primarydnsserver = qq{$1};
+               if ((!defined $primarydnsserver) || ($primarydnsserver !~ /\d+.\d+.\d+.\d+/))  {
+                   warn "Invalid Primary DNS server specified, Disabling DNS.\n";
+                   $dns_enabled = "0";
+                   last ;
+               } else {
+                   $dns_enabled = "1";
+                   next ;
+               }
+           }
+           if ( /honeycomb.cell.secondary_dns_server\s*=\s*(.*)/ ) {
+               $secondarydnsserver = qq{$1};
+               if ((!defined $secondarydnsserver) || ($secondarydnsserver !~ /\d+.\d+.\d+.\d+/))  {
+                   warn "Invalid secondary DNS server specified.\n";
+               }
+               next ;
+           }
+           if (/honeycomb.cell.ntp\s*=\s*(.*)/) {
+               @ntpservers = split (/,/, $1);
+           }
+    } # while (<CONFIG_PROPERTIES>)
+    close CONFIG_PROPERTIES;
+
+    create_ntp_conf();
+
+    if ($dns_enabled eq "0" ) {
+        # if no dns, remove the resolv.conf and use the original nsswitch.conf
+        print "DNS Disabled, unlinking the resolv.conf";
+        unlink "/etc/resolv.conf";
+         return;
+    } else {
+        # Check if anything changed from the last time a modification was
+        # made to the config.properties
+        create_resolv_conf();
+       `cp /etc/nsswitch.dns /etc/nsswitch.conf`;
+    }
+}
+
+# 
+# Creating external ntp configuration file
+# 
+sub create_ntp_conf() {
+    open NTPCONF, "> $NTP_CONF_FILE" or
+        die "cannot open $NTP_CONF_FILE, return code: $!";
+    
+    print NTPCONF "driftfile $NTP_DRIFT_FILE\n";
+    foreach my $ntpserver (@ntpservers) {
+        print NTPCONF "server $ntpserver\n";
+    }
+    print NTPCONF "server $SWITCH_INTERNAL_IP\n";
+    print NTPCONF "server 127.127.1.0\n";
+    print NTPCONF "fudge 127.127.1.0 stratum 14\n";
+     
+    close NTPCONF;
+}
+
+sub create_resolv_conf() {
+    my $local_dnssearch = $dnssearch;
+    #truncate the resolv.conf 
+    unlink  $resolv_conf_handle ;
+    open RESOLVCONF, "> $resolv_conf_handle"  or warn "can't open $resolv_conf_handle";
+    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst)=localtime(time);
+    printf RESOLVCONF "# Honeycomb system  %4d-%02d-%02d %02d:%02d:%02d\n",
+        $year+1900,$mon+1,$mday,$hour,$min,$sec;
+    printf RESOLVCONF
+        "# DNS servers $primarydnsserver and $secondarydnsserver are Nat'ed to use Internal IP\n";
+    $local_dnssearch =~ s/,/ /g;
+    my $resolvconfline = <<END;
+domain $domainname 
+search $local_dnssearch
+nameserver $SWITCH_INTERNAL_IP
+END
+    print RESOLVCONF $resolvconfline;
+    close RESOLVCONF;      
+    print "Created the resolv.conf";
+}
+
+#
+# main()
+#
+# At Start time we set up the /etc/resolv.conf based on if the config.properties
+# has the DNS enabled.
+#
+#Sanity check that /config exists
+if ( ! -e "/config/config.properties") {
+   die "Can not access config.properties";
+}
+check_config_update();

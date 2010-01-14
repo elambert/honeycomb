@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+ $Id: metadata_config_ofoto_2.xml 11724 2008-01-07 15:40:46Z lm156032 $
+
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+-->
+
+<metadataConfig>
+  
+  <schema>
+
+    <namespace name="ofoto" writable="true" extensible="true">
+      <field name="dir1" type="string" length="128" />
+      <field name="dir2" type="string" length="128" />
+      <field name="dir3" type="string" length="128" />
+      <field name="dir4" type="string" length="128" />
+      <field name="dir5" type="string" length="128" />
+      <field name="dir6" type="string" length="128" />
+      <field name="fname" type="string" length="128" />
+    </namespace>
+
+  </schema>
+
+  <fsViews>
+    <fsView name="oFotoHashDirs" filename="${ofoto.fname}" filesonlyatleaflevel="false">
+      <attribute name="ofoto.dir1" unset="unk" />
+      <attribute name="ofoto.dir2" unset="unk" />
+      <attribute name="ofoto.dir3" unset="unk" />
+      <attribute name="ofoto.dir4" unset="unk" />
+      <attribute name="ofoto.dir5" unset="unk" />
+      <attribute name="ofoto.dir6" unset="unk" />
+    </fsView>
+  </fsViews>
+
+  <tables>
+    <table name="ofoto">
+      <column name="ofoto.dir1" />
+      <column name="ofoto.dir2" />
+      <column name="ofoto.dir3" />
+      <column name="ofoto.dir4" />
+      <column name="ofoto.dir5" />
+      <column name="ofoto.dir6" />
+      <column name="ofoto.fname" />
+    </table>
+  </tables>
+
+</metadataConfig>

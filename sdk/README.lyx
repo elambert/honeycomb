@@ -1,0 +1,207 @@
+#LyX 1.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 221
+\textclass article
+\language english
+\inputencoding auto
+\fontscheme default
+\graphics default
+\paperfontsize default
+\spacing single 
+\papersize Default
+\paperpackage a4
+\use_geometry 1
+\use_amsmath 0
+\use_natbib 0
+\use_numerical_citations 0
+\paperorientation portrait
+\leftmargin 1in
+\topmargin 1in
+\rightmargin 1in
+\bottommargin 1in
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\defskip medskip
+\quotes_language english
+\quotes_times 2
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+
+\layout Title
+
+Honeycomb Software Development Kit
+\layout Standard
+
+
+\begin_inset LatexCommand \tableofcontents{}
+
+\end_inset 
+
+
+\layout Section
+
+Introduction
+\layout Paragraph
+
+The Honeycomb SDK is delivered to customers to support the implementation
+ of Honeycomb client applications.
+\layout Section
+
+Sample Applications
+\layout Paragraph
+
+A set of code samples is shipped with the SDK in the src directory.
+\layout Itemize
+
+Store.java - store a single file with or without meta-data
+\layout Itemize
+
+Retrieve.java - retrieve a single file and its meta-data
+\layout Itemize
+
+Query.java - search Honeycomb for files which match meta-data criteria
+\layout Itemize
+
+Schema.java - print the meta-data attributes available in your Honeycomb
+ system
+\layout Paragraph
+
+The sample applications come pre-built and ready to run via scripts in the
+ bin directory: store, retrieve, query and schema.
+ For example,
+\layout LyX-Code
+
+$ bin/store --help
+\layout LyX-Code
+
+...
+\layout LyX-Code
+
+$ bin/store honeycomb /etc/hosts
+\layout LyX-Code
+
+01d20345cfe59f11d8831d0010180327be000000570200000000
+\layout Paragraph
+
+Each script checks to make sure the that Java version being run is 
+\begin_inset Quotes eld
+\end_inset 
+
+1.4
+\begin_inset Quotes erd
+\end_inset 
+
+ or higher and sets up the correct CLASSPATH.
+\layout Paragraph
+
+
+\begin_inset Marginal
+collapsed false
+
+\layout Standard
+
+(In the example above 
+\begin_inset Quotes eld
+\end_inset 
+
+honeycomb
+\begin_inset Quotes erd
+\end_inset 
+
+ is the hostname of a live Honeycomb system's Data IP Address.
+ In a future release of the SDK, we will include a Honeycomb simulator which
+ software developers can use to debug their Honeycomb applications.)
+\end_inset 
+
+
+\layout Section
+
+Writing Your Own Honeycomb Applications
+\layout Subsection
+
+Import Statements
+\layout Paragraph
+
+The following packages must be imported into your Java source file.
+\layout LyX-Code
+
+import com.sun.honeycomb.client.*;
+\layout LyX-Code
+
+import com.sun.honeycomb.common.*;
+\layout LyX-Code
+
+import com.sun.honeycomb.client.caches.*;
+\layout Subsection
+
+Building Your Applications
+\layout Paragraph
+
+Before running javac, be sure that your source path included the honeycomb
+ jar files located in sdk/lib/.
+ Then, compile your applications as usual
+\layout LyX-Code
+
+
+\series medium 
+# CLASSPATH=sdk/lib/honeycomb-sdk.jar:
+\series default 
+
+\backslash 
+
+\layout LyX-Code
+
+
+\series medium 
+sdk/lib/honeycomb-client.jar:
+\backslash 
+
+\layout LyX-Code
+
+
+\series medium 
+sdk/lib/honeycomb-common.jar
+\series default 
+ 
+\backslash 
+
+\layout LyX-Code
+
+
+\series medium 
+javac MyApp.java
+\layout Subsubsection
+
+Using `ant`
+\layout Paragraph
+
+The sdk comes with a build.xml which makes it easy to compile your applications
+ using the `ant` utility (ant is available for free download at http://ant.apache.
+org).
+\layout Enumerate
+
+place your source files into the sdk/src/ directory
+\layout Enumerate
+
+cd into the sdk/ directory.
+\layout Enumerate
+
+run `ant clean`
+\layout Enumerate
+
+run `ant`
+\layout Paragraph
+
+This will create the honeycomb-sdk.jar file in the sdk/lib/ directory as
+ well as generate javadoc from the source files and place them in the sdk/doc/ap
+ps/javadoc/ directory.
+\layout Subsection
+
+Running Your Applications
+\layout Paragraph
+
+When running your applications be sure to include both all of the jar files
+ in the lib directory in your CLASSPATH.
+ See the scripts in the sdk/bin/ directory as examples.
+\the_end

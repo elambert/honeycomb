@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="hc_devmode">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>
+        Schema check test verifies that a specified schema is loaded and if not 
+        makes sure to load such schema to the cluster.</description>
+    </info>
+
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input" />
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+        <createstorage id="TINPUT" path="${dtf.xml.path}" />
+
+        <loadproperties uri="storage://INPUT/hc.properties" />
+    </local>
+
+    <local>
+        <lockcomponent id="CLUSTER" timeout="30s">
+            <attrib name="hc.cluster.type" value="${hc.cluster.type}" />
+        </lockcomponent>
+    </local>
+
+    <component id="CLUSTER">
+        <waitforhadb/>
+        <validateschema schema="${hc.metadata.schema}"/>
+    </component>
+    
+</script>

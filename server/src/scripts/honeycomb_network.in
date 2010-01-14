@@ -1,0 +1,200 @@
+#!/bin/ksh
+#
+# $Id: honeycomb_network.in 10855 2007-05-19 02:54:08Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+#pragma ident	"@(#)nfs-server	1.6	05/01/04 SMI"
+
+# Patch up the network interfaces on a honeycomb node
+
+. /lib/svc/share/smf_include.sh
+
+#
+# Debugging support.
+# Any definition of DEBUG will cause debugging output to go to the log file.
+# 
+
+DEBUG="yes"	# uncomment this line for debugging output
+DEBUG_LOG=/tmp/honeycomb_network.log
+
+#
+# write debugging output to a log, if DEBUG is defined.
+#
+# usage: debug_log arg arg arg
+#	 e.g. debug_log entry to function
+#
+debug_log()
+{
+    if [ "${DEBUG+x}" ] ; then echo "$@" >> $DEBUG_LOG; fi
+}
+
+#
+# write the output of the command to the log, if DEBUG is defined.
+#
+# usage: debug_cmd_to_log cmd args
+#	 e.g. debug_cmd_to_log ifconfig -a
+#
+debug_cmd_to_log()
+{
+    if [ "${DEBUG+x}" ] ; then eval $@ >> $DEBUG_LOG; fi
+}
+
+### end debugging support ###
+
+#
+# Constants.  Can these values be pulled from the configuration file?
+# 
+SUBNET=10.123.45.
+NETMASK=255.255.255.0
+
+
+#
+# XXX not used XXX
+# 
+# get_active_interface()
+#
+# Return the active interface.  This is untested code, and is left
+# in as a record of a possible future optimization.
+#
+get_active_interface() {
+
+    # Look for a RUNNING non-loopback interface; by definition,
+    # that interface is active
+
+    active_if="error"
+
+    run_if=`ifconfig -a|egrep "^[a-z]+0: "|grep RUNNING|grep -v LOOPBACK`
+
+    # extract leading part of interface name
+    run_if=`echo $run_if |tr -d ':'|cut -d' ' -f1`
+
+    if [ "$run_if" != "" ] ; then
+      active_if=$run_if
+      return 0
+    fi
+    
+    return 1;
+}
+
+#
+# Determine the node number.  The cheat node (service processor)
+# is special, and we need to do some mapping in that case.
+#
+get_nodenum() {
+    nodename=`hostname`
+    
+    case $nodename in
+	*cheat )
+		# this is the cheat node, map to node 100
+		nodenum=100
+		;;
+	* )
+		# regular node, extract node number
+		nodenum=`echo $nodename | cut -c4-6`
+		;;
+    esac
+}
+
+
+#
+# ifconfig_interface()
+#
+# The Solaris network interface failover code appears to be broken, at in
+# the case of a down primary interface when booting.  This function
+# manually fails over the interface by determing which interface is up
+# and ifconfiging it appropriately.
+#
+ifconfig_interface() {
+    # look for non-loopback interfaces and see if they can be ifconfig'd up
+
+    ifconfig -a|egrep "^[a-z]+0: "|grep -v LOOPBACK | tr -d ':' | {
+
+	while read ifcfg_line; do
+	    debug_log "ifcfg_line: $ifcfg_line"
+
+	    # extract the interface name
+	    set $ifcfg_line
+	    iface=$1
+
+	    debug_log "ifconfig $iface ${SUBNET}${nodenum} netmask $NETMASK up"
+
+	    ifconfig $iface ${SUBNET}${nodenum} netmask $NETMASK up
+
+	    if [ $? -eq 0 ] ; then
+		# we have a winner
+	        debug_log "ifconfig'd $iface successfully"
+	        break
+	    fi
+	done }
+
+    return 0
+}
+
+#
+# Configure the smdc.  In theory, this configuration is persistent,
+# but it seems that it can be forgotten, so we reconfigure on boot.
+#
+smdc_config() {
+    smdc_ip=`expr $nodenum + 100`
+
+    debug_log "/usr/sfw/bin/ipmitool lan set 2 ipaddr ${SUBNET}${smdc_ip}"
+
+    /usr/sfw/bin/ipmitool lan set 2 ipaddr ${SUBNET}${smdc_ip}
+    /usr/sfw/bin/ipmitool user set password 3 honeycomb
+
+    debug_log "set the time on the ipmi system event log"
+    /usr/sfw/bin/ipmitool sel time set "`date -u +"%m/%d/%Y %H:%M:%S"`"
+}
+
+get_nodenum
+
+case "$1" in
+'start')
+	debug_log "honeycomb-network start method"
+	debug_cmd_to_log date
+
+	ifconfig_interface;
+	smdc_config;
+	exit $SMF_EXIT_OK
+	;;
+
+'stop')
+	exit $SMF_EXIT_OK
+	;;
+*)
+	echo "Usage: $0 { start | stop }"
+	exit $SMF_ERR_CONFIG 	# for want of a better errno
+	;;
+esac
+exit $SMF_EXIT_OK

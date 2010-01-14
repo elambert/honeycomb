@@ -1,0 +1,14 @@
+
+Origins of Flamebox
+-------------------
+
+Flamebox is a complete rewrite of Mozilla's webtool Tinderbox2 by David Wu et al. (see below). Flamebox is covered under Mozilla public license (see LICENSE). The plan is to collaborate and exchange enhancements to Flamebox, although everyone is free to do their own development as well, without sharing. 
+
+Authors
+-------
+David Wu (davidwu@riverbed.com)
+Tim Lee (timlee@riverbed.com)
+Michael Michon (mmichon@riverbed.com)
+Gavin Jefferies (gavin@riverbed.com)
+Bart Robinson (lomew@riverbed.com)
+Daria Mehra (qube@mehras.net)

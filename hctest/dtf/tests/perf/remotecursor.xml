@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="singlecomponent">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF component performance test.</description>
+    </info>
+
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input" />
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+        <loadproperties uri="storage://INPUT/test.properties" />
+
+        <property name="runid" value="${dtf.timestamp}" />
+        <property name="agents" value="1"/>
+        <property name="threads" value="1"/>
+    </local>
+
+    <for property="agent" range="1..${agents}">
+        <local>
+            <lockcomponent id="AGENT${agent}">
+                <attrib name="type" value="${agent.type}" />
+            </lockcomponent>
+        </local>
+    </for>
+    
+    <event name="dtf.perf.echo" id="dtf.event1">
+        <attribute name="runid" value="${runid}"/>
+        <attribute name="iteration" value="${iter}" />
+        <attribute name="timestamp" value="${dtf.timestamp}" />
+    </event>
+
+    <record type="${database.type}"
+            uri="storage://OUTPUT/remote_cursor.${database.type}"
+            event="dtf.perf"
+            append="false">
+        <for range="1..${iterations}" property="iter">
+            <event refid="dtf.event1"/>
+        </for>
+    </record>
+
+    <query uri="storage://OUTPUT/remote_cursor.${database.type}"
+           type="${database.type}"
+           event="dtf.perf.echo"
+           cursor="rcursor" />
+
+    <record type="${database.type}" 
+            uri="storage://OUTPUT/remote_cursor_perf.${database.type}"
+            event="dtf.perf"
+            append="false">
+            <try>
+                <parallelloop property="agent" range="1..${agents}">
+                    <component id="AGENT${agent}">
+                        <loop property="thread" range="1..${threads}" type="parallel">
+                            <loop range="1..${iterations}" property="iter">
+                                <fetchresult cursor="rcursor" recycle="true"/>
+                                <event name="dtf.perf.echo"/>
+                            </loop>
+                        </loop>
+                    </component>
+                </parallelloop>
+                <catch exception="${dtf.NoMoreResultsException}">
+                    <local>
+                        <echo>All done.</echo>
+                    </local>
+                </catch>
+            </try>
+    </record>
+    
+    <query uri="storage://OUTPUT/remote_cursor_perf.${database.type}" 
+           type="${database.type}"
+           event="dtf.perf.echo"
+           cursor="cursor" />
+
+    <record type="object" uri="property://dbperf">
+        <stats cursor="cursor" event="stats" />
+    </record>
+
+    <local>
+        <echo>
+            Remote Cursor performance on ${agents} agent(s) with ${threads} thread(s).
+            Events per second: ${dbperf.avg_occ} 
+            Total of Events:   ${dbperf.tot_occ} 
+            Total Duration:    ${dbperf.tot_dur}s
+        </echo>
+    </local>
+
+</script>

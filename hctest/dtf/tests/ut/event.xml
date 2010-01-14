@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="event">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description> 
+        	Unit test for event tag.  
+        	Events can be placed anywhere in the a test case and are then recorded
+        	by the recorder tag and can be later queried by the query tag.
+        </description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+        <loadproperties uri="storage://INPUT/ut.properties"/>
+        <echo>Counter Unit Tests</echo>
+    </local>
+    
+    <local>
+        <echo>Local counter retrieval</echo>
+    </local>
+    
+    <record type="console">
+        <for property="index" range="[1..10]">
+            <event name="dtf.echo">
+                <attribute name="iteration" value="${index}"/>
+                <local>
+                    <echo>This block of actions</echo>
+                    <echo>is being measured by a a counter</echo>
+                    <echo>and logged by the recorder to the console.</echo>
+                </local>
+            </event>
+        </for>
+    </record>
+    
+    <local>
+        <echo>Remote counter retrieval</echo>
+        <lockcomponent id="DTFA1">
+        	<attrib name="type" value="dtfa"/>
+        </lockcomponent>
+    </local>
+    
+    <record type="console" event="dtf.DTFA1.*">
+        <component id="DTFA1">
+            <event name="dtf.DTFA1.echo">
+                <attribute name="iteration" value="${os.name}"/>
+                <local>
+                    <echo>Hello ${os.name}</echo>
+                </local>
+            </event>
+        </component>
+    </record>
+    
+</script>

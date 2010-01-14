@@ -1,0 +1,142 @@
+<!--
+ $Id: build.xml 11107 2007-06-27 09:02:16Z ds158322 $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for honeycomb NDMP server.
+--> 
+<project name="ndmp" default="ndmp_jar">
+  <description>
+    Honeycomb NDMP server. Building this project results in a 
+    Solaris package named SUNWhcndmp.
+  </description>
+
+  <!-- first, local, user specified .ant.properties files take precedence -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <!-- second, use the build.properties for this package -->
+  <property file="build.properties"/>
+
+  <!-- lastly, use the top-level builds properties file -->
+  <property file="../build/build.properties"/>
+
+  <!-- reference environment variables as env.X -->
+  <!-- ie. ${env.USER} -->
+  <property environment="env"/>
+
+
+  <!-- PREPARE ************************************************************ -->
+
+  <target name="ndmp_prepare">
+    <mkdir dir="${ndmp.build.basedir}"/>
+    <mkdir dir="${ndmp.build.classdir}"/>
+    <mkdir dir="${ndmp.build.tooldir}"/>
+    <mkdir dir="${ndmp.build.pkgdir}"/>
+    <mkdir dir="${ndmp.dist.basedir}"/>
+    <mkdir dir="${ndmp.dist.libdir}"/>
+
+    <path id="ndmp.build.classpath">
+      <pathelement location="${common.dist.libdir}/${jarname.common}"/>
+      <pathelement location="${server.dist.libdir}/${jarname.server}"/>
+      <pathelement location="${mgmt.dist.libdir}/${jarname.mgmt}"/>
+    </path>
+  </target>
+
+  <!-- COMPILE_JAVA ******************************************************* -->
+  <target name="ndmp_generate_classes" depends="ndmp_prepare">
+    <javac srcdir="${ndmp.tooldir}"
+           destdir="${ndmp.build.tooldir}"
+           debug="${javac.debug}"
+           deprecation="${javac.deprecation}"
+           source="${javac.source}"
+           optimize="${javac.optimize}"/>
+
+      <!-- generate classes from ndmp.x file -->
+      <exec executable="${java.bin}" failonerror="yes">
+        <arg line="-classpath ${ndmp.build.tooldir} com.sun.honeycomb.ndmp.RPCGen ${ndmp.tooldir}/ndmp.x ${ndmp.build.tooldir}"/>
+      </exec>
+
+  </target>
+
+  <!-- COMPILE_JAVA ******************************************************* -->
+  <target name="ndmp_compile_java" depends="ndmp_prepare,ndmp_generate_classes">
+    <javac classpathref="ndmp.build.classpath"
+           destdir="${ndmp.build.classdir}"
+           srcdir ="${ndmp.srcdir}:${ndmp.build.tooldir}"
+           debug="${javac.debug}"
+           deprecation="${javac.deprecation}"
+           source="${javac.source}"
+           optimize="${javac.optimize}">
+    </javac>
+  </target>
+
+  <!-- JAR *************************************************************** -->
+  <target name="ndmp_jar" depends="ndmp_compile_java"
+          description="Build the java ndmp only">
+    <jar jarfile="${ndmp.dist.libdir}/${jarname.ndmp}">
+      <fileset dir="${ndmp.build.classdir}"/>
+    </jar>
+  </target>
+
+
+  <!-- PKG **************************************************************** -->
+  <target name="pkg" depends="ndmp_jar"
+          description="build the solaris package">
+
+      <exec executable="${pkgmk.bin}" failonerror="yes">
+
+        <!-- arg value="" does not work here for some reason -->
+
+        <arg line="-o -d ${ndmp.build.pkgdir} -f ${ndmp.pkgdefs}/prototype -r ${ndmp.dist.basedir}"/>
+      </exec>
+
+      <exec executable="${pkgtrans.bin}" failonerror="yes">
+        <arg line="-s ${ndmp.build.pkgdir} ${sun.pkgname.ndmp}.pkg ${sun.pkgname.ndmp}"/>
+      </exec>
+
+  </target>
+
+  <!-- ************************************************************** -->
+  <target name="build_pkg" depends="pkg"
+    description="compile sources and create the solaris package" />
+
+  <!-- CLEAN ************************************************************** -->
+  <target name="clean" description="cleans workspace of all generated files">
+    <delete dir="${ndmp.build.basedir}"/>
+  </target>
+
+</project>
+
+
+
+
+

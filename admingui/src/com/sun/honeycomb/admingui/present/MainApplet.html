@@ -1,0 +1,81 @@
+
+
+<HTML>
+<HEAD>
+<!--
+    $Id: index.html 10941 2007-05-31 21:25:57Z ad120940 $
+
+    Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+    Use is subject to license terms.
+-->
+<TITLE>Sun StorageTek 5800</TITLE>
+<SCRIPT LANGUAGE="JavaScript"> 
+var javawsInstalled = 0;
+var imgLoaded = 0;
+var cnt = 0;
+isIE = "false"; 
+if (navigator.mimeTypes && navigator.mimeTypes.length) { 
+   x = navigator.mimeTypes['application/x-java-jnlp-file']; 
+   if (x) { 
+      javawsInstalled = 1;
+   } 
+} 
+else { 
+   isIE = "true"; 
+} 
+<!-- if image doesn't load in 3 secs, skip loading it -->
+<!--
+function loadJnlp() {
+    if (imgLoaded || (cnt == 6))
+        window.location = "admgui.jnlp";
+    else {
+        cnt++;
+        setTimeout("loadJnlp()", 500);
+    }
+}
+function setImgLoaded() {
+    imgLoaded = 1;
+}
+//-->
+</SCRIPT>
+<SCRIPT LANGUAGE="VBScript">
+on error resume next
+
+If isIE = "true" Then
+  If Not(IsObject(CreateObject("JavaWebStart.isInstalled"))) Then
+     javawsInstalled = 0
+  Else
+     javawsInstalled = 1
+  End If
+End If
+</SCRIPT>
+</HEAD>
+
+<BODY>
+
+<SCRIPT LANGUAGE="JavaScript">
+/* 
+ * Note that the logic below always launches the JNLP application
+ * if the browser is Gecko based. This is because it is not possible
+ * to detect MIME type application/x-java-jnlp-file on Gecko-based browsers. 
+ */
+if (javawsInstalled || (navigator.userAgent.indexOf("Gecko") !=-1)) {
+  document.write('\
+    <img alt="StorageTek" src="logo.jpg" onLoad="setImgLoaded()" \
+         style="width: 131px; height: 95px;" align="left">\
+    <h2 style="color: rgb(51, 102, 102);">\
+    <small>Application starting in a separate window.<br>\
+           This will take a few seconds...\
+    </small></h2><h3 style="color: rgb(51, 102, 102);">\
+    <small>You may close or minimize this window at any time</small>');
+  loadJnlp();
+
+} else {
+    document.write("Please click ");
+    document.write("<a href=http://java.sun.com/PluginBrowserCheck?pass=download.html&fail=http://java.sun.com/j2se/1.5.0/download.html>here</a>");
+    document.write(" to download and install JRE 5.0");
+}
+</SCRIPT>
+</BODY>
+</HTML>
+

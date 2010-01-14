@@ -1,0 +1,253 @@
+<!--
+ $Id: build.xml 10857 2007-05-19 03:01:32Z bberndt $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for honeycomb Whitebox packages
+ --> 
+<project name="whitebox" default="whitebox_jar">
+  <description>
+    Honeycomb whitebox component. Building this project creates
+  	honeycomb-wbcluster.jar and honeycomb-wbsp.jar
+  </description>
+
+  <!-- first, local, user specified .ant.properties files take precedence -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <!-- lastly, use the top-level builds properties file -->
+  <property file="../build/build.properties"/>
+
+  <!-- second, use the build.properties for this package -->
+  <property file="../whitebox/build.properties"/>
+
+  <!-- reference environment variables as env.X -->
+  <!-- ie. ${env.USER} -->
+  <property environment="env"/>
+
+  <!-- Classpath setup *************************************************** -->
+  <property name="server.jar"
+	value="${server.dist.libdir}/honeycomb-server.jar"/>
+  <property name="common.jar"
+	value="${common.dist.libdir}/honeycomb-common.jar"/>
+
+
+  <!-- INIT *************************************************************** -->
+  <target name="whitebox_init">
+    
+    <path id="whitebox.build.classpath">
+        <pathelement location="${md_caches.dist.basedir}/bdb_common.jar"/>
+        <pathelement location="${md_caches.dist.basedir}/bdb_system.jar"/>
+        <pathelement location="${md_caches.dist.basedir}/db-4.2.jar"/>
+      <pathelement location="${server.dist.libdir}/${jarname.server}"/>
+      <pathelement location="${common.dist.libdir}/${jarname.common}"/>
+    	<pathelement location="${test.dist.libdir}/honeycomb-test.jar"/>
+    	<pathelement location="${md_clustra.basedir.external}/hadbmgt.jar"/>
+    </path>
+  </target>
+
+  <!-- PREPARE ************************************************************ -->
+  <target name="whitebox_prepare" depends="whitebox_init">
+    <mkdir dir="${wbcluster.build.basedir}"/>
+    <mkdir dir="${wbcluster.build.classdir}"/>
+    <mkdir dir="${wbcluster.build.pkgdir}"/>
+  	
+    <mkdir dir="${wbcluster.dist.basedir}"/>
+    <mkdir dir="${wbcluster.dist.libdir}"/>
+    <mkdir dir="${wbcluster.dist.docdir}"/>
+  	<mkdir dir="${wbcluster.dist.bindir}"/>
+  	<mkdir dir="${wbcluster.dist.cfgdir}"/>
+  	
+    <mkdir dir="${wbsp.build.basedir}"/>
+    <mkdir dir="${wbsp.build.classdir}"/>
+    <mkdir dir="${wbsp.build.pkgdir}"/>
+  	
+    <mkdir dir="${wbsp.dist.basedir}"/>
+    <mkdir dir="${wbsp.dist.libdir}"/>
+    <mkdir dir="${wbsp.dist.docdir}"/>
+  	<mkdir dir="${wbsp.dist.bindir}"/>
+  	<mkdir dir="${wbsp.dist.cfgdir}"/>
+  </target>
+
+
+  <!-- COMPILE_JAVA ******************************************************* -->
+
+  <target name="whitebox_compile_java" depends="whitebox_prepare">
+
+    <javac classpathref="whitebox.build.classpath"
+           srcdir="${wbcluster.java.srcdir}"
+           destdir="${wbcluster.build.classdir}"
+           debug="${javac.debug}"
+           deprecation="${javac.deprecation}"
+           source="${javac.source}"
+           optimize="${javac.optimize}"/>
+
+  	<javac classpathref="whitebox.build.classpath"
+  	           srcdir="${wbsp.java.srcdir}"
+  	           destdir="${wbsp.build.classdir}"
+  	           debug="${javac.debug}"
+  	           deprecation="${javac.deprecation}"
+  	           source="${javac.source}"
+  	           optimize="${javac.optimize}"/>
+
+
+  </target>
+
+  <!-- JAR *************************************************************** -->
+  <target name="whitebox_jar" depends="whitebox_compile_java"
+          description="Build the whitebox only">
+    <jar jarfile="${wbcluster.jar}">
+      <fileset dir="${wbcluster.build.classdir}"/>
+    </jar>
+    <jar jarfile="${wbsp.jar}">
+      <fileset dir="${wbsp.build.classdir}"/>
+    </jar>
+  </target>
+
+
+  <!-- whitebox ************************************************************* -->
+  <target name="whitebox" depends="whitebox_jar" 
+          description="build the honeycomb whitebox">
+  	
+        <copy todir="${wbcluster.dist.libdir}" file="${wbcluster.jar}"/>
+  	<!-- copy all script files for wbcluster -->
+  	<copy todir="${wbcluster.dist.bindir}">
+  		<fileset dir="${wbcluster.srcdir}/scripts">
+  			<include name="**"/>
+  		</fileset>
+  	</copy>
+        <!-- also get the sucker analyze script -->
+        <copy todir="${wbcluster.dist.bindir}" 
+              file="${server.dist.bindir}/analyze"/>
+        <!-- also get the sucker script -->
+        <copy todir="${wbcluster.dist.bindir}" 
+              file="${server.dist.bindir}/sucker"/>
+  	<!-- copy all config files for wbcluster-->
+  	<copy todir="${wbcluster.dist.cfgdir}">
+  		<fileset dir="${wbcluster.srcdir}/config">
+  			<include name="**"/>
+  		</fileset>
+  	</copy>
+  	<!-- copy ssh key files for wbcluster-->
+  	<copy todir="${wbcluster.dist.sshdir}">
+  		<fileset dir="${hctest.sshdir}">
+  			<include name="**"/>
+  		</fileset>
+  	</copy>
+  	
+  	
+  	<!-- copy server jar file-->
+  	<copy todir="${wbsp.dist.libdir}" file="${server.jar}"/>
+  	<copy todir="${wbsp.dist.libdir}" file="${common.jar}"/>
+  
+  	<!-- copy the test jar files-->
+  	<copy todir="${wbsp.dist.libdir}" file="${test.dist.libdir}/${jarname.test}"/>
+  	
+  	<!-- copy hadb and supporting jar files -->
+  	<copy todir="${wbsp.dist.libdir}" file="${md_clustra.basedir.external}/hadbmgt.jar"/>	
+  	<copy todir="${wbsp.dist.libdir}" file="${external.basedir}/lib/jmx.jar"/>
+  	<copy todir="${wbsp.dist.libdir}" file="${external.basedir}/lib/jmxremote.jar"/>
+  	<copy todir="${wbsp.dist.libdir}" file="${external.basedir}/lib/jmxremote_optional.jar"/>
+  		
+  	
+  	<!-- copy all shared files to wbscp/lib -->
+  	<copy todir="${wbsp.dist.libdir}">
+  		<fileset dir="${server.dist.sharedir}">
+  			<include name="**"/>
+  		</fileset>
+  	</copy>
+  		
+  	<copy todir="${wbsp.dist.libdir}" file="${wbsp.jar}"/>
+  	<!-- copy all script files for wbsp-->
+  	<copy todir="${wbsp.dist.bindir}">
+  		<fileset dir="${wbsp.srcdir}/scripts">
+  			<include name="**"/>
+  		</fileset>
+  	</copy>
+        <!-- also get the sucker analyze and sucker scripts -->
+        <copy todir="${wbsp.dist.bindir}" 
+              file="${server.dist.bindir}/analyze"/>
+        <copy todir="${wbsp.dist.bindir}" 
+              file="${server.dist.bindir}/sucker"/>
+        <!-- upgrade script for Aquarius clusters -->
+        <copy todir="${wbsp.dist.bindir}" file="${platform.solaris.srcdir}/sp/bin/update_ramdisk"/>
+
+  	<!-- copy all config files for wbsp-->
+  	<copy todir="${wbsp.dist.cfgdir}">
+  		<fileset dir="${wbsp.srcdir}/config">
+  			<include name="**"/>
+  		</fileset>
+  	</copy>
+  	<!-- copy ssh key files for wbsp-->
+  	<copy todir="${wbsp.dist.sshdir}">
+  		<fileset dir="${hctest.sshdir}">
+  			<include name="**"/>
+  		</fileset>
+  	</copy>
+  	
+  </target>
+  
+  <!-- PKG **************************************************************** -->
+  <target name="pkg"
+          depends="whitebox"
+          description="build the entire package">
+  	
+      <exec executable="${pkgmk.bin}" failonerror="yes">
+        <!-- arg value="" does not work here for some reason -->
+        <arg line="-o -d ${wbcluster.build.pkgdir} -f ${wbcluster.pkgdefs}/prototype -r ${wbcluster.dist.basedir}"/>
+      </exec>
+  	
+  	  <exec executable="${pkgmk.bin}" failonerror="yes">
+  	        <!-- arg value="" does not work here for some reason -->
+  	        <arg line="-o -d ${wbsp.build.pkgdir} -f ${wbsp.pkgdefs}/prototype -r ${wbsp.dist.basedir}"/>
+  	      </exec>
+
+      <exec executable="${pkgtrans.bin}" failonerror="yes">
+        <arg line="-s ${wbcluster.build.pkgdir} ${sun.pkgname.wbcluster}.pkg ${sun.pkgname.wbcluster}"/>
+      </exec>
+
+  	<exec executable="${pkgtrans.bin}" failonerror="yes">
+      <arg line="-s ${wbsp.build.pkgdir} ${sun.pkgname.wbsp}.pkg ${sun.pkgname.wbsp}"/>
+    </exec>
+
+  </target>
+
+  <!-- ************************************************************** -->
+  <target name="build_pkg" depends="pkg"
+    description="compile sources and create the solaris package" />
+
+  <!-- CLEAN ************************************************************** -->
+  <target name="clean" description="cleans workspace of all generated files">
+    <delete dir="${wbcluster.build.basedir}"/>
+    <delete dir="${wbsp.build.basedir}"/>
+  </target>
+
+</project>

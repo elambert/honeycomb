@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="distribute">
+	<info>
+		<author>
+			<name>Rodney Gomes</name>
+			<email>rodney.gomes@sun.com</email>
+		</author>
+		<description>DTF distribute performance test.</description>
+	</info>
+
+	<local>
+		<createstorage id="INPUT" path="${dtf.xml.path}/input" />
+		<createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+		<loadproperties uri="storage://INPUT/test.properties" />
+	</local>
+
+	<record type="txt" uri="storage://OUTPUT/perf1.txt" append="false">
+		<for property="iter" range="[1..20000]">
+			<sequence>
+				<event name="dtf.echo">
+					<attribute name="prop1" value="${iter}" />
+				</event>
+			</sequence>
+		</for>
+	</record>
+
+	<record type="txt" uri="storage://OUTPUT/perf2.txt" append="false">
+		<parallelloop property="agent" range="${agent.ids}">
+			<for property="iter" range="[1..20000]">
+				<sequence>
+					<event name="dtf.echo">
+						<attribute name="prop1" value="${iter}" />
+					</event>
+				</sequence>
+			</for>
+		</parallelloop>
+	</record>
+
+	<query uri="storage://OUTPUT/perf1.txt" 
+	       type="txt" 
+	       event="dtf.echo"
+	       cursor="cursor" />
+
+	<record type="object" uri="property://dbperf">
+		<stats cursor="cursor" event="stats" />
+	</record>
+	
+	<local>
+		<echo>
+			For Loop Performance
+			Events per second: ${dbperf.avg_occ} 
+			Total of Events:   ${dbperf.tot_occ} 
+			Total Duration:    ${dbperf.tot_dur}s
+		</echo>
+	</local>
+	
+	<query uri="storage://OUTPUT/perf2.txt" 
+           type="txt" 
+           event="dtf.echo"
+           cursor="cursor"/>
+           
+    <record type="object" uri="property://dbperf"> 
+   		<stats cursor="cursor" event="stats"/>
+    </record> 
+    
+    <local>
+   		<echo>
+              Parallelloop of For loop
+              Events per second: ${dbperf.avg_occ}
+              Total of Events:   ${dbperf.tot_occ}
+              Total Duration:    ${dbperf.tot_dur}s
+        </echo> 
+    </local>	
+</script>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    $Id: silo_info.xml 10854 2007-05-19 02:52:12Z bberndt $
+
+    Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+    Use is subject to license terms.
+-->
+<Multicell-Descriptor  version-major="4">
+    <Cell  gateway="foo" subnet="255.255.252.0" data-vip="foo" domain-name="honeycomb" admin-vip="foo" sp-vip="foo" id="0">
+        <Rule  start="0" origin-cellid="0" end="32767" initial-capacity="0" id="1"/>
+    </Cell>
+</Multicell-Descriptor>

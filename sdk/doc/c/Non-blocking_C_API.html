@@ -1,0 +1,469 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<!--
+ $Id: Non-blocking_C_API.html 11208 2007-07-13 14:28:19Z bberndt $
+ 
+ Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ Use is subject to license terms.
+--> 
+
+  <head>
+    <title>Non-blocking C API</title>
+  </head>
+
+  <body>
+    <h1>Non-blocking C API</h1>
+
+
+
+    Using non-blocking functions to access the @HoneycombProductName@ server
+    permits a single thread to manage multiple operations
+    simultaneously, potentially in conjunction with other tasks. The
+    general sequence in the main loop is:
+<ol>
+    <li>Initiate multiple operations, retaining the opaque handles which
+       will be used to drive the operations to completion.</li>
+    <li>Check the "select" system call to determine if any I/O is ready</li>
+    <li>Call the appropriate "driver" function on handles with ready I/O</li>
+    <li>Handle values returned from operations</li>
+    <li>Close handles for operations as they complete</li>
+    </ol>
+
+
+The functions for each operation are summarized below: 
+<p>
+<h4>Object Data Operations</h4>
+
+<table BORDER="1">
+<tr><th>Operation</th><th> Create Handle</th><th>             Drive Operation (Upload/Download)</th><th>  Finish</th></tr>
+<tr><td>Store</td><td>     hc_store_object_create</td><td>    hc_store </td><td>        hc_store_close</td></tr>
+<tr><td>Retrieve  </td><td>hc_retrieve_object_create </td><td>hc_retrieve  </td><td>    hc_retrieve_close</td></tr>
+<tr><td>Delete</td><td>    hc_delete_object_create</td><td>   hc_delete </td><td>       hc_delete_close</td></tr>
+</table>
+
+<p>
+<h4>Metadata Store Operations</h4>
+<table BORDER="1">
+
+<tr><th>Operation </th><th>     Create Handle</th><th>            Add Metadata </th><th>   Drive Operation (Upload Structured Data)</th><th>Finish</th></tr>
+
+<tr><td>Store Metadata</td><td> hc_store_metadata_create</td><td> hc_add_metadata </td><td>hc_store_metadata</td><td> hc_store_metadata_close</td></tr>
+<tr><td>Store Both</td><td>     hc_store_both_create </td><td>    hc_add_metadata </td><td>hc_store_metadata<br>hc_store</td><td> hc_store_metadata_close </td></tr>
+</table>
+
+
+<p>
+<h4>Metadata Retrieve Operations</h4>
+
+<table BORDER="1">
+<tr><th>Operation </th><th>        Create Handle</th><th>              Drive Operation  (Download Structured Data) </th><th> Handle Structured Data</th><th>    Finish</th></tr>
+
+<tr><td>Retrieve Metadata</td><td> hc_retrieve_metadata_create</td><td>hc_retrieve_metadata          </td><td></td><td>                  hc_retrieve_metadata_close  </td></tr>
+<tr><td>Retrieve Schema</td><td>   hc_retrieve_schema_create</td><td>  hc_retrieve_query             </td><td></td><td>                  hc_retrieve_schema_close</td></tr>
+<tr><td>Query </td><td>            hc_create_query </td><td>           hc_retrieve_query </td><td>   hc_next_query_result </td><td>      hc_close_query</td></tr>
+<tr><td>Query/Select </td><td>     hc_create_query_plus </td><td>      hc_retrieve_query </td><td>   hc_next_query_plus_result</td><td>  hc_close_query</td></tr>
+</table>
+
+
+<h3>3.2.1 Testing for ready I/O</h3>
+
+    Utility operations are provided to map between operation handles
+    and the fd_set data structures passed to the "select" system call.
+
+<p>
+<b>hc_get_read_fd_set</b>
+<code><pre>
+hcerr_t hc_get_read_fd_set(fd_set *read_fd_set, int *max_fd);
+</pre></code>
+
+Get the fd_set corresonding to downloads for all current operations in
+the global session and their number. These values can be used with the
+"select" system call.
+
+<p>
+<b>hc_get_write_fd_set</b>
+<code><pre>
+hcerr_t hc_get_write_fd_set(fd_set *write_fd_set, int *max_fd);
+</pre></code>
+Get the fd_set corresonding to uploads for all current operations in
+the global session and their number. These values can be used with the
+"select" system call. 
+
+<p>
+<b>hcerr_t hc_fd_isset</b>
+<code><pre>
+hcerr_t hc_fd_isset(void *handle, fd_set *fds, int* set);
+</pre></code>
+Test if the I/O is pending for the handle's operation.
+
+
+
+
+<h3>3.2.2 Store Object Data and Metadata</h3>
+
+<b>hc_store_both_create</b>
+<code><pre>
+hcerr_t hc_store_both_create(void **handle, 
+                             char* buffer,
+                             hc_long buffer_length,
+                             const char *host, int port, 
+                             hc_long chunk_size_bytes, 
+                             hc_long window_size_chunks);
+</pre></code>
+Initiate a store operation to a @HoneycombProductName@ server and return a handle to reference the operation until it completes. After obtaining a handle, add_metadata should be called to build a metadata record. As polling indicates ready I/O, store_metadata should be called.
+<ul>
+<li><code>handle</code>: pointer to a handle to be used to identify this operation in subsequent processing</li>
+<li><code>buffer</code>:  data structure to be used to accumulate metadata before uploading</li>
+<li><code>buffer_length</code>: size of supplied buffer</li>
+<li><code>host</code>: name or IP address of the @HoneycombProductName@ server</li>
+<li><code>port</code>: port number of the @HoneycombProductName@ server (normally 8080)</li>
+<li><code>chunk_size_bytes</code>: data chunk size to use for failover management. Specify 0 for default size.</li>
+<li><code>window_size_chunks</code>:number of data chunks to use for failover management. Specify 0 for default size.</li>
+</ul>
+
+<b>hc_store</b>
+hcerr_t hc_store(void *handle,
+                 char *buf,
+                 hc_long buflen,
+                 hc_long *stored);
+</pre></code>
+<ul>
+<li><code>handle</code>: identifier for the store operation</li>
+<li><code>buf</code>: data to upload</li>
+<li><code>buflen</code>: buffer length</li>
+<li><code>stored</code>: returned bytes stored</li>
+</ul>
+
+
+<h3>3.2.3 Store Metadata</h3>
+<b>hc_store_metadata_create</b>
+<code><pre>
+hcerr_t hc_store_metadata_create(void **handle, 
+                                 char* buffer,
+                                 int buffer_length,
+                                 const char *host, int port, 
+                                 hc_long chunk_size_bytes, 
+                                 hc_long window_size_chunks, 
+                                 hc_oid oid);
+</pre></code>
+
+Initiate an operation to add a new metadata record to an existing
+object. A pointer to a handle is returned to be used to identify this
+operation in subsequent processing.
+
+<ul>
+<li><code>handle</code>: pointer to a handle to be used to identify this operation in subsequent processing</li>
+<li><code>buffer</code>:  data structure to be used to accumulate metadata before uploading</li>
+<li><code>buffer_length</code>: size of supplied buffer</li>
+<li><code>host</code>: name or IP address of the @HoneycombProductName@ server</li>
+<li><code>port</code>: port number of the @HoneycombProductName@ server (normally 8080)</li>
+<li><code>chunk_size_bytes</code>: data chunk size to use for failover management. Specify 0 for default size.</li>
+<li><code>window_size_chunks</code>:number of data chunks to use for failover management. Specify 0 for default size.</li>
+<li><code>oid</code>: identifier for the Data Object to attach the new metadata record to</li>
+</ul>
+
+
+<b>hc_add_metadata</b>
+<code><pre>
+hcerr_t hc_add_metadata(void *handle, char* name, char* value);
+</pre></code>
+Add a name/value pair to the metadata record which is being
+stored. The handle must have been initialized by <code>hc_store_metadata_create</code> 
+or <code>hc_store_both_create.</code>
+<ul>
+<li><code>handle</code>: identifier for the add Metadata operation</li>
+<li><code>name</code>: name of Metadata field</li>
+<li><code>value</code>: value of Metadata field</li>
+</ul>
+
+<b>hc_store_metadata</b> 
+<code><pre> 
+hcerr_t hc_store_metadata(void *handle, hc_long *finished); 
+</pre></code> 
+
+When polling indicates that the fd_set elements associated with the
+handle for this operation are ready for I/O, this function should be
+called to upload the metadata record built by calling add_metadata
+with this handle. When the return value of <code>finished</code>
+returns non-zero, the operation should transition to hc_store (if the
+handle is for a store_both operation), or hc_store_metadata_close (if
+the handle is for an add_metadata operation)
+<ul>
+<li><code>handle</code>: identifier for the add Metadata operation</li>
+<li><code>finished</code>: a non-zero value indicates that the metadata record is fully uploaded</li>
+</ul>
+
+
+
+<b>hc_store_metadata_close</b>
+<code><pre>
+hcerr_t hc_store_metadata_close(void *handle, 
+                                int32_t *response_code,
+                                char* errstr, hc_long errstrlen,
+                                hc_system_record_t *sysrec);
+</pre></code>
+Finish operation and return a <a href="C_API.html#SystemRecord">system_record</a>.
+
+<ul>
+<li><code>handle</code>: identifier for the store_metadata or store_both operation</li>
+
+<li><code>response_code</code>: HTTP response code</li>
+<li><code>errstr</code>: error returned in response body if response code is not 200 (OK)</li>
+<li><code>errstr_len</code>: length of error string</li>
+<li><code>sysrec</code>: <a href="C_API.html#SystemRecord">system_record</a> describing the new metadata record</li>
+</ul>
+
+
+<h3>3.2.4 Retrieve Metadata</h3>
+<b>hc_retrieve_metadata_create</b>
+<code><pre>
+hcerr_t hc_retrieve_metadata_create(void **handle, 
+                                    const char *host, int port, hc_oid oid);
+</pre></code>
+
+<ul>
+<li><code>handle</code>: pointer to a handle to be used to identify this operation in subsequent processing</li>
+<li><code>host</code>: name or IP address of the @HoneycombProductName@ server</li>
+<li><code>port</code>: port number of the @HoneycombProductName@ server (normally 8080)</li>
+<li><code>oid</code>: identifier of metadata record to retrieve</li>
+</ul>
+
+<b>hc_retrieve_metadata</b>
+<code><pre>
+hcerr_t hc_retrieve_metadata (void *handle, int *finished) ;
+</pre></code>
+
+Download Metadata. A non-zero value returned for <code>finished</code>
+indicates that the download is complete and that
+hc_retrieve_metadata_close should be called.
+
+<ul>
+<li><code>handle</code>: identifier for the retrieve_metadata operation</li>
+<li><code>finished</code>: a non-zero value indicates that the metadata record is fully downloaded</li>
+</ul>
+
+<b>string_array_ptr_t Return Type</b>
+<code><pre>
+typedef char*** string_array_ptr_t;
+</pre></code>
+
+<b>hc_retrieve_metadata_close</b>
+<code><pre>
+hcerr_t hc_retrieve_metadata_close(void *handle,
+                                   int32_t *response_code,
+                                   char* errstr,
+                                   hc_long errstrlen,
+                                   string_array_ptr_t names, 
+                                   string_array_ptr_t values, 
+                                   int* n);
+</pre></code>
+Terminate the retrieve_metadata operation and return arrays of name/value pairs.
+
+<ul>
+<li><code>handle</code>: identifier for the operation</li>
+
+<li><code>response_code</code>: HTTP response code</li>
+<li><code>errstr</code>: error returned in response body if response code is not 200 (OK)</li>
+<li><code>errstr_len</code>: length of error string</li>
+
+<li><code>names</code>: metadata record field names</li>
+<li><code>values</code>: metadata record field values</li>
+<li><code>n</code>: the number of name/value pairs returned</li>
+</ul>
+
+
+
+<h3>3.2.5 Retrieve Schema</h3>
+Retrieve a description of supported metadata fields.
+<p>
+<b>hc_nvoa_types_t Returned Type</b>
+<code><pre>
+typedef enum hc_nvoa_types{
+  hc_nvoa_long_t,
+  hc_nvoa_byte_t,
+  hc_nvoa_double_t,
+  hc_nvoa_string_t
+}
+hc_nvoa_types_t;
+</pre></code>
+<p>
+<b>hc_retrieve_schema_create</b>
+<code><pre>
+hcerr_t hc_retrieve_schema_create(void **handle, 
+                                  const char *host, int port);
+</pre></code>
+
+Initiate operation to retrieve a description of the schema in the form of lists of the supported field names and their types.
+<ul>
+<li><code>handle</code>: pointer to a handle to be used to identify this operation in subsequent processing</li>
+<li><code>host</code>: name or IP address of the @HoneycombProductName@ server</li>
+<li><code>port</code>: port number of the @HoneycombProductName@ server (normally 8080)</li>
+</ul>
+
+
+<b>hc_retrieve_schema</b>
+<code><pre>
+hcerr_t hc_retrieve_schema (void *handle,
+                            int *finished);
+</pre></code>
+Download schema description. When <code>finished</code> returns a non-zero value, 
+<code>hc_retrieve_schema_close</code> should be called.
+<ul>
+<li><code>handle</code>: identifier for the operation</li>
+<li><code>finished</code>: non-zero value indicates that there are no more results availible.</li>
+</ul>
+
+<b>hc_retrieve_schema_close</b>
+<code><pre>
+hcerr_t hc_retrieve_schema_close(void *handle, 
+                                 int32_t *response_code, 
+                                 char* errstr, hc_long errstrlen,
+                                 string_array_ptr_t names, hc_nvoa_types_t** types, hc_long* n);
+</pre></code>
+Terminate the operation and return arrays of schema field names and types.
+
+<ul>
+<li><code>handle</code>: identifier for the operation</li>
+
+<li><code>response_code</code>: HTTP response code</li>
+<li><code>errstr</code>: error returned in response body if response code is not 200 (OK)</li>
+<li><code>errstr_len</code>: length of error string</li>
+
+<li><code>names</code>: schema's  names</li>
+<li><code>values</code>: schema's field types</li>
+<li><code>n</code>: the number of name/type pairs returned</li>
+</ul>
+
+
+<h3>3.2.6 Query</h3>
+
+<b>hc_create_query</b>
+<code><pre>
+hcerr_t hc_create_query(void **handle, 
+                        char* query,
+                        const char *host, int port, 
+                        int32_t results_per_fetch, 
+                        hc_long chunk_size_bytes, 
+                        hc_long window_size_chunks);
+</pre></code>
+<br>
+Initiate an operation to retrieve OIDs for metadata records matching a query.
+<ul>
+<li><code>handle</code>: pointer to a handle to be used to identify this operation in subsequent processing</li>
+<li><code>query</code>: query (where clause)</li>
+<li><code>host</code>: name or IP address of the @HoneycombProductName@ server</li>
+<li><code>port</code>: port number of the @HoneycombProductName@ server (normally 8080)</li>
+<li><code>results_per_fetch</code>: how many query results to retrieve in a single HTTP request</li>
+<li><code>chunk_size_bytes</code>: data chunk size to use for failover management. Specify 0 for default size.</li>
+<li><code>window_size_chunks</code>:number of data chunks to use for failover management. 
+          Specify 0 for default size.</li>
+</ul>
+
+<b>hc_retrieve_query</b>
+<code><pre>
+hcerr_t hc_retrieve_query(void *handle, 
+                          hc_long* results, int* finished);
+</pre></code>
+
+Download query results. This function should be called when polling
+indicates ready I/O on the fd_set member associated with the
+operation's handle. If <code>reults</code> is positive,
+<code>hc_next_query_result</code> or
+<code>hc_next_query_plus_result</code> should be called to access that
+number of retrieved OIDs. If <code>finished</code> is non-zero, there
+are no more results on the server, and <code>hc_close_query</code>
+should be called.
+
+
+<ul>
+<li><code>handle</code>: identifier for the query-select operation</li>
+<li><code>results</code>: </li>
+<li><code>finished</code>: non-zero value indicates that there are no more results availible.</li>
+</ul>
+
+<b>hc_next_query_result</b>
+<code><pre>
+hcerr_t hc_next_query_result (void *handle, 
+                              hc_oid* oid);
+</pre></code>
+Handle the oid for the metadata record matching the query.
+<ul>
+<li><code>handle</code>: identifier for the query operation</li>
+<li><code>oid</code>: identifier for metadata record matching query</li>
+</ul>
+
+
+<b>hc_close_query</b>
+<code><pre>
+hcerr_t hc_close_query (void *handle,
+                        int32_t *response_code, 
+                        char* errstr, hc_long errstrlen);
+</pre></code>
+Terminate query operation and return HTTP Response code.
+<ul>
+<li><code>handle</code>: identifier for the query operation</li>
+
+<li><code>response_code</code>: HTTP response code</li>
+<li><code>errstr</code>: error returned in response body if response code is not 200 (OK)</li>
+<li><code>errstr_len</code>: length of error string</li>
+</ul>
+
+
+
+<h3>3.2.7 Query/Select</h3>
+
+<b>hc_create_query_plus</b>
+<code><pre>
+hcerr_t hc_create_query_plus(void **handle, 
+                             char* query,
+                             char** fields, int n_fields,
+                             const char *host, int port, 
+                             hc_long results_per_fetch, 
+                             hc_long chunk_size_bytes, 
+                             hc_long window_size_chunks);
+</pre></code>
+
+Initiate an operation to retrieve specified values for metadata
+records matching a query. The returned handle should be used in
+<code>hc_retrieve_query</code> whenever the system call "select"
+indicates read I/O.
+
+<br>
+<ul>
+<li><code>handle</code>: pointer to a handle to be used to identify this operation in subsequent processing</li>
+<li><code>query</code>: query (where clause)</li>
+<li><code>fields</code>: names of fields to retrieve (select clause)</li>
+<li><code>n_fields</code> number of fields to retrieve</li>
+<li><code>host</code>: name or IP address of the @HoneycombProductName@ server</li>
+<li><code>port</code>: port number of the @HoneycombProductName@ server (normally 8080)</li>
+<li><code>results_per_fetch</code>: how many query results to retrieve in a single HTTP request</li>
+<li><code>chunk_size_bytes</code>: data chunk size to use for failover management. Specify 0 for default size.</li>
+<li><code>window_size_chunks</code>:number of data chunks to use for failover management. Specify 0 for default size.</li>
+</ul>
+
+<b>hc_next_query_plus_result</b>
+<code><pre>
+hcerr_t hc_next_query_plus_result (void *handle, 
+                                   string_array_ptr_t names, string_array_ptr_t values, int* n);
+
+Handle the requested name/value pairs for the metadata record matching the query.
+
+</pre></code>
+<ul>
+<li><code>handle</code>: identifier for the query operation</li>
+<li><code>names</code>: names of returned metadata record fields</li>
+<li><code>values</code>: values of returned metadata record fields</li>
+<li><code>n</code>: the number of name/value pairs returned</li>
+</ul>
+
+
+
+
+    <hr>
+    <address><a href="mailto:david.sobeck@sun.com">andy</a></address>
+<!-- Created: Fri Jan 13 15:27:49 PST 2006 -->
+<!-- hhmts start -->
+Last modified: Wed Mar 15 15:40:45 PST 2006
+<!-- hhmts end -->
+  </body>
+</html>

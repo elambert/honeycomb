@@ -1,0 +1,90 @@
+#!/bin/bash
+#
+# $Id: run_tests 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+# SLEEP should be the time it takes the cluster to come up fully after
+# having the disks wiped and reboot.
+
+SLEEP=25m
+
+# the 'honeycomb/test/src/cmd/auto' dir should be installed as /test
+TEST_DIR=/test
+if ! test -d $TEST_DIR ; then
+    echo NO $TEST_DIR DIRECTORY
+    exit 1
+fi
+
+# CONFIG_DIR should have files named after the clusters of interest,
+# each containing a command to run the test (including list of client
+# machines), where the 1st arg of the cmd is the path to the cmd,
+# and the 2nd arg is the name of the directory to run in on test client
+# machines. E.g. for a test of dev316, an executable script file
+# /test/clusters/dev316 is created with the following content:
+#
+# $1/LaunchOvernight2 -q dev316-data $2 out node1 node2 node3 node4 
+
+CONFIG_DIR=$TEST_DIR/clusters
+if ! test -d $CONFIG_DIR ; then
+    echo "NO $CONFIG_DIR DIRECTORY - SEE 'CONFIG_DIR' COMMENT IN $0"
+    exit 1
+fi
+
+RUN_DIR=$TEST_DIR/run
+mkdir -p $RUN_DIR
+
+TEST_ID=lo.`date +%F-%R`
+
+TEST_BIN=$TEST_DIR/testcmd/bin
+
+CLUSTERS=`dir $CONFIG_DIR`
+
+echo installing/wiping/rebooting on $CLUSTERS
+
+$TEST_DIR/mkinst_image $CLUSTERS	|| exit 1
+
+echo sleeping $SLEEP while clusters settle
+
+sleep $SLEEP
+
+echo launching..
+
+for i in $CLUSTERS ; do
+	echo $i
+	mkdir -p $RUN_DIR/$i	|| exit 1
+	cd $RUN_DIR/$i		|| exit 1
+	/bin/rm -f *		|| exit 1
+	$CONFIG_DIR/$i $TEST_BIN $TEST_ID &
+done

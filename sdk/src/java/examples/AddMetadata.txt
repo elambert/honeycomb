@@ -1,0 +1,32 @@
+
+NAME
+       AddMetadata - add a metadata record to an already stored object
+
+SYNOPSIS
+       java AddMetadata <IP | HOST>  <OID>  [OPTIONS]
+
+DESCRIPTION
+       Add a new metadata record to a Data Object.
+
+OPTIONS
+       -m, --metadata <name>=<value>
+              Any number of --metadata options can be specified. Each option
+              specifies a single (name,value) pair. <name> should be
+              specified in the format <namespace>.<attribute> . Use double 
+              quotes if <value> is a string containing spaces.
+
+       -h, --help
+              print this message
+
+EXAMPLES
+
+       java AddMetadata server @SampleOID@ -m filesystem.mimetype=image/jpeg
+       java AddMetadata server @SampleOID@ -m system.test.type_char="do re mi"
+       java AddMetadata server @SampleOID@ -m system.test.type_string="fa so la"
+       java AddMetadata server @SampleOID@ -m system.test.type_long=123
+       java AddMetadata server @SampleOID@ -m system.test.type_double=1.23
+       java AddMetadata server @SampleOID@ -m system.test.type_date=1992-10-21
+       java AddMetadata server @SampleOID@ -m system.test.type_time=23:30:29
+       java AddMetadata server @SampleOID@ -m system.test.type_timestamp="1992-10-21 23:30:29.999"
+       java AddMetadata server @SampleOID@ -m name1=value1 -m name2="value 2"
+

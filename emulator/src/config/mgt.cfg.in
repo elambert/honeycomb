@@ -1,0 +1,44 @@
+## Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+## Use is subject to license terms.
+
+## Example cfg file for unix platforms
+
+## Defaults for all attributes are shown below
+## Uncomment and change to set to other than default values
+
+## MA Server Communication
+#ma.server.type = jmxmp
+#ma.server.jmxmp.port = 1862
+
+## Network interface to use when the host has multiple network interfaces
+## You may specify the full IP address, such as 123.123.123.123
+## or specify number of significant bits in the mask, 123.123.0.0/16
+## Will default to 32 bits, or 24 bits if last digit is 0.
+ma.server.mainternal.interfaces = 129.148.168.14
+
+## Where to store configuration files for nodes
+ma.server.dbconfigpath = {HADBDIR}/dbdef
+
+## Server repository path
+repository.dr.path = {HADBDIR}/repository
+
+## Valid log levels: ALL, SEVERE, WARNING, INFO, FINE[R|ST], OFF
+## When running under service managers, set console.loglevel = OFF
+# console.loglevel = WARNING
+# logfile.loglevel = INFO
+
+## File path/name for logging to file
+logfile.name = {HADBDIR}/log/ma.log
+
+## Default path for database devices
+ma.server.dbdevicepath = {HADBDIR}
+
+## Default path for database history files
+ma.server.dbhistorypath = {HADBDIR}/history
+
+## MFWK: Monitoring Framework Managed Element Server Settings
+# ma.server.managedElementServer = No
+# ma.server.managedElementServer.htmlAdaptorPort = 6693
+# ma.server.managedElementServer.connectorPort   = 6694
+# ma.server.managedElementServer.statisticsinterval = 10000
+

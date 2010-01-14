@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+ $Id: metadata_config_nonqueryable.xml 10855 2007-05-19 02:54:08Z bberndt $
+
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+-->
+
+<metadataConfig>
+  
+  <schema>
+
+    <namespace name="nonqueryable" writable="false" extensible="false">
+      <namespace name="test" extensible="false">
+        <field name="type_long" type="long" queryable="false"/>
+        <field name="type_double" type="double" queryable="false"/>
+        <field name="type_string" type="string" length="512" queryable="false"/>
+        <field name="type_char" type="char" length="512" queryable="false"/>
+        <field name="type_binary" type="binary" length="512" queryable="false"/>
+        <field name="type_date" type="date" queryable="false"/>
+        <field name="type_time" type="time" queryable="false"/>
+        <field name="type_timestamp" type="timestamp" queryable="false"/>
+      </namespace>
+    </namespace>
+
+  </schema>
+
+</metadataConfig>

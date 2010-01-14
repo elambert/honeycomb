@@ -1,0 +1,118 @@
+<!--
+    $Id: build.xml 10854 2007-05-19 02:52:12Z bberndt $
+
+    Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+    Use is subject to license terms.
+-->
+<project name="deleteTest" default="dist">
+
+  <property name="srcDir" value="${basedir}/src"/>
+  <property name="manifest" value="${srcDir}/MANIFEST.MF"/>
+  <property name="configFile" value="${srcDir}/config/deleteFmk.config"/>
+
+  <property name="whiteboxClusterSrcDir" value="${basedir}/../../whitebox/cluster/src"/>
+
+  <property name="buildsrc" value="${basedir}/../../build/unit_tests/deleteTest/src"/>
+  <property name="builddir" value="${basedir}/../../build/unit_tests/deleteTest"/>
+  <property name="classes" value="${builddir}/classes"/>
+  <property name="dist" value="${builddir}/dist"/>
+  <property name="libDir" value="${dist}/lib"/>
+  <property name="nativeLibDir" value="${dist}/lib/native"/>
+  <property name="jarFile" value="${libDir}/deleteFmk.jar"/>
+  
+  <property name="common.jar" value="${basedir}/../../build/common/dist/lib/honeycomb-common.jar"/>
+  <property name="server.jar" value="${basedir}/../../build/server/dist/lib/honeycomb-server.jar"/>
+  <property name="je.jar" value="${basedir}/../../external/lib/je.jar"/>
+  <property name="bsh.jar" value="${basedir}/../../external/lib/bsh-2.0b2.jar"/>
+  <property name="jetty.jar" value="${basedir}/../../external/lib/jetty-4.2.20.jar"/>
+  <property name="jug.jar" value="${basedir}/../../external/lib/jug.jar"/>
+
+  <path id="classpath">
+    <pathelement location="${common.jar}"/>
+    <pathelement location="${server.jar}"/>
+    <pathelement location="${je.jar}"/>
+    <pathelement location="${bsh.jar}"/>
+  </path>
+
+  <target name="prepare">
+    <tstamp/>
+    <mkdir dir="${classes}"/>
+    <mkdir dir="${dist}"/>
+    <mkdir dir="${buildsrc}"/>
+    <mkdir dir="${libDir}"/>
+    <mkdir dir="${nativeLibDir}"/>
+  </target>
+
+  <target name="compile" depends="prepare">
+    <copy file="${whiteboxClusterSrcDir}/java/com/sun/honeycomb/oa/bulk/BackupRestoreMain.java" 
+          toFile="${buildsrc}/java/com/sun/honeycomb/oa/bulk/BackupRestoreMain.java"/>
+    <copy toDir="${buildsrc}">
+	<fileset dir="${srcDir}"/>
+    </copy>
+    
+    <javac classpathref="classpath"
+      srcdir ="${buildsrc}/java"
+      destdir="${classes}"
+      debug="on"
+      deprecation="on"
+      optimize="off"
+      source="1.4"/>
+  </target>
+
+  <target name="jar" depends="prepare,compile">
+    <jar jarfile="${jarFile}"
+      manifest="${manifest}">
+      <fileset dir="${classes}"/>
+    </jar>
+  </target>
+
+  <target name="pkg" depends="dist"/>
+
+  <target name="dist" depends="prepare,jar">
+    <copy file="${common.jar}" toDir="${libDir}"/>
+    <copy file="${server.jar}" toDir="${libDir}"/>
+    <copy file="${je.jar}" toDir="${libDir}"/>
+    <copy file="${bsh.jar}" toDir="${libDir}"/>
+    <copy file="${jetty.jar}" toDir="${libDir}"/>
+    <copy file="${jug.jar}" toDir="${libDir}"/>
+
+    <mkdir dir="${dist}/config"/>
+    <copy file="${configFile}" toDir="${dist}/config"/>
+
+    <copy toDir="${dist}">
+      <fileset dir="${srcDir}/scripts" includes="*"/>
+    </copy>
+    <chmod perm="755">
+      <fileset dir="${dist}"
+        includes="*sh"/>
+    </chmod>
+
+    <copy toDir="${dist}">
+      <fileset dir="${basedir}"
+        includes="scenarii/**"/>
+    </copy>
+
+    <copy toDir="${nativeLibDir}">
+      <fileset dir="${basedir}/../../external/lib"
+               includes="*EtherAddr*"/>
+    </copy>
+    <copy
+      file="${basedir}/../../build/server/dist/share/AdminResources_en.properties"
+      toDir="${libDir}"/>
+    <copy file="${basedir}/../../build/server/dist/lib/libnativeadler32.so"
+      toDir="${nativeLibDir}"/>
+    <copy file="${basedir}/../../build/server/dist/lib/libnativesha1.so"
+      toDir="${nativeLibDir}"/>
+    <copy file="${basedir}/../../build/server/dist/lib/liboamath.so"
+      toDir="${nativeLibDir}"/>
+
+  </target>
+
+  <!-- CLEAN ************************************************************** -->
+  <target name="clean" 
+    description="cleans workspace of all generated files">
+    <delete dir="${builddir}"/>
+  </target>
+
+</project>
+

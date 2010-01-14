@@ -1,0 +1,86 @@
+#
+# $Id: Makefile.linuxppc 10855 2007-05-19 02:54:08Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# Makefile for building the version of zrule2 which runs on the Alpha
+# switch. Cross compile for Linux PPC using gcc 2.95.3 and glibc 2.1.3
+# with crosstools. Copy this entire directory to a Linux machine with
+# crosstools installed and use this Makefile to build.
+
+BUILDDIR=.
+BINDIR=.
+
+CFLAGS = -I. -I/opt/crosstool/gcc-2.95.3-glibc-2.1.3/powerpc-604-linux-gnu/powerpc-604-linux-gnu/include -DSolaris -DPDK_NETWORK_ORDER=1234
+CC = /opt/crosstool/gcc-2.95.3-glibc-2.1.3/powerpc-604-linux-gnu/powerpc-604-linux-gnu/bin/gcc
+AR = /opt/crosstool/gcc-2.95.3-glibc-2.1.3/powerpc-604-linux-gnu/powerpc-604-linux-gnu/bin/ar
+LIBS = -ldl -lnsl -lresolv
+
+LIB = ${BUILDDIR}/libztmd.a
+LIBSRC = sock.c reply.c send.c construct.c dump.c znl2.c ztmd.c
+LIBOBJ = $(BUILDDIR)/sock.o $(BUILDDIR)/reply.o $(BUILDDIR)/send.o \
+	$(BUILDDIR)/construct.o $(BUILDDIR)/dump.o $(BUILDDIR)/znl2.o \
+	$(BUILDDIR)/ztmd.o
+
+SRCS = zrule.c irule.c $(LIBSRC)
+OBJS = ${BUILDDIR}/zrule.o ${BUILDDIR}/irule.o ${BUILDDIR}/libztmd.o
+EXE =  ${BUILDDIR}/zrule2
+
+all: ${EXE} ${BUILDDIR}/irule $(LIB)
+
+$(LIB): $(LIBOBJ)
+	-rm -f $(LIB)
+	$(AR) -q $(LIB) $(LIBOBJ)
+
+${EXE}: ${BUILDDIR}/zrule.o $(LIB)
+	${CC} ${CFLAGS} -o $@  ${BUILDDIR}/zrule.o $(LIB) -L${BUILDDIR} -lztmd $(LIBS)
+
+${BUILDDIR}/irule: ${BUILDDIR}/irule.o
+	${CC} ${CFLAGS} -o ${BUILDDIR}/irule ${BUILDDIR}/irule.o $(LIBS)
+
+${BUILDDIR}/zrule.o: zrule.c libznl2.h libztmd.h
+	$(CC) $(CFLAGS) -c zrule.c -o ${BUILDDIR}/zrule.o
+
+${BUILDDIR}/libztmd.o: libztmd.c libznl2.h libztmd.h
+	$(CC) $(CFLAGS) -c libztmd.c -o ${BUILDDIR}/libztmd.o
+
+${BUILDDIR}/%.o: %.c libztmd.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+install: ${EXE} ${BUILDDIR}/irule
+	cp ${EXE} ${BINDIR}
+	cp ${BUILDDIR}/irule ${BINDIR}
+
+clean:
+	-rm -f $(OBJS) ${BUILDDIR}/zrule2 ${BUILDDIR}/irule core $(LIBOBJ) $(LIB)
+

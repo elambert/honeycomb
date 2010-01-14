@@ -1,0 +1,61 @@
+//
+// $Id: hcpriv.mof 10846 2007-05-19 02:34:13Z bberndt $
+//
+// Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+// Use is subject to license terms.
+//
+
+// This file is the Honeycomb MOF file that describe the Honeycomb
+// cell management objects
+
+
+
+[Description (
+"CellCapacity contains the capacity for a given cell")]
+class HC_TestConfigUpdate {
+
+    [Description ("dummy property"), Read]
+    sint32 dummy;
+
+     [Description ("Start a new config/update executor")]
+     sint32 startExecutor(sint64 delayConfig, sint8 createConfig, sint8 nodeFailure, sint32 rateFailure);
+
+     [Description ("Stop a given config/update executor")]
+     String stopExecutor(sint32 executorId);
+};
+
+
+[Description (
+"NameValue conatins a pair of name/value property")]
+class HC_NameValueProp {
+
+     [Description ("The name of a property")]
+     String name;
+
+     [Description ("The value of a property")]
+     String value;
+};
+
+
+[Description (
+"NameValue conatins an array of name/value properties")]
+class HC_NameValuePropArray {
+
+     [Description ("The array of properties")]
+     HC_NameValueProp Ref properties[];    
+};
+
+
+
+[Description (
+"NameValue conatins a pair of name/value property")]
+class HC_NVProperties {
+
+      [Description ("dummy property"), Read]
+      sint32 dummy;			
+
+      [Description ("set the properties"), Read]      
+      sint32 setProperties(HC_NameValuePropArray Ref props);
+};
+
+

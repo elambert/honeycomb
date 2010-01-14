@@ -1,0 +1,54 @@
+<html>
+<!--
+ $Id: Schema_Metadata_Overview.html 11497 2007-09-12 03:37:43Z ds158322 $
+ 
+ Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ Use is subject to license terms.
+--> 
+
+<head></head><body>
+
+<h1>@HoneycombFullProductName@ Semantics Overview</h1>
+<p><h2>Data and Metadata</h2>
+The @HoneycombProductName@  stores two types of data: 
+arbitrary Object Data, and structured metadata records.
+Every metadata record is associated with exactly one Data Object. 
+Every Data Object has at least one metadata record.
+A unique Object Identifier (OID) is returned when a metadata record is stored, 
+and can later be used to retrieve the metadata record or its Object Data.
+In addition, metadata records and OID's can be retrieved by queries.
+
+<p>OID <----> Metadata Record ----> Object Data
+<p>There are two types of metadata, system metadata and extended metadata. 
+The names and types of system metadata are predefined and cannot be overridden by the user.
+</p>
+
+<p><h2>Metadata Schema</h2>
+An extended metadata record consists of a set of attributes. 
+The set of possible attributes is defined by the schema. 
+There is only one schema per @HoneycombProductName@. 
+The emulator loads its schema from an XML file. 
+The metadata_merge_config utility can be used to extend the 
+default schema, generating a new XML file read by the @HoneycombProductName@ emulator. 
+See <a href="../emulator/Emulator_Setup_and_Configuration.html">
+Emulator Setup and Configuration</a> for more information.
+</p>
+
+<p><h2>Attributes</h2>
+There are four valid types you can use when specifying attributes in a schema. 
+The following table shows the valid data types:
+</p>
+<table>
+<tr><td>Valid Types</td><td> 		Description</td></tr> 
+<tr><td colspan="2">--------------------------------------------------------------------</td></tr>
+<tr><td>Double</td><td>			64-bit floating point number</td></tr> 
+<tr><td>Long</td><td> 			64-bit integer</td></tr> 
+<tr><td>String </td><td>		Character string, no size limit (512-byte limit on queryable length)</td></tr>
+<tr><td>Byte </td><td>			8 bit value (Octet)</td></tr>
+</table>
+
+<p><h2>Namespace</h2>
+A namespace is a container that holds a set of typed attribute names. 
+Every typed attribute name belongs to a namespace. 
+Attribute names must be unique within a given namespace. Attributes in a namespace are referenced with the syntax &lt;Namespace&gt;.&lt;Attribute&gt;
+</p>

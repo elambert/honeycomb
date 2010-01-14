@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="sleep">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF sleep unit test.</description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <loadproperties uri="storage://INPUT/ut.properties"/>
+        
+        <echo message="*** Sleep Unit Test ***"/>
+        <sleep time="${ut.sleep.time}"/>
+        <sleep time="0s"/>
+    </local>
+    
+    <try>
+        <sequence>
+            <local>
+                <sleep time="3xx"/>
+            </local>
+        </sequence>
+        <catch exception="${dtf.ParseException}" property="message">
+            <sequence>
+                <local>
+                    <echo>Caught Exception: ${message}</echo>
+                </local>
+            </sequence>
+        </catch>
+    </try>
+    
+    <try>
+        <sequence>
+            <local>
+                <sleep time="-3s"/>
+            </local>
+        </sequence>
+        <catch exception="${dtf.ParseException}" property="message">
+            <sequence>
+                <local>
+                    <echo>Caught Exception: ${message}</echo>
+                </local>
+            </sequence>
+        </catch>
+    </try>
+    
+</script>

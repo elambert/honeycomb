@@ -1,0 +1,273 @@
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# This required package information file contains a list of package contents.
+# The 'pkgmk' command uses this file to identify the contents of a package
+# and their location on the development machine when building the package.
+# Can be created via a text editor or through use of the 'pkgproto' command.
+
+#!search <pathname pathname ...>        # where to find pkg objects
+#!include <filename>                    # include another 'prototype' file
+#!default <mode> <owner> <group>        # default used if not specified on entry#!<param>=<value>                       # puts parameter in pkg environment
+
+i pkginfo
+i depend
+
+d none /opt/honeycomb/sdk 0755 bin bin
+d none /opt/honeycomb/sdk/doc 0755 bin bin
+f none /opt/honeycomb/sdk/doc/Honeycomb_Utility_Applications.html=dist/doc/Honeycomb_Utility_Applications.html 0644 bin bin
+f none /opt/honeycomb/sdk/doc/AdminGuide-820-4118-10.pdf=dist/doc/AdminGuide-820-4118-10.pdf 0644 bin bin
+f none /opt/honeycomb/sdk/doc/APIGuide-820-4796-10.pdf=dist/doc/APIGuide-820-4796-10.pdf 0644 bin bin
+f none /opt/honeycomb/sdk/doc/SDKGuide-820-4797-10.pdf=dist/doc/SDKGuide-820-4797-10.pdf 0644 bin bin
+f none /opt/honeycomb/sdk/doc/Query.html=dist/doc/Query.html 0644 bin bin
+f none /opt/honeycomb/sdk/doc/Schema_Metadata_Overview.html=dist/doc/Schema_Metadata_Overview.html 0644 bin bin
+d none /opt/honeycomb/sdk/java 0755 bin bin
+d none /opt/honeycomb/sdk/java/tools 0755 bin bin
+d none /opt/honeycomb/sdk/java/lib 0755 bin bin
+f none /opt/honeycomb/sdk/java/lib/honeycomb-sdk.jar=dist/java/lib/honeycomb-sdk.jar 0644 bin bin
+f none /opt/honeycomb/sdk/java/lib/honeycomb-client.jar=dist/java/lib/honeycomb-client.jar 0644 bin bin
+d none /opt/honeycomb/sdk/java/scripts 0755 bin bin
+f none /opt/honeycomb/sdk/java/scripts/AddMetadata.bat=dist/java/scripts/AddMetadata.bat 0644 bin bin
+f none /opt/honeycomb/sdk/java/scripts/AddMetadata.sh=dist/java/scripts/AddMetadata.sh 0755 bin bin
+f none /opt/honeycomb/sdk/java/scripts/DeleteRecord.bat=dist/java/scripts/DeleteRecord.bat 0644 bin bin
+f none /opt/honeycomb/sdk/java/scripts/DeleteRecord.sh=dist/java/scripts/DeleteRecord.sh 0755 bin bin
+#f none /opt/honeycomb/sdk/java/scripts/GetUniqueValues.bat=dist/java/scripts/GetUniqueValues.bat 0644 bin bin
+#f none /opt/honeycomb/sdk/java/scripts/GetUniqueValues.sh=dist/java/scripts/GetUniqueValues.sh 0755 bin bin
+f none /opt/honeycomb/sdk/java/scripts/Query.bat=dist/java/scripts/Query.bat 0644 bin bin
+f none /opt/honeycomb/sdk/java/scripts/Query.sh=dist/java/scripts/Query.sh 0755 bin bin
+f none /opt/honeycomb/sdk/java/scripts/RetrieveData.bat=dist/java/scripts/RetrieveData.bat 0644 bin bin
+f none /opt/honeycomb/sdk/java/scripts/RetrieveData.sh=dist/java/scripts/RetrieveData.sh 0755 bin bin
+f none /opt/honeycomb/sdk/java/scripts/RetrieveMetadata.bat=dist/java/scripts/RetrieveMetadata.bat 0644 bin bin
+f none /opt/honeycomb/sdk/java/scripts/RetrieveMetadata.sh=dist/java/scripts/RetrieveMetadata.sh 0755 bin bin
+f none /opt/honeycomb/sdk/java/scripts/RetrieveSchema.bat=dist/java/scripts/RetrieveSchema.bat 0644 bin bin
+f none /opt/honeycomb/sdk/java/scripts/RetrieveSchema.sh=dist/java/scripts/RetrieveSchema.sh 0755 bin bin
+f none /opt/honeycomb/sdk/java/scripts/StoreFile.bat=dist/java/scripts/StoreFile.bat 0644 bin bin
+f none /opt/honeycomb/sdk/java/scripts/StoreFile.sh=dist/java/scripts/StoreFile.sh 0755 bin bin
+f none /opt/honeycomb/sdk/java/scripts/CheckIndexed.bat=dist/java/scripts/CheckIndexed.bat 0644 bin bin
+f none /opt/honeycomb/sdk/java/scripts/CheckIndexed.sh=dist/java/scripts/CheckIndexed.sh 0755 bin bin
+
+# Bug 6554027
+#f none /opt/honeycomb/sdk/java/scripts/AddLegalHold.sh=dist/java/scripts/AddLegalHold.sh 0755 bin bin
+#f none /opt/honeycomb/sdk/java/scripts/AddLegalHold.bat=dist/java/scripts/AddLegalHold.bat 0755 bin bin
+f none /opt/honeycomb/sdk/java/scripts/GetDate.sh=dist/java/scripts/GetDate.sh 0755 bin bin
+f none /opt/honeycomb/sdk/java/scripts/GetDate.bat=dist/java/scripts/GetDate.bat 0755 bin bin
+#f none /opt/honeycomb/sdk/java/scripts/QueryLegalHold.sh=dist/java/scripts/QueryLegalHold.sh 0755 bin bin
+#f none /opt/honeycomb/sdk/java/scripts/QueryLegalHold.bat=dist/java/scripts/QueryLegalHold.bat 0755 bin bin
+#f none /opt/honeycomb/sdk/java/scripts/RemoveLegalHold.sh=dist/java/scripts/RemoveLegalHold.sh 0755 bin bin
+#f none /opt/honeycomb/sdk/java/scripts/RemoveLegalHold.bat=dist/java/scripts/RemoveLegalHold.bat 0755 bin bin
+#f none /opt/honeycomb/sdk/java/scripts/SetRetentionTime.sh=dist/java/scripts/SetRetentionTime.sh 0755 bin bin
+
+d none /opt/honeycomb/sdk/java/doc 0755 bin bin
+d none /opt/honeycomb/sdk/java/doc/htdocs 0755 bin bin
+d none /opt/honeycomb/sdk/java/doc/htdocs/com 0755 bin bin
+d none /opt/honeycomb/sdk/java/doc/htdocs/com/sun 0755 bin bin
+d none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb 0755 bin bin
+d none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common 0755 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/ArchiveException.html=dist/java/doc/htdocs/com/sun/honeycomb/common/ArchiveException.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/ObjectLostException.html=dist/java/doc/htdocs/com/sun/honeycomb/common/ObjectLostException.html 0644 bin bin
+d none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/class-use 0755 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/class-use/InvalidOidException.html=dist/java/doc/htdocs/com/sun/honeycomb/common/class-use/InvalidOidException.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/class-use/UnsatisfiableReliabilityException.html=dist/java/doc/htdocs/com/sun/honeycomb/common/class-use/UnsatisfiableReliabilityException.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/class-use/CapacityLimitException.html=dist/java/doc/htdocs/com/sun/honeycomb/common/class-use/CapacityLimitException.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/class-use/ObjectLostException.html=dist/java/doc/htdocs/com/sun/honeycomb/common/class-use/ObjectLostException.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/class-use/ArchiveException.html=dist/java/doc/htdocs/com/sun/honeycomb/common/class-use/ArchiveException.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/class-use/NoSuchObjectException.html=dist/java/doc/htdocs/com/sun/honeycomb/common/class-use/NoSuchObjectException.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/class-use/NoSuchValueException.html=dist/java/doc/htdocs/com/sun/honeycomb/common/class-use/NoSuchValueException.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/class-use/ObjectCorruptedException.html=dist/java/doc/htdocs/com/sun/honeycomb/common/class-use/ObjectCorruptedException.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/package-use.html=dist/java/doc/htdocs/com/sun/honeycomb/common/package-use.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/CapacityLimitException.html=dist/java/doc/htdocs/com/sun/honeycomb/common/CapacityLimitException.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/package-tree.html=dist/java/doc/htdocs/com/sun/honeycomb/common/package-tree.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/ObjectCorruptedException.html=dist/java/doc/htdocs/com/sun/honeycomb/common/ObjectCorruptedException.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/UnsatisfiableReliabilityException.html=dist/java/doc/htdocs/com/sun/honeycomb/common/UnsatisfiableReliabilityException.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/package-summary.html=dist/java/doc/htdocs/com/sun/honeycomb/common/package-summary.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/NoSuchObjectException.html=dist/java/doc/htdocs/com/sun/honeycomb/common/NoSuchObjectException.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/InvalidOidException.html=dist/java/doc/htdocs/com/sun/honeycomb/common/InvalidOidException.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/NoSuchValueException.html=dist/java/doc/htdocs/com/sun/honeycomb/common/NoSuchValueException.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/common/package-frame.html=dist/java/doc/htdocs/com/sun/honeycomb/common/package-frame.html 0644 bin bin
+d none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client 0755 bin bin
+d none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/class-use 0755 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/class-use/NameValueSchema.ValueType.html=dist/java/doc/htdocs/com/sun/honeycomb/client/class-use/NameValueSchema.ValueType.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/class-use/SystemRecord.html=dist/java/doc/htdocs/com/sun/honeycomb/client/class-use/SystemRecord.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/class-use/ObjectIdentifier.html=dist/java/doc/htdocs/com/sun/honeycomb/client/class-use/ObjectIdentifier.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/class-use/QueryResultSet.html=dist/java/doc/htdocs/com/sun/honeycomb/client/class-use/QueryResultSet.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/class-use/NameValueSchema.Attribute.html=dist/java/doc/htdocs/com/sun/honeycomb/client/class-use/NameValueSchema.Attribute.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/class-use/NameValueObjectArchive.html=dist/java/doc/htdocs/com/sun/honeycomb/client/class-use/NameValueObjectArchive.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/class-use/NameValueSchema.html=dist/java/doc/htdocs/com/sun/honeycomb/client/class-use/NameValueSchema.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/class-use/NameValueRecord.html=dist/java/doc/htdocs/com/sun/honeycomb/client/class-use/NameValueRecord.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/NameValueRecord.html=dist/java/doc/htdocs/com/sun/honeycomb/client/NameValueRecord.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/SystemRecord.html=dist/java/doc/htdocs/com/sun/honeycomb/client/SystemRecord.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/package-tree.html=dist/java/doc/htdocs/com/sun/honeycomb/client/package-tree.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/package-frame.html=dist/java/doc/htdocs/com/sun/honeycomb/client/package-frame.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/ObjectIdentifier.html=dist/java/doc/htdocs/com/sun/honeycomb/client/ObjectIdentifier.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/NameValueObjectArchive.html=dist/java/doc/htdocs/com/sun/honeycomb/client/NameValueObjectArchive.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/NameValueSchema.ValueType.html=dist/java/doc/htdocs/com/sun/honeycomb/client/NameValueSchema.ValueType.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/package-use.html=dist/java/doc/htdocs/com/sun/honeycomb/client/package-use.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/QueryResultSet.html=dist/java/doc/htdocs/com/sun/honeycomb/client/QueryResultSet.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/package-summary.html=dist/java/doc/htdocs/com/sun/honeycomb/client/package-summary.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/NameValueSchema.Attribute.html=dist/java/doc/htdocs/com/sun/honeycomb/client/NameValueSchema.Attribute.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/com/sun/honeycomb/client/NameValueSchema.html=dist/java/doc/htdocs/com/sun/honeycomb/client/NameValueSchema.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/index.html=dist/java/doc/htdocs/index.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/deprecated-list.html=dist/java/doc/htdocs/deprecated-list.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/serialized-form.html=dist/java/doc/htdocs/serialized-form.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/allclasses-noframe.html=dist/java/doc/htdocs/allclasses-noframe.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/help-doc.html=dist/java/doc/htdocs/help-doc.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/index-all.html=dist/java/doc/htdocs/index-all.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/overview-tree.html=dist/java/doc/htdocs/overview-tree.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/constant-values.html=dist/java/doc/htdocs/constant-values.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/overview-summary.html=dist/java/doc/htdocs/overview-summary.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/allclasses-frame.html=dist/java/doc/htdocs/allclasses-frame.html 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/overview-frame.html=dist/java/doc/htdocs/overview-frame.html 0644 bin bin
+d none /opt/honeycomb/sdk/java/doc/htdocs/resources 0755 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/resources/inherit.gif=dist/java/doc/htdocs/resources/inherit.gif 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/stylesheet.css=dist/java/doc/htdocs/stylesheet.css 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/htdocs/package-list=dist/java/doc/htdocs/package-list 0644 bin bin
+f none /opt/honeycomb/sdk/java/doc/Java_Example_README.html=dist/java/doc/Java_Example_README.html 0644 bin bin
+d none /opt/honeycomb/sdk/java/examples 0755 bin bin
+d none /opt/honeycomb/sdk/java/examples/build 0755 bin bin
+f none /opt/honeycomb/sdk/java/examples/master_build.bat=dist/java/examples/master_build.bat 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/master_build.sh=dist/java/examples/master_build.sh 0755 bin bin
+f none /opt/honeycomb/sdk/java/examples/RetrieveSchema.java=dist/java/examples/RetrieveSchema.java 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/RetrieveSchema.txt=dist/java/examples/RetrieveSchema.txt 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/RetrieveMetadata.java=dist/java/examples/RetrieveMetadata.java 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/RetrieveMetadata.txt=dist/java/examples/RetrieveMetadata.txt 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/DeleteRecord.txt=dist/java/examples/DeleteRecord.txt 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/DeleteRecord.java=dist/java/examples/DeleteRecord.java 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/AddMetadata.txt=dist/java/examples/AddMetadata.txt 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/AddMetadata.java=dist/java/examples/AddMetadata.java 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/StoreFile.java=dist/java/examples/StoreFile.java 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/StoreFile.txt=dist/java/examples/StoreFile.txt 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/RetrieveData.java=dist/java/examples/RetrieveData.java 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/RetrieveData.txt=dist/java/examples/RetrieveData.txt 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/Query.java=dist/java/examples/Query.java 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/Query.txt=dist/java/examples/Query.txt 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/CheckIndexed.java=dist/java/examples/CheckIndexed.java 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/CheckIndexed.txt=dist/java/examples/CheckIndexed.txt 0644 bin bin
+
+# Bug 6554027
+#f none /opt/honeycomb/sdk/java/examples/AddLegalHold.java=dist/java/examples/AddLegalHold.java 0644 bin bin
+#f none /opt/honeycomb/sdk/java/examples/AddLegalHold.txt=dist/java/examples/AddLegalHold.txt 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/GetDate.java=dist/java/examples/GetDate.java 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/GetDate.txt=dist/java/examples/GetDate.txt 0644 bin bin
+#f none /opt/honeycomb/sdk/java/examples/QueryLegalHold.java=dist/java/examples/QueryLegalHold.java 0644 bin bin
+#f none /opt/honeycomb/sdk/java/examples/QueryLegalHold.txt=dist/java/examples/QueryLegalHold.txt 0644 bin bin
+#f none /opt/honeycomb/sdk/java/examples/RemoveLegalHold.java=dist/java/examples/RemoveLegalHold.java 0644 bin bin
+#f none /opt/honeycomb/sdk/java/examples/RemoveLegalHold.txt=dist/java/examples/RemoveLegalHold.txt 0644 bin bin
+#f none /opt/honeycomb/sdk/java/examples/SetRetentionTime.java=dist/java/examples/SetRetentionTime.java 0644 bin bin
+#f none /opt/honeycomb/sdk/java/examples/SetRetentionTime.txt=dist/java/examples/SetRetentionTime.txt 0644 bin bin
+
+f none /opt/honeycomb/sdk/java/examples/Util.java=dist/java/examples/Util.java 0644 bin bin
+f none /opt/honeycomb/sdk/java/examples/CommandLine.java=dist/java/examples/CommandLine.java 0644 bin bin
+f none /opt/honeycomb/sdk/LICENSE.txt=dist/LICENSE.txt 0644 bin bin
+f none /opt/honeycomb/sdk/StorageTek_5800_SLA&Entitlement&PRN.txt=dist/StorageTek_5800_SLA&Entitlement&PRN.txt 0644 bin bin
+d none /opt/honeycomb/sdk/emulator 0755 bin bin
+d none /opt/honeycomb/sdk/openedition/lib 0755 bin bin
+f none /opt/honeycomb/sdk/openedition/lib/servlet-4.2.19.jar=dist/openedition/lib/servlet-4.2.19.jar 0644 bin bin
+f none /opt/honeycomb/sdk/openedition/lib/derby-10.1.1.0.jar=dist/openedition/lib/derby-10.1.1.0.jar 0644 bin bin
+f none /opt/honeycomb/sdk/openedition/lib/concurrent.jar=dist/openedition/lib/concurrent.jar 0644 bin bin
+f none /opt/honeycomb/sdk/openedition/lib/honeycomb-emulator.jar=dist/openedition/lib/honeycomb-emulator.jar 0644 bin bin
+f none /opt/honeycomb/sdk/openedition/lib/jug.jar=dist/openedition/lib/jug.jar 0644 bin bin
+f none /opt/honeycomb/sdk/openedition/lib/bsh-2.0b2.jar=dist/openedition/lib/bsh-2.0b2.jar 0644 bin bin
+d none /opt/honeycomb/sdk/openedition/lib/md_caches 0755 bin bin
+f none /opt/honeycomb/sdk/openedition/lib/md_caches/derby-cache.jar=dist/openedition/lib/md_caches/derby-cache.jar 0644 bin bin
+f none /opt/honeycomb/sdk/openedition/lib/jetty-4.2.20.jar=dist/openedition/lib/jetty-4.2.20.jar 0644 bin bin
+f none /opt/honeycomb/sdk/openedition/lib/AdminResources_en.properties=dist/openedition/lib/AdminResources_en.properties 0644 bin bin
+f none /opt/honeycomb/sdk/openedition/lib/honeycomb-common.jar=dist/openedition/lib/honeycomb-common.jar 0644 bin bin
+d none /opt/honeycomb/sdk/openedition/config 0755 bin bin
+f none /opt/honeycomb/sdk/openedition/config/st5800.dtd=dist/openedition/config/st5800.dtd 0644 bin bin
+f none /opt/honeycomb/sdk/openedition/config/st5800_with_comments.dtd=dist/openedition/config/st5800_with_comments.dtd 0644 bin bin
+f none /opt/honeycomb/sdk/openedition/config/emulator.config=dist/openedition/config/emulator.config 0644 bin bin
+f none /opt/honeycomb/sdk/openedition/config/metadata_config_factory.xml=dist/openedition/config/metadata_config_factory.xml 0644 bin bin
+f none /opt/honeycomb/sdk/openedition/config/metadata_config_qa.xml=dist/openedition/config/metadata_config_qa.xml 0644 bin bin
+f none /opt/honeycomb/sdk/openedition/config/metadata_config_photodemo.xml=dist/openedition/config/metadata_config_photodemo.xml 0644 bin bin
+f none /opt/honeycomb/sdk/openedition/config/metadata_config_mp3demo.xml=dist/openedition/config/metadata_config_mp3demo.xml 0644 bin bin
+d none /opt/honeycomb/sdk/openedition/bin 0755 bin bin
+f none /opt/honeycomb/sdk/openedition/bin/convert_to_hadbquery.bat=dist/openedition/bin/convert_to_hadbquery.bat 0644 bin bin
+f none /opt/honeycomb/sdk/openedition/bin/convert_to_hadbquery.sh=dist/openedition/bin/convert_to_hadbquery.sh 0755 bin bin
+f none /opt/honeycomb/sdk/openedition/bin/start.sh=dist/openedition/bin/start.sh 0755 bin bin
+f none /opt/honeycomb/sdk/openedition/bin/metadata_merge_config.bat=dist/openedition/bin/metadata_merge_config.bat 0644 bin bin
+f none /opt/honeycomb/sdk/openedition/bin/metadata_merge_config.sh=dist/openedition/bin/metadata_merge_config.sh 0755 bin bin
+f none /opt/honeycomb/sdk/openedition/bin/start.bat=dist/openedition/bin/start.bat 0644 bin bin
+f none /opt/honeycomb/sdk/openedition/Emulator_Setup_and_Configuration.html=dist/openedition/Emulator_Setup_and_Configuration.html 0644 bin bin
+d none /opt/honeycomb/sdk/c 0755 bin bin
+d none /opt/honeycomb/sdk/c/doc 0755 bin bin
+f none /opt/honeycomb/sdk/c/doc/C_Example_README.html=dist/c/doc/C_Example_README.html 0644 bin bin
+f none /opt/honeycomb/sdk/c/doc/C_API.html=dist/c/doc/C_API.html 0644 bin bin
+f none /opt/honeycomb/sdk/c/README=dist/c/README 0644 bin bin
+d none /opt/honeycomb/sdk/c/include 0755 bin bin
+f none /opt/honeycomb/sdk/c/include/hc.h=dist/c/include/hc.h 0644 bin bin
+f none /opt/honeycomb/sdk/c/include/hcclient.h=dist/c/include/hcclient.h 0644 bin bin
+d none /opt/honeycomb/sdk/c/examples 0755 bin bin
+f none /opt/honeycomb/sdk/c/examples/AddMetadata.c=dist/c/examples/AddMetadata.c 0644 bin bin
+d none /opt/honeycomb/sdk/c/examples/env 0755 bin bin
+f none /opt/honeycomb/sdk/c/examples/env/env.Win32=dist/c/examples/env/env.Win32 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/env/env.sol_9_sparc=dist/c/examples/env/env.sol_9_sparc 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/env/env.sol_10_sparc=dist/c/examples/env/env.sol_10_sparc 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/env/env.Linux=dist/c/examples/env/env.Linux 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/env/env.sol_10_x86=dist/c/examples/env/env.sol_10_x86 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/env/README=dist/c/examples/env/README 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/StoreFile.c=dist/c/examples/StoreFile.c 0644 bin bin
+d none /opt/honeycomb/sdk/c/examples/common 0755 bin bin
+f none /opt/honeycomb/sdk/c/examples/common/example_common.h=dist/c/examples/common/example_common.h 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/common/example_common.c=dist/c/examples/common/example_common.c 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/common/example_metadata.h=dist/c/examples/common/example_metadata.h 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/common/example_metadata.c=dist/c/examples/common/example_metadata.c 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/common/example_commandline.h=dist/c/examples/common/example_commandline.h 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/common/README=dist/c/examples/common/README 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/common/example_commandline.c=dist/c/examples/common/example_commandline.c 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/Query.c=dist/c/examples/Query.c 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/Makefile=dist/c/examples/Makefile 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/RetrieveData.c=dist/c/examples/RetrieveData.c 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/RetrieveSchema.c=dist/c/examples/RetrieveSchema.c 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/DeleteRecord.c=dist/c/examples/DeleteRecord.c 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/README=dist/c/examples/README 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/RetrieveMetadata.c=dist/c/examples/RetrieveMetadata.c 0644 bin bin
+f none /opt/honeycomb/sdk/c/examples/CheckIndexed.c=dist/c/examples/CheckIndexed.c 0644 bin bin
+d none /opt/honeycomb/sdk/c/Linux 0755 bin bin
+d none /opt/honeycomb/sdk/c/Linux/include 0755 bin bin
+f none /opt/honeycomb/sdk/c/Linux/include/hchost.h=dist/c/Linux/include/hchost.h 0644 bin bin
+d none /opt/honeycomb/sdk/c/Win32 0755 bin bin
+d none /opt/honeycomb/sdk/c/Win32/include 0755 bin bin
+f none /opt/honeycomb/sdk/c/Win32/include/hchost.h=dist/c/Win32/include/hchost.h 0644 bin bin
+d none /opt/honeycomb/sdk/c/sol_9_sparc 0755 bin bin
+d none /opt/honeycomb/sdk/c/sol_9_sparc/include 0755 bin bin
+f none /opt/honeycomb/sdk/c/sol_9_sparc/include/hchost.h=dist/c/sol_9_sparc/include/hchost.h 0644 bin bin
+d none /opt/honeycomb/sdk/c/sol_10_sparc 0755 bin bin
+d none /opt/honeycomb/sdk/c/sol_10_sparc/include 0755 bin bin
+f none /opt/honeycomb/sdk/c/sol_10_sparc/include/hchost.h=dist/c/sol_10_sparc/include/hchost.h 0644 bin bin
+d none /opt/honeycomb/sdk/c/sol_10_x86 0755 bin bin
+d none /opt/honeycomb/sdk/c/sol_10_x86/include 0755 bin bin
+f none /opt/honeycomb/sdk/c/sol_10_x86/include/hchost.h=dist/c/sol_10_x86/include/hchost.h 0644 bin bin
+d none /opt/honeycomb/sdk/c/sol_10_x86/lib 0755 bin bin
+f none /opt/honeycomb/sdk/c/sol_10_x86/lib/libhoneycomb.so=dist/c/sol_10_x86/lib/libhoneycomb.so 0644 bin bin
+f none /opt/honeycomb/sdk/c/sol_10_x86/lib/libcurl.la=dist/c/sol_10_x86/lib/libcurl.la 0644 bin bin
+f none /opt/honeycomb/sdk/c/sol_10_x86/lib/libcurl.a=dist/c/sol_10_x86/lib/libcurl.a 0644 bin bin
+f none /opt/honeycomb/sdk/SDK_Overview_README.html=dist/SDK_Overview_README.html 0644 bin bin

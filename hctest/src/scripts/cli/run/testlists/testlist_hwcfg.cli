@@ -1,0 +1,127 @@
+#
+# $Id: testlist_hwcfg.cli 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+test.case.name=hwcfg-bad-arg-test
+TEST_ARGS='cmddef: hwcfg -F FRU?-001-101-0 -E| \
+           -re,\"Enabling .*\" => sub { \&reportFail(); }| \
+           -re, \"invalid .*\" => sub { &reportPass(); }| \
+           cmddef: hwcfg -F HCID-001-101-0 -enable| \
+           -re,\"Enabling .*\" => sub { &reportFail(); } | \
+           -re, \"unknown option .*\" => sub { &reportPass(); }| \
+           cmddef: hwcfg -F HCID-001-103-4 --e| \
+           -re,\"Enabling .*\" => sub { &reportFail(); } | \
+           -re, \"unknown option .*\" => sub { &reportPass(); }| \
+          cmddef: hwcfg -F abcdfereter-001-101-1 -V| \
+           -re,\"Evacuate .*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }| \
+          cmddef: hwcfg -F abcd-1-1-0 -V| \
+           -re,\"Evacuate FRU .*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }| \
+          cmddef: hwcfg -F HCID-001-103-432424-001-0543333333333HCID_001-DDD -V| \
+           -re,\"Evacuate .*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }| \
+           cmddef: hwcfg -F ABCDEFG123456789 -E| \
+           -re,\"Enabling: .*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }| \
+           cmddef: hwcfg -F 001-103-HCID-1 -V| \
+           -re,\"Evacuate: .*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }| \
+           cmddef: hwcfg -F HCID-001-001-1 -E -D --evacuate| \
+           -re,\"Usage: .*\" => sub { &reportPass(); } | \
+           -re, \"Evacuate .*\" => sub { &reportFail(); }| \
+           cmddef: hwcfg -F HCID0010011 -D| \
+           -re,\"unable: .*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }| \
+           cmddef: hwcfg -F HCID-XXX-XXX-1 -E| \
+           -re,\"Enabling: .*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }| \
+           cmddef: hwcfg -F HCID-001-001-1XXXXX -E| \
+           -re,\"Enabling .*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }| \
+           cmddef: hwcfg -F XXX-101-001-X -E| \
+           -re,\"Enabling .*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }| \
+           cmddef: hwcfg -F -E| \
+           -re,\"Enabling .*\" => sub { &reportFail(); } | \
+           -re, \"Usage: .*\" => sub { &reportPass(); }| \
+           cmddef: hwcfg -F -V| \
+           -re,\"FRU .*\" => sub { &reportFail(); } | \
+           -re, \"Usage: .*\" => sub { &reportPass(); }| \
+           cmddef: hwcfg -F HCID-001-103-7????????????????\*\*\*\*\*\*\*\*\*\*\*\*\*\*\* -V| \
+           -re,\"Evacuate .*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); } | \
+           cmddef: hwcfg -F HCID-001-103-7 -E --enable| \
+           -re,\"Enabling .*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); } | \
+           cmddef: hwcfg -F HCID-001-103-7 -D --disable| \
+           -re,\"unable .*\" => sub { &reportFail(); } | \
+           -re,\"invalid .*\" => sub { &reportPass(); } | \
+           cmddef: hwcfg -F HCID-001-103-7 -V --evacuate| \
+           -re,\"Evacuate .*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); } | \
+           cmddef: hwcfg -F HCID-001-103-7| \
+           -re,\"Usage: .*\" => sub { &reportPass(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }'
+cli_tests/test		dtonga
+
+
+
+test.case.name=hwcfg-good-arg-test
+TEST_ARGS='cmddef: hwcfg -F HCID-001-101-0 -E| \
+           -re,\"Enabling .*\" => sub { \&reportPass(); }| \
+           -re, \"unknown option .*\" => sub { &reportFail(); }| \
+           -re, \"invalid .*\" => sub { &reportFail(); }| \
+          cmddef: hwcfg -F HCID-001-101-0 --enable| \
+           -re,\"Enabling .*\" => sub { &reportPass(); } | \
+           -re, \"unknown option .*\" => sub { &reportFail(); }| \
+           -re, \"invalid .*\" => sub { &reportFail(); }| \
+          cmddef: hwcfg -F HCID-001-101-0 --disable| \
+           -re,\"unable .*\" => sub { &reportPass(); } | \
+           -re, \"invalid .*\" => sub { &reportFail(); }| \
+          cmddef: hwcfg -F HCID-001-101-0 -D| \
+           -re,\"unable to .*\" => sub { &reportPass(); } | \
+           -re, \"invalid .*\" => sub { &reportFail(); }| \
+          cmddef: hwcfg -F HCID-001-101-0 -V| \
+           -re,\"Evacuate FRU .*\" => sub { &reportPass(); } | \
+           -re, \"invalid .*\" => sub { &reportFail(); }| \
+          cmddef: hwcfg -F HCID-001-101-0 --evacuate| \
+           -re,\"Evacuate .*\" => sub { &reportPass(); } | \
+           -re, \"invalid .*\" => sub { &reportFail(); }| \
+           cmddef: hwcfg -F| \
+           -re,\"Usage: .*\" => sub { &reportPass(); } | \
+           -re, \"invalid .*\" => sub { &reportFail(); }'
+cli_tests/test		dtonga
+

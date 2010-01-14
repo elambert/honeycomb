@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="component">
+    <info>
+         <author>
+             <name>Rodney Gomes</name>
+             <email>rodney.gomes@sun.com</email>
+         </author> 
+         <description>
+         	This test can be used to verify that there are as many DTF clients
+         	connected to the current DTF framework as you are expecting.
+         </description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <loadproperties uri="storage://INPUT/ut.properties"/>
+        
+        <property name="expected.dtfa.units" value="3"/>
+        <property name="expected.dtfa.type" value="dtfa"/>
+    </local>
+
+	<try>	
+        <for property="agent" range="1..${expected.dtfa.units}">
+            <local>
+                <lockcomponent id="DTFA${agent}">
+                	<attrib name="type" value="${expected.dtfa.type}"/>
+                </lockcomponent>
+            </local>
+        </for>
+        <catch exception="${dtf.DTFException}" property="message">
+        	<local>
+        		<fail message="Failed to lock component ${agent}: ${message}"/>
+        	</local>
+        </catch>
+    </try>
+    
+    <for property="agent" range="1..${expected.dtfa.units}">
+        <local>
+            <echo>Doing a small echo on ${agent}</echo>
+        </local>
+        <component id="DTFA${agent}">
+        	<echo>Just testing a simple action.</echo>
+        </component>
+    </for>
+    
+    <for property="agent" range="1..${expected.dtfa.units}">
+        <local>
+            <unlockcomponent id="DTFA${agent}"/>
+        </local>
+    </for>
+</script>

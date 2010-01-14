@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 
+
+  $Id: metadata_config_perf.xml 11667 2007-11-21 00:50:04Z wr152514 $
+
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+
+Use /opt/honeycomb/bin/metadata_merge_config.sh to add this config to
+the existing one -->
+
+<!-- This file contains the performance schema, used to pass the performance and
+blockstore suite tests. Merge accordingly before running those ! -->
+
+<metadataConfig>
+  <schema>
+
+    <namespace name="perf_qa" writable="true" extensible="true">
+      <field name="date" type="long" />
+      <field name="User_Comment" type="string" length="64" />
+      <field name="iteration" type="long" />
+      <field name="test_id" type="string" length="64" />
+      <field name="user" type="string" length="64" />
+    </namespace>
+
+    <namespace name="perf_qafirst" writable="true" extensible="true">
+      <field name="client" type="string" length="64" />
+      <field name="first" type="string" length="64" />
+      <field name="second" type="string" length="64" />
+      <field name="third" type="string" length="64" />
+      <field name="fourth" type="string" length="64" />
+      <field name="fifth" type="string" length="64" />
+      <field name="sixth" type="string" length="64" />
+      <field name="timestart" type="long" />
+    </namespace>
+
+    <namespace name="perf_qatypes" writable="true" extensible="true">
+      <field name="doublefixed" type="double" />
+      <field name="doublelarge" type="double" />
+      <field name="longsmall" type="long" />
+      <field name="longlarge" type="long" />
+      <field name="stringlarge" type="string" length="512" />
+    </namespace>
+
+    <namespace name="perf_types" writable="true" extensible="true">
+      <field name="type_double" type="double" />
+      <field name="type_long" type="long" />
+      <field name="type_date" type="date" />
+      <field name="type_time" type="time" />
+      <field name="type_timestamp" type="timestamp" />
+      <field name="type_string" type="string" length="64" />
+      <field name="type_char" type="char" length="64" />
+      <field name="type_binary" type="binary" length="64" />
+    </namespace>
+
+  </schema>
+  
+  <fsViews>
+
+    <fsView name="perf_byUser" filename="${system.object_id}">
+      <attribute name="perf_qa.user"/>
+    </fsView>
+
+    <fsView name="perf_alphabeticalOidTwo" filename="${system.object_id}">
+      <attribute name="perf_qafirst.first"/>
+      <attribute name="perf_qafirst.second"/>
+    </fsView>
+
+    <fsView name="perf_alphabeticalOidThree" filename="${system.object_id}">
+      <attribute name="perf_qafirst.first"/>
+      <attribute name="perf_qafirst.second"/>
+      <attribute name="perf_qafirst.third"/>
+    </fsView>
+
+    <fsView name="perf_alphabeticalOidFour" filename="${system.object_id}">
+      <attribute name="perf_qafirst.first"/>
+      <attribute name="perf_qafirst.second"/>
+      <attribute name="perf_qafirst.third"/>
+      <attribute name="perf_qafirst.fourth"/>
+    </fsView>
+
+    <fsView name="perf_alphabeticalOidFive" filename="${system.object_id}">
+      <attribute name="perf_qafirst.first"/>
+      <attribute name="perf_qafirst.second"/>
+      <attribute name="perf_qafirst.third"/>
+      <attribute name="perf_qafirst.fourth"/>
+      <attribute name="perf_qafirst.fifth"/>
+    </fsView>
+
+    <fsView name="perf_alphabeticalOidSix" filename="${system.object_id}">
+      <attribute name="perf_qafirst.first"/>
+      <attribute name="perf_qafirst.second"/>
+      <attribute name="perf_qafirst.third"/>
+      <attribute name="perf_qafirst.fourth"/>
+      <attribute name="perf_qafirst.fifth"/>
+      <attribute name="perf_qafirst.sixth"/>
+    </fsView>
+
+    <fsView name="perf_stringOid" filename="${system.object_id}">
+      <attribute name="system.test.type_string"/>
+    </fsView>
+
+  </fsViews>
+
+  <tables>
+    <table name="perf_qa">
+      <column name="perf_qa.date"/>
+      <column name="perf_qa.User_Comment"/>
+      <column name="perf_qa.iteration"/>
+      <column name="perf_qa.test_id"/>
+      <column name="perf_qa.user"/>
+    </table>
+
+    <table name="perf_qafirst">
+      <column name="perf_qafirst.client"/>
+      <column name="perf_qafirst.first"/>
+      <column name="perf_qafirst.second"/>
+      <column name="perf_qafirst.third"/>
+      <column name="perf_qafirst.fourth"/>
+      <column name="perf_qafirst.fifth"/>
+      <column name="perf_qafirst.sixth"/>
+      <column name="perf_qafirst.timestart"/>
+    </table>
+
+    <table name="perf_qatypes">
+      <column name="perf_qatypes.doublefixed"/>
+      <column name="perf_qatypes.doublelarge"/>
+      <column name="perf_qatypes.longsmall"/>
+      <column name="perf_qatypes.longlarge"/>
+      <column name="perf_qatypes.stringlarge"/>
+    </table>
+
+    <table name="perf_types">
+      <column name="perf_types.type_double" />
+      <column name="perf_types.type_long" />
+      <column name="perf_types.type_date" />
+      <column name="perf_types.type_time" />
+      <column name="perf_types.type_timestamp" />
+      <column name="perf_types.type_string" />
+      <column name="perf_types.type_char" />
+      <column name="perf_types.type_binary" />
+    </table>
+
+  </tables>
+
+</metadataConfig>

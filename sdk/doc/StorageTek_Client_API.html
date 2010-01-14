@@ -1,0 +1,170 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<!--
+ $Id: StorageTek_Client_API.html 11497 2007-09-12 03:37:43Z ds158322 $
+ 
+ Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ Use is subject to license terms.
+--> 
+
+  <head>
+    <title>Client API</title>
+  </head>
+
+  <body>
+<h1>@HoneycombProductName@ Client API</h1>
+
+
+    The @HoneycombProductName@ Client API provides programatic access to a
+    @HoneycombProductName@ server to store, retrieve, query and delete object data
+    and metadata. Synchronous versions are provided in C and Java
+<!--, and
+    a non-blocking version is provided in C for use with POSIX
+    operations
+-->
+.
+
+
+<h3>@HoneycombProductName@ Concepts</h3>
+
+    The @HoneycombProductName@ operates on Object data, which is stored 
+    and retrieved in bulk operations, and Metadata, which is structured and
+    searchable. Object data streams through the Client Library
+    opaquely, and a well-defined data hash (SHA1) is returned for verification
+    purposes (see <a
+    href="http://www.faqs.org/rfcs/rfc3174.html">RFC 3174</a>). Metadata
+    records are constructed and accessed by named fields. The stored
+    representation of metadata records on the @HoneycombProductName@ server is not
+    exposed to the user, e.g. no hash is returned when storing metadata.
+Data and metadata records are both stored using the 
+same reliability mechanisms within the server, and metadata record attributes are 
+indexed by a search engine for fast searching.
+
+<h3>Metadata Records</h3> 
+
+Structured data can be associated with Object data in the form of
+metadata records. Each metadata record applies to one Data Object;
+there is a many-to-one relationship between metadata records and Data
+Objects. Each metadata record consists of a set of name/value pairs,
+where name is a string, and value is typed. The available names and the
+the types of their values are enumerated in the Schema.
+
+<h3>@HoneycombProductName@ Object Identifiers (OIDs)</h3> 
+
+When Object/Metadata is stored, or when Metadata is added to an
+existing Object, a @OID_BYTE_LENGTH@ byte OID is returned. This OID
+is unique on a particular @HoneycombProductName@, and can be used to
+retrieve the Object Data or Metadata. OIDs can also be retrieved using
+the query operations.
+
+<h3><a name="Delete Semantics">Delete Semantics</a></h3>
+
+Calling delete on an OID deletes the corresponding metadata record
+from the @HoneycombProductName@. Object Data is not explicitely deleted.
+When an Object's last metadata record is deleted, the Object Data is also deleted. 
+
+<h3><a href="Query.html">Query Syntax</a></h3>
+
+A query mechanism is provided in the @HoneycombProductName@ Client API to find
+metadata records matching a <a href="Query.html">query string</a>. For
+simple queries, the OIDs of matching metadata records are
+returned. A select clause may be supplied, in which case the requested 
+Metadata attributes are returned. Note that matches are on a <i>per
+metadata record</i> basis, so multiple metadata records for the same
+underlying Data Object may be returned. Also, all conditions must be
+satisfied inside a single metadata record; (metadata record attributes
+are not transitive accross the metadata records for a given Data
+Object).
+
+
+<h3>@HoneycombProductName@ Client/Server Communication</h3>
+
+Both the Java
+and C @HoneycombProductName@ clients use the HTTP protocol to communicate
+with the server.
+
+<hr>
+
+<h2><a href="../java/doc/htdocs/index.html">@HoneycombProductName@ Client Java API</a></h2>
+
+The function-level details of the @HoneycombProductName@ Java Client API appear in
+a <a href="../java/doc/htdocs/index.html">separate document</a>.
+    <p>
+
+    The @HoneycombProductName@ Java Client Library gives users a
+    platform-independent mechanism to upload data and metadata to
+    the @HoneycombProductName@, and to retrieve and query it. The Client Library is
+    designed to work with any implementation of J2SE 4.0 or higher
+    with HTTP connectivity to the @HoneycombProductName@. Access is
+    designed to be high-level and easy to use. Most operations are
+    accomplished in a single (synchronous) method call. The Client
+    Library can be used directly or embedded in an application.
+
+
+<!--
+<h3>2.1   Interfaces</h3>
+
+    The Java Client API interacts with the @HoneycombProductName@ server entirely
+    through an HTTP protocol (see Protocol_Spec.html). The HTTP
+    communication layer uses Apache Commons HTTPClient.
+
+    The @HoneycombProductName@ Java Client Library provides the Name Value Object
+    Archive as an application access layer that will be appropriate
+    for most users. In addition, an "advanced" interface provides a
+    mechanism to customize the @HoneycombProductName@ and to serve as a toolkit to
+    build new applications.
+
+
+<h3>2.2 Name Value Object Archive Application Access</h3>
+
+    Most applications will make use of the NameValueObjectArchive
+    class. This class ensures that a default metadata entry is created
+    for every object stored even if no metadata is explicitly provided
+    at store time. All @HoneycombProductName@ references are to NameValueRecord
+    OIDs which are returned by store and query operations. At no time
+    does the user obtain the underlying data object OID. Data object
+    deletion implicitly occurs when all referencing NameValueRecords
+    are deleted. Matches for query where clauses must be met by a
+    single NameValueRecord, and multiple NameValueRecord OIDs
+    referring to the same underlying data object may be returned.
+
+<h3>2.3 Object Archive Programming Toolkit</h3>
+
+    The ObjectArchive class provides a toolkit for functionality that
+    is expected to be of general applicability for all @HoneycombProductName@
+    applications. In contrast to the NameValueObjectArchive, all OIDs
+    refer to the data object. This functionality might be used to
+    integrate the @HoneycombProductName@ as a back end into an existing database
+    application, for instance. In this case, the data object OIDs
+    might be stored and looked up externally.
+-->
+    
+<h3>Best Practices</h3>
+
+    Starting the JVM incurs a performance penalty, but once running,
+    a NameValueObjectArchive can be used repeatedly and from multiple
+    threads. I/O is synchronous (blocking). HTTP connections are
+    pooled for performance. One instance of the NameValueObjectArchive
+    should be instantiated per the @HoneycombProductName@ and used for all
+    access to that server until exit.
+
+<h3>Java Client Application Deployment</h3>
+    Java applications using the @HoneycombProductName@ Java API reference the honeycomb-client.jar
+    library. This library must be included in your classpath when running your
+    application. Since the @HoneycombProductName@ Java API was designed to run on Java v1.4 it is
+    recommended that you run your client applications in a Java v1.4 or higher environment. 
+<hr>
+
+<h2><a href="../c/doc/C_API.html">@HoneycombProductName@ Client C API</a></h2>
+
+The function-level details of the @HoneycombProductName@ C API appear in a 
+<a href="../c/doc/C_API.html">separate document</a> .
+
+<h3>C Client Application Deployment</h3>
+    C applications using the @HoneycombProductName@ C API use both honeycomb and cURL 
+    libraries. These libraries are different for each supported platform (Windows,
+    Linux, Solaris (x86), Solaris (SPARC)) and are located in the c/&lt;OS&gt;/lib
+    directory in the SDK.
+
+</body>
+</html>

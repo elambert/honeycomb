@@ -1,0 +1,12 @@
+NAME
+       RetrieveSchema - print metadata attributes
+
+SYNOPSIS
+       RetrieveSchema [OPTIONS] <IP | HOST>
+
+OPTIONS
+       -h, --help
+              print this message
+
+EXAMPLES
+       RetrieveSchema archivehost

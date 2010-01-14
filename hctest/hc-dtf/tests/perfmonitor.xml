@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="perfmonitor">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>
+        </description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT"  path="${dtf.xml.path}/input"/>
+        <createstorage id="TINPUT"  path="${dtf.xml.path}"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+
+      	<loadproperties uri="storage://INPUT/hc.properties"/> 
+      	<import uri="storage://INPUT/${hc.metadata.filename}"/>
+      	
+      	<property name="hc.test.db.type" value="txt"/>
+      	<property name="hc.iteration.duration" value="60s"/>
+    </local>
+    
+	<local>
+        <lockcomponent id="CLUSTER">
+        	<attrib name="hc.cluster.type" value="${hc.cluster.type}"/>
+        </lockcomponent>
+	</local>
+
+	<component id="CLUSTER">
+		<perfmonitor command="start" sample="1"/>	
+	</component>
+
+	<for property="client" range="${hc.client.ids}">
+    	<local>
+            <lockcomponent id="${client}">
+            	<attrib name="type" value="${hc.client.type}"/>
+            </lockcomponent>
+    	</local>
+    </for>
+    
+	<local>
+		<echo>Storing ${hc.filesize} byte files 
+		      to ${hc.cluster.datavip}:${hc.cluster.dataport} 
+		      for ${hc.iteration.duration}</echo>
+	</local>
+	<record type="txt"
+	        event="hc"
+		    uri="storage://OUTPUT/clientsidestats.log"
+		    append="false">
+  			<parallelloop property="client" range="${hc.client.ids}">
+        		<timer interval="${hc.iteration.duration}">
+        			<component id="${client}">
+        				<store datavip="${hc.cluster.datavip}"
+        					   port="${hc.cluster.dataport}"
+        					   continueOnFailure="${hc.onfailure}"
+        					   monitor="${hc.channel.monitoring}">
+        					<file length="${hc.filesize}" 
+        					      type="${hc.filetype}"/>
+        					<metadata refid="MDREF"/>
+        				</store>
+        			</component>
+        		</timer>
+       		</parallelloop>
+	</record>
+	
+	<component id="CLUSTER">
+		<perfmonitor command="stop"/>	
+		<perfmonitor command="collectlogs" 
+		             uri="storage://OUTPUT/serversidestats.log"/>	
+	</component>
+
+
+	<query uri="storage://INPUT/serversidestats.log" 
+           type="txt" 
+           event="hc.stat.mem"
+           cursor="sscursor">
+           <where>
+           		<or>
+	           		<eq op1="node" op2="hcb101"/>
+           		</or>
+           </where>
+    </query>
+    
+    <query uri="storage://INPUT/clientsidestats.log" 
+           type="txt" 
+           event="hc.store"
+           cursor="cscursor">
+           <select>
+          		<field name="commitlatency"/> 
+           </select>
+    </query>
+           
+	<graph uri="storage://OUTPUT/graph.svg"
+	       type="svg"
+	       title="CPU Usage With Store Operations">
+	       
+    	<series name="Store Commit Latency (ms)" 
+    	        cursor="cscursor" mode="histogram"/>
+    	        
+		<series name="Node1 CPU Usage (%)" 
+		        cursor="sscursor"
+		        lowerlimit="0.0"
+		        upperlimit="100.0"/>
+	</graph>	
+	
+</script>

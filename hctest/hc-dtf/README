@@ -1,0 +1,274 @@
+Honeycomb DTF Plugin README
+---------------------------
+
+1.  How to build
+    
+    1.1 Building documentation (special steps for now)
+  
+2.  How to copy dtf to your clients/cluster
+
+3.  How to run the smoke performance test
+
+4.  How to run the check frags test
+
+5.  How to run the performance tests
+
+	5.1 Running performance test
+
+	5.2 Calculating statistics of of performance runs
+	
+	5.3 Graphing the results of performance runs
+	
+6.  How to start/stop components in DTF
+
+7.  Running some tests
+
+    7.1 running dtfa verification test
+ 
+    7.2 running tiny honeycomb regression test
+    
+    7.3 running DTF unit tests (framework tests not honeycomb tests)
+    
+    7.4 running tests against a cluster outside of the honeycomb lab
+    
+8.  How do I pick which client build I'm running ? 
+
+1.  How to build
+
+	PRE-REQ: make sure to have the honeycomb client,common and server modules
+	         built otherwise the build of the hc-dtf plugin will fail.
+	
+	To build the honeycomb dtf plugin all you need to do is go to the hctest/dtf
+	folder and run ant build. By running this the dtf will build itself along 
+	with any plugins found under the plugins directory and put the whole build
+	plus documentation and testscases into the build/dtf directory.	
+
+    1.1 Building documentation (special steps for now)
+	
+	For the time being building the documentation from the source is done by 
+	running the ./ant.sh doc this is because of some issues with JavaDoc picking
+	up the right files from the classpath in Ant. The other documentation about
+	the framework architecture can be found in the OpenOffice documents in the 
+	doc folder of dtf and hc-dtf modules.
+	
+	Note: Most of the documentation needs some serious attention and will be
+	      updated before January 1st. Any and all comments are welcome about 
+	      documentation so don't worry about complaining about the existing 
+	      documentation.
+
+2.  How to copy dtf to your clients/cluster
+
+	By copying the build/dtf/dist directory to the clients you are going to use
+	for testing you have all of the necessary code + utilities to run the dtf
+	framework.
+	
+	You can also do a make install_client and dtf will be present in the 
+	/mnt/test/dtf directory on your client. 
+
+3.  How to run the smoke performance test
+	
+	To run the smoke performance test you need to have a cluster that is up and 
+	running with whatever build you want to test. The CLI must be acessible 
+	inorder for the test to correctly bring the cluster down and save a snapshot
+	of the current state. 
+
+	Here's the command line (from /mnt/test/dtf or the location where you 
+	copied the dtf build to):
+	
+	./ant.sh -f hcrun.xml run_smokeperf -Dhc.cluster.adminvip=XXX
+	
+	if you want to background this correctly, do so like this:
+	
+	nohup  ./ant.sh -f hcrun.xml run_smokeperf -Dhc.cluster.adminvip=XXX > smokeperf.log 2>&1 < /dev/null &
+	
+	If for some reason the test fails during its execution and it does not 
+	restore your snapshot have a look at the smokeperf.log and you will see that
+	early on in the test there is some output explaining how to restore your 
+	old data so you can continue to use that data.
+	
+	Once the test has finished executing it will print a small summary of what 
+	the results of running the smoke performance test was along with which cases
+	have failed. 
+	
+	To run without the snapshotting that is usually done just set the property
+	hc.snapshot.enabled to false like by adding the command line argument: 
+	-Dhc.snapshot.enabled=false. This will cut the runtime down to under 120 
+	minutes and can be used if your cluster only has a bit of data from running
+	a few regression runs or previous smoke perf runs.
+
+4.  How to run the check frags test
+    
+    Just as the above smoke performance test this tst only needs you to specify
+    the adminvip, so the command line is very similar except for the ant target
+    being executed:
+    
+	./ant.sh -f hcrun.xml run_checkfrags -Dhc.cluster.adminvip=XXX
+	
+	NOTE: make sure your honeycomb jvms are up and running and that all of the
+	      necessary disks are up and running. If you don't have disks up and 
+	      running the test will not mount these for you.
+	      
+	Sample Output:
+		Cluster with 33 million objects, which generated 3.1GB of data collected
+		to the client side.
+
+     [java] INFO  12/03/2008 11:23:59 Checkfrags      - Time to gather 1931919ms.
+     [java] INFO  12/03/2008 11:56:19 Checkfrags      - 33069716 objects.
+     [java] INFO  12/03/2008 11:56:19 Checkfrags      - 231488012 frags.
+     [java] INFO  12/03/2008 11:56:19 Checkfrags      - 59800 frags/s
+     [java] INFO  12/03/2008 11:56:19 Checkfrags      - 0 duplicate fragments.
+     [java] INFO  12/03/2008 11:56:19 Checkfrags      - 0 with less than 7 frags.
+     [java] INFO  12/03/2008 11:56:19 Checkfrags      - 0 with less than 5 frags.
+     
+     From the logs above the checkfrags can validate the existence of all 
+     fragments for all objects at a rate of about 1 Million objects every 2 
+     minutes. All of the data from each run is saved in the checkfrags directory
+     and time-stamped to avoid collisions. Right now that data is not being used
+     but maybe used for future testing/validation.
+
+5.  How to run the performance tests
+
+	5.1 Running performance test
+		(more info soon)
+	
+	5.2 Calculating statistics of of performance runs
+		(more info soon)
+	
+	5.3 Graphing the results of performance runs
+		(more info soon)
+
+6.  How to start/stop components in DTF
+
+	Starting up a DTFC (controller), the controller is used to coordinate all
+	of the resources of your test. Currently this is just the driver of your 
+	test (DTFX) and the clients being used by the test (DTFA). Soon you'll be 
+	able to run a DTFA on the cheat and be able to control honeycomb server
+	actions.
+	
+	None of the following commands background themselves so if you intend to run
+	the component and disconnect your ssh session make sure to use the usual 
+	"nohup your_command > output 2>error &" to background the component and save
+	it's logs to wherever you find appropriate.
+	
+	To run the DTFC (from the dist directory):
+		./ant.sh run_dtfc 
+			
+	To run the DTFA:
+		./ant.sh run_dtfa -Ddtf.connect.addr=DTFC_MACHINE_NAME
+		
+		- You need o tell the DTFA where your controller is by referring to 
+		  its IP address or hostname.
+		  
+		- When running the DTFA, DTF tries to do the right thing and guess what
+		  your hostname is, unfortunately if the machine does not have a 
+		  hostname set then the framework will pick the wrong name (something 
+		  like localhost or unkown maybe used) and the Agent will disconnect
+		  after a while since the DTFC is unable to heartbeat this component
+		  because it got the wrong address from the DTFA. In this case what you
+		  should do is use the property dtf.listen.addr to set the address of 
+		  your client.
+		  
+		  ./ant.sh run_dtfa -Ddtf.connect.addr=DTFC -Ddtf.listen.addr=MYIP
+		  
+	To run the DTFA that controls a CLUSTER:
+
+		./ant.sh run_dtfa -Ddtf.connect.addr=DTFC_MACHINE_NAME 
+		                  -Dhc.cluster.type=hccluster
+		                  -Dhc.cluster.adminvip=devXXX-admin
+	
+	    - In addition to the address of the DTFC you need to also specify the 
+	      admin vip for the cluster that is being controlled by this agent and
+	      also tell the framework that you're talking to an hccluster (with the
+	      hc.cluster.type property). If you set the hc.cluster.type property to 
+	      hcemulator then it would run against the honeycomb emulator.
+
+7.  Running some tests
+
+    7.1 running dtfa verification test
+ 
+	In order to run a small verification test that your framework is up and has
+	the number of clients you're expecting you can run the following DTF test
+	specifying the number of clients you expect to have connected. The command
+	line to run the test is the following:
+	
+	./ant.sh run_dtfx -Ddtf.xml.filename=tests/ut/verifydtf.xml 
+	                  -Dexpected.dtfa.units=number_of_expected_agents
+	                  -Dexpected.dtfa.type=type_of_agent
+	                  
+	If you're running the DTFX from a machine that is not the one where the 
+	DTFC is running then you'll have to specify the dtf.connect.addr and tell 
+	the DTFX where the DTFC is. 
+	
+    7.2 running tiny honeycomb regression test
+	
+	In order to run the tiny regression test that has been put together, run the
+	hc_regression.xml you would do this like so:
+	
+	./ant.sh run_dtfx -Ddtf.xml.filename=tests/hc/hc_regression.xml
+					  -Dhc.cluster.datavip=your_datavip
+					  
+	Make sure to run at least one DTFC locally and connect one DTFA to it that 
+	will allow you to run the test above. 
+
+    7.3 running the DTF unit tests
+ 	
+ 	To run just start up a bunch of predefined components on your machine like 
+ 	so:
+ 	
+ 		./ant.sh run_components
+ 
+ 	This will start 1 DTFC and 3 DTFA's and connect them correctly to your DTFC
+ 	you can use the above verification tests to verify your DTFA's are there. At
+ 	this point you can also run the DTF unit tests, like so:
+ 	
+		./ant.sh run_dtfx -Ddtf.xml.filename=tests/ut/ut.xml
+		
+	This takes approximately 2 minutes and is a great way of validating changes 
+	to the DTF framework.
+
+    7.4 running tests against a cluster outside of the honeycomb lab
+    
+    When running tests outside of the honeycomb lab there are only a few things
+    to look out for:
+    
+    	1. you will probably not be able to deploy the dtf framework by using
+    	   make install_client target and instead you can follow the other 
+    	   way of copying the build/dtf/dist directory to your client.
+    	   
+    	2. when you run tests you'll have to make sure to specify the 
+    	   user/password for admin access to the cluster, by setting the 
+    	   following properties:
+    	   
+    	   	- hc.admin.user 
+    	   	- hc.admin.pass
+    	   	
+    	   by setting those you'll overwrite the usual admin/honeycomb or the 
+    	   use of the ssh keys that we use in our lab.
+    	   
+    	   NOTE: Those two properties should be specified when running smoke 
+    	   perf test or when starting your DTFA to control the cluster.
+			
+8.  How do I pick which client build I'm running ? 
+	
+	When executing the DTFA	currently the hc-dtf plugin will default to the 
+	current client build from the source tree you're attempting to build DTF 
+	from. Otherwise it will use the build identified by the property 
+	hc.client.build, this property should poin the location of honeycomb client 
+	jars, this is the current layout:
+	
+		1.0-46/lib/honeycomb-client.jar
+		or 
+		1.1-84/lib/honeycomb-client.jar
+		
+	When specifying the property make sure to specify only the location of the 
+	root directory like so:
+	
+		(this would be executed from the dist directory)	
+		./ant.sh run_dtfa -Ddtf.connect.addr=DTFC -Dhc.build.client=lib/1.0-46
+	
+	The hc-dtf plugin is able to detect the client version by parsing the 
+	directory name and then instantiates the correct honeycomb actions for that
+	specific build. The reason for this is that there are already some small 
+	differences from the honeycomb 1.0 and 1.1 client jars and when we have 
+	more changes in the future it will be easier to distinguish which build 
+	is being used by changing this property.

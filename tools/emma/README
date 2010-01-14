@@ -1,0 +1,288 @@
+$Id: README 10853 2007-05-19 02:50:20Z bberndt $
+ 
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+=======================
+CODE COVERAGE WITH EMMA
+=======================
+
+Purpose:
+--------
+This README doc explains how we obtain code coverage (CC) metrics for Honeycomb (HC) software using EMMA tool.
+
+NOTE: This document has moved to the docs repository. Find the latest version here: http://subversion/viewcvs/view/primers/code-coverage.txt?root=docs
+
+Background:
+===========
+
+So what is code coverage, and why do we care? 
+
+Quite simply, CC metrics tell us which parts of our source code actually execute when HC software runs.
+A good CC tool (like emma) will measure CC percentage by class, method, block, and line, for instance:
+
+In package com.sun.honeycomb.util, this much code got executed:
+31%  (5/16) classes
+15%  (18/118) methods
+10%  (369/3878)	blocks
+13%  (100/792) lines
+
+A great CC tool (like emma) will also link to source code in a drill-down fashion, so you can see 
+which exact classes didn't get instantiated, which methods weren't called, which blocks and lines were skipped.
+
+Ways of using CC data:
+----------------------
+* Quantify how much code is covered by existing system (QA) tests
+* Identify code sections which are not exercised by tests, and write new tests to cover them
+* The same applies to unit tests! Developer, test thyself
+* Specifically, identify corner cases not covered by normal tests (like never-thrown exceptions), and unit-test those
+* See whether existing tests exercise useful code paths by comparing 
+  CC from automated tests vs CC from "playing with the cluster"
+* Find dead code: if a code section is always skipped in CC, maybe it's obsolete and never runs?
+
+How does CC work, in general?
+-----------------------------
+1. Code coverage is made possible by inserting hooks into compiled code during or after compilation. 
+   Obviously, the CC tool gets very intimate with the compiler in order to do this.
+   Hence CC is language-dependent and even compiler-dependent. For instance:
+   * gcov is a CC tool for C/C++ language that works with gcc compiler. It cannot do Java.
+   * emma is a CC tool for Java language that works with javac compiler. It cannot do C/C++.
+2. Once instrumented, your code runs as usual, and produces an extra output file with CC data when done.
+   Yes there is a catch: a lot of CC tools only write that output when the program exits.
+   So you'd need to stop your cluster, shut off your cell phone, etc., to get CC data for them.
+   Some smart CC tools allow "live" CC dumps without program exit (emma has this option, but it's not trivial).
+3. Instrumented code will run somewhat slower than your usual build. 
+   Therefore it may be impossible to obtain CC for some highly timing-dependent conditions (races, etc). That's life.
+4. The "duh" point: CC of the same piece of code will differ depending on what happened at runtime.
+   If you start and immediately stop a cluster, you get one CC profile; 
+   if the cluster runs for a week with tons of activity, it's a very different CC profile.
+5. Good CC tools (like emma) allow merging CC data from multiple runs of the program.
+   This is very useful, indeed necessary, to get complete CC for a build when tests ran on multiple machines.
+6. It is generally ill-advised to merge CC data from runs of different builds.
+   If builds differ only so slightly, you may get away with this, but otherwise CC tool will either fail, or produce garbage result.
+7. CC tools output their reports in txt format as bare minimum, HTML for drill-down interface, sometimes XML for post processing.
+
+
+EMMA specifics:
+===============
+
+Emma is a free, open-source CC tool for Java. http://emma.sourceforge.net/
+We use release emma-2.0.4217 from July 17, 2004. The libraries are checked into subversion at honeycomb/trunk/tools/emma/*.jar
+
+Emma use modes:
+---------------
+1. Instrument Java classes on-the-fly (ie at runtime) and get CC report when the program finishes.
+   This is convenient for a quick look at CC when developing and unit-testing code.
+2. Offline instrumentation (ie at compile time):
+2.1. Command-line mode: include emma in the compile command
+2.2. Ant integration: modify your build.xml to include emma (always, or optionally on ant cmd-line switch).
+   Run instrumented code as usual, get CC output file(s) when the program finishes, then produce report.
+   The offline mode with ant integration is what we need for CC of automated system test runs.
+
+Dump-on-exit
+------------
+Out-of-the-box emma writes CC output only when your program (more exactly, its JVM) exits.
+Yes it's possible to force a CC dump at runtime, but that requires inserting a hook into the code - not done.
+For QA tests the dump-on-exit mode is fine, because we want to run all tests against a cluster with a given build,
+then stop the cluster (so we can push out the next build), and we can collect CC files at this time.
+
+Multiple JVMs
+-------------
+Important!! Emma quirk: if your program runs multiple JVMs (HC code does), each JVM must write to unique CC file.
+By default, all JVMs write to the same file "coverage.ec" and corrupt it, because emma doesn't properly do file locking. 
+Corruption will manifest itself with OutOfMemory Java exception when you try 'emma merge' or 'emma report' on the output file.
+This is a known open bug [974340]: http://sourceforge.net/tracker/index.php?func=detail&aid=974340&group_id=108932&atid=651900
+We can avoid the issue by providing each JVM with an emma.coverage.file.out argument with unique filename value.
+When JVMs exit, we can collect all files and merge them together - offline merging works just fine.
+
+Filters
+-------
+Emma supports CC filters: you can specify which classes to instrument and which to skip.
+This is highly useful if your code links against some standard Java libraries which you don't care about.
+XXX: I haven't used filters yet so nothing more to say.
+
+Installing EMMA
+---------------
+To use emma in command-line mode, you need just this one library: emma.jar [subversion: honeycomb/trunk/tools/emma/emma.jar]
+It will be found automatically if installed as a JRE extension, ie copied to: <javadir>/lib/ext/emma.jar
+If you can't do that (you don't have root on the machine, or just don't feel like cluttering the image), specify command line option:
+java -sp <where-is-emma.jar> emma <rest of emma command>
+
+To integrate emma with ant, you need the aforementioned emma.jar and one more library: emma_ant.jar [subversion: honeycomb/trunk/tools/emma/emma_ant.jar]
+You can either install the jars as JRE extension on the build machine, or include them both in the java classpath setting in your build.xml.
+Read on for details on our ant/emma integration for honeycomb.
+
+Useful commands
+---------------
+To run some code with on-the-fly instrumentation and get report "coverage.txt":
+> javac -d my-classes src/*.java
+> java emmarun -cp my-classes Main
+
+To do offline instrumentation, first compile, then instrument, then run the program:
+> javac -d my-classes src/*.java
+> java emma instr -ip my-classes -d instr-classes
+> java -cp instr-classes Main
+
+To merge multiple coverage files together:
+Assume you have 2 runtime coverage files "coverage.ec.1" and "coverage.ec.2",
+and a metadata file generated by 'emma instr' at build time "coverage.em".
+> java emma merge -in coverage.em -in coverage.ec.1 -in coverage.ec.2 -out coverage.es
+
+To generate an plain-text report from the merged coverage file:
+> java emma report -in coverage.es -r txt
+
+To generate a drill-down HTML report that links to source code (located in "src"):
+> java emma report -in coverage.es -sp src -r html
+
+
+EMMA integration with Honeycomb build
+=====================================
+
+Short story
+-----------
+If you want to make a normal build without emma-anything in it, do what you always did, for instance:
+> ant tar
+Then take your honeycomb-bin.tar.gz bits, push them to the cluster, run update script, etc... same old.
+
+If you want to make an emma-instrumented build, do the usual, but with -Demma.build=true flag:
+> ant -Demma.build=true tar
+
+This works for any target:
+> ant -Demma.build=true jar
+> ant -Demma.build=true clean
+Note: "ant clean" will not clean up the emma stuff, while "ant -Demma.build=true clean" will only clean up emma stuff.
+
+You will notice that compiled/instrumented classes are placed into "instr_classes" dir instead of "classes",
+and distribution goes into "instr_dist" instead of "dist". This is done not to step over your normal build.
+During the build emma will generate a file "coverage.em" which contains metadata for your instrumented build. 
+Keep it - the report generator will need this file.
+
+The resulting honeycomb bits are called the same: honeycomb-bin.tar.gz because some QA scripts assume this name.
+Now you can take the bits, push them to the cluster, run update script, etc... no change whatsoever.
+
+Now imagine that your cluster ran this emma-instrumented build for a while, and now you want CC output.
+Warning!!! To get CC output, you must stop your cluster, and not in any random way (like /sbin/reboot),
+but by running "honeycomb stop" on each node. Hard reboot will make us lose code coverage files.
+
+The easiest way to get CC report from your cluster is to use this script in your workspace (where you built):
+> tools/emma/emma_doall.pl reboot
+First you need to edit the script to point to your cluster nodes; then just run it with "reboot" arg.
+(Alternatively, stop your nodes by hand, and run the script with no args: > tools/emma/emma_doall.pl)
+Note: you need to copy these files to <cheat-node>:/root
+emma_collect.sh
+emma_stopnodes.sh
+
+The script will ssh to your cluster, run "honeycomb stop" on the nodes, collect all coverage files, 
+scp them to your workspace, merge into single data file, and produce reports.
+There will be HTML report and a plain-text report "coverage.txt" in "emma_reports" dir.
+Point your browser at <workspace>/coverage/index.html to view the drill-down, linked-to-code HTML report.
+
+XXX: Current setup has no knowledge of the build number to which CC applies. This is a todo item.
+We'll want to incorporate build number in coverage filenames and HTML report.
+Ideally we'd keep just the merged metadata + total coverage file ("coverage.es.<build_number>")
+and be able to generate HTML reports on the fly by checking out <subversion>/src at that revision number.
+This work will be done later as part of QA infrastructure (QB) effort.
+
+Long story
+----------
+You would care about this if you are making changes to our ant build, or if you're just curious.
+
+Most of emma functionality is found inside our top "build.xml" file.
+If you give -Demma.build=true argument to ant, it will invoke "init-emma" target inside build.xml, and emma instrumentation will occur.
+If you don't specify that argument in ant command line, nothing emma-related will happen during the build.
+
+To provide separation between normal and instrumented builds, we set up $build and $dist parameters differently at init stage:
+init-release target: $build="classes" $dist="dist"
+init-emma target: $build="instr_classes" $dist="instr_dist"
+Other dirname/filename parameters use these variables, so subsequent targets are mostly unaware of where they are built to.
+If you build both with and without emma instrumentation, the two $build and $dist location should contain the same fileset,
+except instr_dist/lib/emma.jar is present. The file sizes will be larger in instr_classes because of added hooks.
+
+A few targets (portmapper, testcmd) used hard-coded "dist" location, that was replaced with DIST arg to make.
+
+To make possible this early distinction between normal/instr builds, I moved all property settings from the body of build.xml
+(ie from "always execute this" land) to an "init" target, which depends on init-release and init-emma.
+A few properties are used by init-release and init-emma, so they are set first in init-common target.
+To make sure that necessary properties for other targets are still being set, bottom-level targets now depend on "init".
+
+The "init-emma" target also sets up properties used by emma: where to find emma libraries, etc.
+The actual code instrumentation takes place inside the target "emma.instrument".
+Whenever java code is compiled (ie after each <javac /> task), we antcall target "emma.instrument".
+The target executes conditionally - only if -Demma.build=true was passed to ant command line.
+
+When executing an emma build, you will see output of this nature after each java compile task:
+emma.instrument:
+    [instr] processing instrumentation path ...
+    [instr] instrumentation path processed in 15 ms
+    [instr] [5 class(es) instrumented, 0 resource(s) copied]
+    [instr] metadata merged into [/home/dm155201/svn/coverage.em] {in 1073 ms}
+
+A few targets, like "testcmd" and "md_cache", have their own "build.xml" files where the java compile happens.
+I included antcall to "emma.instrument" in those build.xml after <javac /> tasks, and had to copy-and-paste the target definition.
+
+One case required special treatment because of multiple-jvm bug. When running emma-instrumented code,
+we need to start each honeycomb JVM with an extra argument of emma's output filename. This is done here:
+* target "cluster_config.template" - pass EMMABUILD and EMMAFILE arguments to make.
+* src/config/Makefile transfers these parameters to C pre-processor on input file "node_config.xml.in"
+* src/config/node_config.xml.in is #ifdef'd all over the place on EMMABUILD macro:
+  If EMMABUILD was set (ie top-level ant was run with -Demma.build=true), then supply -Demma.coverage.file.out arg to JVM
+  and set the filename to basename "coverage.ec" + JVM identifier like "config-servers". Else run JVM as usual.
+
+Finally, some changes were made to the classpath to find required emma libraries.
+To do instrumentation, ant uses "emma.classpath" setting in build.xml and looks for <workspace>/tools/emma/emma.jar, emma_ant.jar.
+When instrumented code runs, it needs emma.jar. We chose not to install it on all cluster nodes as JRE extension,
+because that would require polluting initrd with it, or (worse) keeping 2 initrds - one for instrumented builds, one for normal.
+So instead we place emma.jar in ${distr}/lib/emma.jar at buildtime, so it gets included into honeycomb bits and installed on nodes.
+It also needs to be included in java classpath for honeycomb JVMs. This is done in 2 places:
+1. property "target.classpath" is set incl. "emma.jar" in init-emma, and without emma.jar in init-release. 
+   This applies to all JVMs except the NodeMgr who starts up first and starts all other JVMs.
+2. for NodeMgr, we set -classpath explicitly on java command line to include only honeycomb.jar, or both honeycomb.jar and emma.jar
+   property "target.hcjars" is set to just honeycomb.jar in init-release, or both honeycomb.jar and emma.jar in init-emma
+   It is passed as HCJARS arg to make in target "scripts".
+   src/scripts/Makefile passes HCJARS to honeycomb.in   
+   src/scripts/honeycomb.in specifies -classpath with or without emma.jar, as appropriate.
+
+That's pretty much it... ah, there's "emma.clean" target to remove the metadata file 
+(other cleanup is the normal "clean" stuff applied to $build="instr_classes" and $dist="instr_dist" locations). 
+
+All this was tested on a Linux build machine; instrumented code ran on a Linux cluster. 
+XXX: Solaris port shouldn't require anything special, just merging the changes into Solaris branch, pending resource availability
+     (need Solaris cluster for testing before I commit to Solaris branch).
+
+Even longer story
+-----------------
+
+Problem:
+
+The fact that honeycomb software doesn't live on persistant storage (initrd) poses a problem for collecting code coverage data.
+This sequence of events happens:
+1. cluster boots up (tftpboot with our initrd image)
+2. cluster does some stuff
+3. someone runs "honeycomb stop" or kills JVMs, and nodes start shutting down
+4. when JVMs exit, they write out code coverage files to /root (not persistant storage!)
+5. because JVMs exited, cluster reboots! this will destroy data in /root, so we lose coverage data
+This situation is bad because (a) we didn't collect any coverage data, and (b) we can't get cumulative coverage across reboots.
+
+Solution:
+
+Require that shutdown/reboot is always performed with "honeycomb stop" and not other ways like killing JVMs, /sbin/reboot etc.
+In the RC script rc.d/init.d/honeycomb, place code to put_coverage_files on exit, and get_coverage_files on startup.
+Where do we put them and get them from? Well, of course, the cheat node. (Alternative solution would be data disks, but that's messy.)
+So coverage files are preserved on the cheat node, and can be scp'd from there at any time. Directory structure:
+/root/coverage
+	10.123.45.101/
+		ec.<jvm-1-name>
+		ec.<jvm-2-name>
+		...
+	10.123.45.102/
+		...
+Note: honeycomb software must have write permissions on <cheat-node>:/root/coverage, so chgrp 1000 (honeycomb).
+Script update_honeycomb_dhcp_cheat.sh does this (use this script to push out new builds - it works fine).
+
+Cumulative code coverage can be obtained because we get the old files back on the nodes before starting up JVMs.
+
+Remember to remove coverage files from the cheat node before restarting cluster with new build (CC across builds = bad idea).
+Script emma_collect.sh does this. Running "emma_doall.pl reboot" also accomplishes the same.
+
+
+Happy Code Coverage!

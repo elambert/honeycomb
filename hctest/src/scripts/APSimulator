@@ -1,0 +1,100 @@
+#! /bin/sh
+#
+# $Id: APSimulator 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+# For running the Customer Access Pattern Simulation Tool 
+
+printUsage() {
+    echo "Customer Access Pattern Simulator"
+    echo "Usage: APSimulator [pattern] cluster=devXXX:clients=clXX,clXY:processes=10:[time=1h] "
+    echo "       pattern: AP1 - Access Pattern 1: Tape Replacement "
+    echo "                AP2 - Access Pattern 2: Middle Ground "
+    echo "                AP3 - Access Pattern 3: Web Farm "
+    echo "                AP4 - Access Pattern 4: Hot Spots "
+    echo "       time: if no time is specified then the default run time is 30s. "
+    echo "       default pattern: AP1 "
+    echo "       for more information on number of clients and processes to use please use "
+    echo "       the link: https://hc-twiki.sfbay.sun.com/bin/view/Main/CustomerAccessPatternSimulation "
+}
+        
+if [ "$1" = "" ] ; then 
+ 	printUsage
+	exit 1
+fi
+
+if [ "$2" = "" ] ; then
+	printUsage
+	exit 1
+fi 
+
+MATCHED="false"
+
+if [ $1 = "AP1" ] ; then
+	echo "Access Pattern 1: Tape Replacement, Selected"
+	OPS="90%StoreOpGenerator,5%DeleteOpGenerator,5%FetchOpGenerator"
+	MIXES="mix1,mix2,mix3,mix4"
+	MATCHED="true"
+fi 
+
+if [ $1 = "AP2" ] ; then
+	echo "Access Pattern 2: Middle Ground, Selected"
+	OPS="50%StoreOpGenerator,20%FetchOpGenerator,5%DeleteOpGenerator,25%MDOpGenerator"
+	MIXES="mix1,mix2"
+	MATCHED="true"
+fi 
+
+if [ $1 = "AP3" ] ; then
+	echo "Access Pattern 3: Web Farm, Selected"
+	OPS="100%StoreOpGenerator"
+	MIXES="mix1,mix2"
+	MATCHED="true"
+fi 
+
+if [ $1 = "AP4" ] ; then
+	echo "Access Pattern 4: Hot Spots, Selected"
+	OPS="90%FetchOpGenerator,5%StoreOpGenerator,5%MDOpGenerator"
+	MIXES="mix1"
+	MATCHED="true"
+fi 
+
+
+if [ $MATCHED = "true" ]; then
+	./runtest com.sun.honeycomb.hctest.cases.storepatterns.ContinuousStore \
+	        -ctx factory=ContinuousMixFactory:$1:operations=$OPS:mixes=$MIXES:$2
+else
+	echo "Unknown pattern $1 - choose AP1,AP2,AP3 or AP4."
+	printUsage
+fi

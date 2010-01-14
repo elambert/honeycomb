@@ -1,0 +1,997 @@
+#!/usr/bin/perl -w
+#
+# $Id: post-commit-honeycomb 12009 2008-06-02 21:11:37Z iamsds $
+#
+# This script is run by Subversion after each checkin,
+# and serves 2 functions:
+# -> update CR in Bugster with bugfix information,
+# -> send out email notification for this checkin.
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+use strict;
+use XML::Writer;
+use XML::Simple;
+use Data::Dumper;
+use File::Temp qw/tempfile unlink0/;
+
+###################################
+# HOW TO EDIT AND DEPLOY THIS SCRIPT
+#
+# XXX Don't edit this directly on hc-subversion!
+# Edit this in your copy of the repository
+# in honeycomb/tools/subversion and then scp 
+# it over to hc-subversion after commiting the change.
+# Note that the target file name must omit the repository name:
+#
+# scp post-commit-honeycomb root@subversion:/usr/local/svnrepos/honeycomb/hooks/post-commit
+#
+# To test this script, you can change the DEBUG line and copy it to
+# the practice repository:
+#
+# scp post-commit-honeycomb root@subversion:/usr/local/svnrepos/practice/hooks/post-commit
+#
+# Use this bug ID for checkins: 6191145
+
+###################################
+# COMMAND LINE ARGS
+#
+my $repo = $ARGV[0]; # name of Subversion repository (honeycomb or practice)
+my $rev = $ARGV[1]; # revision number of the just-committed checkin
+
+###################################
+# BUILD/RELEASE VALUES
+#
+# NOTE:  These values must be changed when there is a new release
+# so that the "next" release will be accurate (and not refer to a
+# previous release).
+#
+# Published build number doesn't have a leading zero for single digits,
+# but Bugster build numbers do for sorting purposes (1.1-1 vs 1.1-01).
+#
+my $next_dev_release = "1.1.1";
+my $next_dev_build = "1.1-96";
+my $next_test_release = "1.0.3";
+my $next_test_build = "1.0-46"; # 1.0.1 builds are called 1.0-XX
+
+# This is DEPRECATED:
+#
+my $integ_in_release = "1.0"; # See note below -- DEPRECATED
+#
+# HACK: If bugfix is integrated into another release, but bugster CR
+# is not of MR (Multiple Release) type, we use a special value for 
+# "Integrated in build" field that matches $next_dev_release name.
+# Eg: test_release = "anza", dev_release = "balboa", integ_in_release = "balboa".
+# If using MR CRs, no need for this: correct subCR for given release will be updated.
+
+###################################
+# DEBUG/NO-BUGSTER SETTINGS
+#
+# To enable debugging:
+# 1. Change the value of DEBUG to non-zero,
+# 2. Change PRACTICE_USER to yourself, to not spam the team with email
+#    while practicing,
+# 3. Use practice repository (see comments up top).
+#
+my $DEBUG = 0;
+#my $DEBUG = 1;
+#
+# if 1, skip bugster interaction (done for special bug IDs e.g. release CR)
+# if 0, then do bugster interaction
+#
+my $no_bugster = 0;
+#my $no_bugster = 1;
+
+###################################
+# PATHS/COMMANDS
+#
+my $SVNLOOK = "/usr/local/bin/svnlook";
+my $SVNADMIN = "/usr/local/bin/svnadmin";
+my $HOOKSDIR="$repo/hooks";
+my $BTHOME="/usr/local/bt-client";
+my $BTCLIENT="$BTHOME/bt-cli";
+my $USERTOEMAIL = "$BTHOME/map_btuser_to_email.pl";
+my $BTPASSWD="$BTHOME/passwd.txt";
+my $BUGREPORT="http://monaco.sfbay.sun.com/detail.jsf?cr=";
+
+###################################
+# USERNAMES/EMAILS
+#
+my $PRACTICE_USER = "jonathan.dunn\@sun.com";
+my $HC_SW_EMAIL = "hc-diffs\@sun.com";
+my $EMAILADDR = $DEBUG ? $PRACTICE_USER : $HC_SW_EMAIL;
+my $BTUSER="honeycomb";
+
+###################################
+# CONSTANTS
+#
+my $FIX_DELIVERED = "8-Fix Available";
+my $FIX_IN_PROGRESS = "7-Fix in Progress";
+my $NEEDS_VERIFICATION = "Needs Verification";
+my $BT_TEXTFIELD_MAX = 16000; # not precise due to variable in truncation msg
+my $NO_VALUE = "";
+my $MAIN_CR = 1;
+my $SUB_CR = 0;
+
+###################################
+# GLOBAL DATA STRUCTURES
+#
+# Global hashtable of CR info, keyed on main CR ID
+# CR ID -> named hash of info for this CR: maincr, subcr, subcr_handle, ...
+#
+my %crinfo = ();
+
+
+############### START OF MAIN METHOD ###############
+#
+# STEP 1. Start writing to post-commit log file
+#
+my $POSTCOMMITLOGFILE="$HOOKSDIR/post-commit-log.txt";
+open POSTCOMMITLOG, ">>$POSTCOMMITLOGFILE" or 
+    die "Can't open logfile $POSTCOMMITLOGFILE";
+
+my $date = localtime(time);
+print POSTCOMMITLOG "------------------------------------------------\n";
+print POSTCOMMITLOG "[$date] Processing new commit. Revnum $rev, repo $repo (DEBUG is $DEBUG)\n";
+
+# STEP 2. Update checkin history database for ViewCVS Web frontend to Subversion
+#
+`/usr/local/viewcvs-1.0-dev/svndbadmin rebuild $repo $rev`;
+
+# STEP 3. Run svnlook to get information about just committed revision:
+# username, timestamp, length of checkin comment, list of affected bugs, rest of comment
+#
+my $revop = "--revision $rev";
+my $reponame = `basename $repo`;
+chomp $reponame;
+my $log = `$SVNLOOK info $repo $revop`;
+chomp $log;
+my ($user, $timestamp, $logcharlen, $crline, @comments) = split(/\n/, $log);
+my @crs = split(/\s*,\s*/,$crline);
+
+# translate developer's username to email address
+#
+my $sunemailaddr = `$USERTOEMAIL $user`;
+chomp $sunemailaddr;
+
+# STEP 4. Figure out which branch this checkin was made on:
+# trunk (next dot release), branch (dotdot release), or private branch?
+#
+my $CHANGELOGFILE="$HOOKSDIR/changelog.$rev.txt";
+`$SVNLOOK dirs-changed $repo $revop > $CHANGELOGFILE`;
+`cat $CHANGELOGFILE >>$POSTCOMMITLOGFILE`; # log output
+my $changed_dir = `head -1 $CHANGELOGFILE`;
+chomp($changed_dir);
+print POSTCOMMITLOG "changed_dir: ${changed_dir}\n";
+my $source_line = undef;
+my $trunk = 0;
+my $private = 0;
+my $hcr = 0;
+if ($changed_dir =~ /^trunk/) {
+  $trunk = 1;
+  $source_line = "trunk";
+} elsif ($changed_dir =~ /^branches/) {
+  $private = 1;
+  $source_line = "private";
+} elsif ($changed_dir = /^hcr_/) {
+  $hcr = 1;
+  $source_line = "hcr";
+}
+print POSTCOMMITLOG "source_line: $source_line\n";
+
+# This is release number, used to identify SubCRs.
+my $target_release = ($trunk || $private) ? $next_dev_release : $next_test_release;
+# And this is just a label to put into svn log and email.
+my $branch = $trunk ? "$next_dev_release trunk" : 
+    ($private ? "private branch" : "$next_test_release branch");
+
+# STEP 5. For each bug, look up synopsis in Bugster.
+# Also identify correct SubCR for each given bug ID,
+# and save in %crinfo hash to use later.
+#
+print POSTCOMMITLOG "about to look at bugs\n";
+my $bug_synopsis = "";
+$crline = ""; # Will repopulate with SubCRs instead of CRs
+
+foreach my $cr (@crs) {
+
+  my ($bugid, $crstatus) = ($cr =~ /^\s*([0-9]+)(\s+fixed)?\s*$/);
+  my ($cr_handle, $subcr_id, $subcr_handle);
+  $crinfo{$bugid}{'status'} = $crstatus;
+
+  print POSTCOMMITLOG "looking at bug $bugid\n";
+
+  # STEP 5A. Special case this one bug ID, used by the official release scripts:
+  # don't do Bugster update to speed up the release process.
+  #
+  if ($bugid =~ /6226407/) {
+      $no_bugster = 1;
+      $bug_synopsis = $cr.": Implement release scripts for Honeycomb (no bugster)";
+  }
+  
+  if (!$no_bugster) {
+      # STEP 5B. Run bt-cli to get XML data for given CR ID, put it in xmlfile,
+      # and get a handle to access info from XML file as a hash table.
+      # 
+      print POSTCOMMITLOG "getting cr handle for bug $bugid\n";
+      $cr_handle = get_cr_handle($bugid, $MAIN_CR);
+
+      # NEW STEP 5B+. Locate correct subCR for given bugID and target release,
+      # and get a handle to its XML file (re-read from Bugster to read SubCR's notes).
+      #
+      $subcr_id = select_subcr($bugid, $target_release);
+      $subcr_handle = get_cr_handle($bugid, $SUB_CR); 
+       
+      # %crinfo hash is now populated with info for both main and sub CRs
+
+      $crline .= $subcr_id.$crstatus.",";
+  }
+
+  # STEP 5C. Locate bug synopsis
+  # 
+  if (defined $cr_handle && defined $cr_handle->{'Synopsis'}) {
+      print POSTCOMMITLOG "found synopsis for bug $bugid\n";
+      if ($subcr_id != $bugid) {
+          $bug_synopsis .= $subcr_id." (subCR of ".$bugid."): ".$subcr_handle->{'Synopsis'};
+      } else {
+          $bug_synopsis .= $subcr_id.": ".$subcr_handle->{'Synopsis'};
+      }
+  } else {
+      print POSTCOMMITLOG "punting on synopsis for bug $bugid\n";
+      $bug_synopsis .= $cr.": Synopsis unknown";
+  }
+
+  # STEP 5D. Mention the branch where this bug got fixed, and status (fixed or not)
+  # If this isn't final fix for the bug, ie it's fix in progress, status is blank.
+  #
+  $bug_synopsis .= " [${branch}]".$crstatus." \n";
+}
+
+# STEP 6. Setup new checkin comment. 
+# The original comment, typed in by the developer, looked like this:
+#
+# 1234567 fixed, 2345678 
+# This checkin fixes one bugs and is part of a fix for another bug because...
+#
+# The new comment, updated with bug info, looks like this:
+#
+# 1234567 fixed [1.1 trunk]
+# 2345678 [1.1 trunk]
+# This checkin fixes one bugs and is part of a fix for another bug because...
+#
+
+# First update @comments with new info.
+#
+unshift @comments, $bug_synopsis;
+chop $crline; # remove extra comma at the end
+my $change_desc = $crline."\n\n".join("\n", @comments);
+print POSTCOMMITLOG "Adding bug synopsis to change desc for rev $rev: \n".$bug_synopsis."\n";
+
+# Write new change description (incl. bug synopsis) to a temp file
+#
+open CHANGELOG, ">$CHANGELOGFILE" or 
+    die "Can't open logfile $CHANGELOGFILE"; # truncates
+print CHANGELOG $change_desc;
+close CHANGELOG;
+
+# STEP 7. Update checkin comment in subversion to contain bug synopsis
+#
+# IMPORTANT! For this to work, hooks directory must contain 
+# pre-revprop-change hook (it doesn't have to do anything, but must exist).
+# Without that script, setlog command will not be allowed.
+#
+my $setlog = `$SVNADMIN setlog $repo -r $rev $CHANGELOGFILE`;
+chomp $setlog;
+if ($setlog ne "") {
+    print POSTCOMMITLOG "Setlog for revision $rev failed: $setlog \n";
+} # otherwise updated OK
+unlink $CHANGELOGFILE;
+
+# STEP 8. Get code diffs for this checkin from subversion 
+#
+my $diffs = `$SVNLOOK diff $repo $revop`;
+chomp $diffs;
+# print POSTCOMMITLOG "Found log and diffs $log\n$diffs\n";
+
+# STEP 9. Setup the future bugster attachment. 
+
+# First setup name of the bugster attachment
+#
+my $datestring = `date +%F_%H.%M.%S`;
+chomp $datestring;
+my $bt_attach_name = "$user" . "_" . "rev$rev" . "_" . "$datestring.txt";
+
+# Setup body of the bugster attachment
+#
+my $commit_comments = join "\n", @comments;
+$commit_comments = "$commit_comments\n\nhttp://subversion.sfbay.sun.com/viewcvs/view/?root=$reponame&rev=$rev&view=rev";
+my $comments = "
+
+------------------ $bt_attach_name --------------------
+
+Commit comment from $user ($crline):
+${commit_comments}";
+
+# STEP 10. Send notification mail about this subversion checkin
+#
+my $subject = "DIFFS from $user for ($crline) for $reponame rev $rev\n\n";
+my $msg =  "DIFFS from $user for repository $repo for ($crline)\n\n";
+foreach my $cr (keys %crinfo) 
+{
+    # For each bugid listed, print a link to the bug report URL.
+    # Use subCRs so report points directly to the right target release.
+    #
+    my $bugid = $crinfo{$cr}{'subcr'};
+    $msg .= $BUGREPORT.${bugid}."\n";
+}
+$msg .= "\n$commit_comments\n\n$diffs\n\n";
+$msg .= "End of diffs for revision $rev: $bt_attach_name\n";
+
+send_mail($sunemailaddr, $sunemailaddr, $EMAILADDR, $subject, $msg);
+
+# STEP 11. For each bugid listed, update CR in Bugster with fix info
+#
+foreach my $bugid (keys %crinfo) 
+{
+    my $crstatus = $crinfo{$bugid}{'status'};
+    
+    print POSTCOMMITLOG "Updating bugid(${bugid}) crstatus(${crstatus})\n";
+
+    # This subroutine does a lot of work...
+    #
+    update_bug($user, $bugid, $comments, $diffs, $crstatus, $source_line);
+}
+
+# LAST STEP. Cleanup: remove all temporary XML files
+#
+foreach my $cr (keys %crinfo) 
+{
+    my $mainxml = $crinfo{$cr}{'maincr_file'};
+    my $subxml = $crinfo{$cr}{'subcr_file'};
+    if (defined $mainxml) {
+        unlink $mainxml;
+    }
+    if (defined $subxml && $subxml ne $mainxml) {
+        unlink $subxml;
+    }
+}
+
+exit 0;
+
+############### END OF MAIN METHOD ###############
+
+############### SUBROUTINES BELOW ################
+
+##########################################################################################################
+# This function generates the xml that can be used to make a bugster cli
+# update or that can be attached to the bug if the fields are too long.
+#
+# Input: main CR ID, code diffs, flag to include/truncate diffs, new bug status
+#
+# Output: filehandle and name of new XML file, flag to append diffs or make attachment
+#
+#
+##########################################################################################################
+sub generate_xml_for_update {
+##########################################################################################################
+    my ($bugid, $suggested_fix, $include_suggested_fix, $crstatus, $source_line) = @_;
+
+    # $include is whether or not we should truncate the suggested fix field
+
+    my $subcr_id = $crinfo{$bugid}{'subcr'}; # XML will be for SubCR ID
+
+    # The call to this method was step 13, keep counting...
+
+    # STEP 14. Set CR fields: status, substatus, target release, build 
+    #
+    my $fixed = defined($crstatus) && $crstatus =~ /fixed/;
+
+    my $status = ($fixed && $source_line !~ /private/) ? $FIX_DELIVERED : $NO_VALUE;
+    my $substatus = $NO_VALUE;
+    my $target_release = ($trunk || $private) ? 
+        $next_dev_release : $next_test_release;
+    my $commit_to_fix = ($trunk || $private) ? 
+        $next_dev_build : $next_test_build;
+    my $fixed_in_build = ($fixed && $source_line !~ /private/) ? $commit_to_fix : $NO_VALUE;
+
+    # now that we go to state 8 as max, we never have a value for integrated_in_build
+    my $integrated_in_build = $NO_VALUE;
+    my $verified_in_build = $NO_VALUE;
+
+    # Is the suggested fix field too long?  Tell the user when we return.
+    my $attach_diffs_to_bug = 0;
+
+    # STEP 15. Analyze given bug to see how to properly update some fields,
+    # and fit into space limits of bugster notes.
+    # The analyze function does a lot of work... follow sub-steps 15A-15X there.
+    #
+    my ($responsible_engineer, $release, $chars_in_suggested_fix,
+        $chars_in_evalutation) = analyze_current_cr($bugid);
+
+    print POSTCOMMITLOG "Done analyzing current CR\n";
+
+    # STEP 16. Set bugster fields: Evaluation and Suggested Fix.
+
+    # STEP 16A. Set bug evaluation field to contain checkin revision number and developer's comment
+    #
+    my $fix_msg = ($status eq $FIX_DELIVERED) ? "Fix delivered by" : "Fix in progress by";
+    my $evaluation = "\n\n".$fix_msg." ".$user." for release ".$target_release.", build ".$commit_to_fix;
+
+    # STEP 16B. Set bug "suggested fix" field with same info, plus code diffs (added later)
+    #
+    $suggested_fix = $evaluation."\n".$suggested_fix; 
+
+    # Add evaluation details
+    #
+    $evaluation .= " with comment:\n".$commit_comments;
+    if ($include_suggested_fix == 1) {
+        $evaluation = "$evaluation\n\nSee diffs in suggested fix field titled $bt_attach_name for details";
+    } else {
+        $evaluation = "$evaluation\n\nSee attached diffs $bt_attach_name for details";
+    }
+    # print POSTCOMMITLOG "Evaluation: $evaluation\n";
+    
+    # STEP 16C. Truncate the suggested fix if it's longer than the max allowed
+    # and add the truncation message unless we are generating the attachment.
+    #
+    if ($include_suggested_fix == 1) {
+        if ((length($suggested_fix) + $chars_in_suggested_fix) >
+            $BT_TEXTFIELD_MAX) {
+            if (($BT_TEXTFIELD_MAX - $chars_in_suggested_fix) <= 0) {
+                # There isn't enough space to even add our note so give up
+                $include_suggested_fix = 0;
+                print POSTCOMMITLOG "Omitting suggested fix...\n";
+            } else {
+                # There is enough space for a truncated suggested fix
+                $suggested_fix = substr($suggested_fix, 0, ($BT_TEXTFIELD_MAX -
+                    $chars_in_suggested_fix));
+                my $prev = $rev-1;
+                $suggested_fix .= "\n\nDiffs truncated due to field length limit. Use 'svn diff --revision $prev:$rev' to see diffs or view attachment $bt_attach_name.";
+                my $newsugfixlen = length($suggested_fix);
+                print POSTCOMMITLOG "Truncated suggested fix to $newsugfixlen\n";
+            }
+
+            # either way, add an attachment since some data was lost
+            $attach_diffs_to_bug = 1;
+        }
+    }
+    # print POSTCOMMITLOG "SugFix: $suggested_fix\n";
+
+    # STEP 17. Write new XML for bug update to a file, return handle to caller.
+
+    # Create a temporary file to contain new XML for bug update.
+    # Use Perl XML writer object to write to the file.
+    #
+    my ($fh, $filename) = tempfile();
+    # print POSTCOMMITLOG "XML filename: $filename\n"; # DEBUG
+    my $writer = new XML::Writer(DATA_MODE => 1,
+                                 DATA_INDENT => 4,
+                                 OUTPUT => $fh);
+
+    # NOTE!  These fields must appear in a certain order or the update will
+    # fail.  I tried to re-order them logically once and that lead to
+    # failures when updating...  Just keep them in this order... [sarah.gordon]
+    #
+
+    # Start the cr
+    #
+    $writer->startTag("UpdateChangeRequest");
+    $writer->startTag("ChangeRequest");
+
+    # Bugid
+    #
+    $writer->startTag("CrNumber");
+    $writer->characters($subcr_id);
+    $writer->endTag("CrNumber");
+
+    # Commit to fix in build
+    #
+    if ($status eq $FIX_DELIVERED) {
+        $writer->startTag("CommitToFixInBuild");
+        $writer->characters($commit_to_fix);
+        $writer->endTag("CommitToFixInBuild");
+    }
+    
+    # Evaluation -- omitted if there isn't enough space.  This is fine
+    # because we only really care that there is an evaluation note to
+    # allow us to transition to the fixed state
+    #
+    if (($chars_in_evalutation + (length $evaluation)) < $BT_TEXTFIELD_MAX) {
+        $writer->startTag("EngNote");
+        $writer->startTag("Type");
+        $writer->characters("Evaluation");
+        $writer->endTag("Type");
+        $writer->startTag("Note");
+        $writer->characters($evaluation);
+        $writer->endTag("Note");
+        $writer->endTag("EngNote");
+    }
+
+    # Suggested fix
+    #
+    if ($include_suggested_fix == 1) {
+        $writer->startTag("EngNote");
+        $writer->startTag("Type");
+        $writer->characters("Suggested Fix");
+        $writer->endTag("Type");
+        $writer->startTag("Note");
+        $writer->characters($suggested_fix);
+        $writer->endTag("Note");
+        $writer->endTag("EngNote");
+    }
+
+    # XXX we currently always clobber the existing release information.
+    # Maybe this isn't what we want to do long term.
+
+    # Fixed in build
+    #
+    if ($status eq $FIX_DELIVERED) {
+        $writer->startTag("FixedInBuild");
+        $writer->characters($fixed_in_build);
+        $writer->endTag("FixedInBuild");
+    }
+    
+    # XXX we always want to null out any values that might already
+    # entered in the Integrated in Build field.
+
+    # Integrated in build
+    #
+    $writer->startTag("IntegratedInBuild");
+    $writer->endTag("IntegratedInBuild");
+    
+    # Release
+    #
+    $writer->startTag("Release");
+    $writer->characters($target_release);
+    $writer->endTag("Release");
+
+    # Responsible Engineer (if not already set)
+    #
+    if ($responsible_engineer eq "") {
+        $writer->startTag("ResponsibleEngineer");
+        $writer->characters($sunemailaddr);
+        $writer->endTag("ResponsibleEngineer");
+    }
+
+    # Status
+    #
+    if ($status ne "") {
+        $writer->startTag("Status");
+        $writer->characters($status);
+        $writer->endTag("Status");
+    }
+
+    # SubStatus
+    #
+    if($substatus ne "") {
+	    $writer->startTag("SubStatus");
+	    $writer->characters($substatus);
+	    $writer->endTag("SubStatus");
+    }
+
+    # Verified in build
+    #
+    $writer->startTag("VerifiedInBuild");
+    $writer->characters($verified_in_build);
+    $writer->endTag("VerifiedInBuild");
+
+    # End the cr
+    #
+    $writer->endTag("ChangeRequest");
+    $writer->endTag("UpdateChangeRequest");
+    $writer->end();
+
+    print POSTCOMMITLOG "Done writing the XML\n";
+
+    return ($fh, $filename, $attach_diffs_to_bug);
+}
+
+##########################################################################################################
+# Update the CR in Bugster with new info.
+#
+# Input: username, main CR ID, checkin comment, code diffs, bug status (fixed / fix in progress)
+#
+# Actions: obtain XML file for bug update, execute update via bt-cli.
+#          Add notes to the bug as attachments, if necessary.
+#
+# Output: none (CR is updated in Bugster, nothing to return) 
+#
+##########################################################################################################
+sub update_bug {
+##########################################################################################################
+    my ($user, $bugid, $comment, $diffs, $crstatus, $source_line) = @_;
+
+    my $subcr_id = $crinfo{$bugid}{'subcr'}; # Update the SubCR, not main CR
+
+    print POSTCOMMITLOG "Processing commit for bug $bugid from user $user\n";
+
+    if ($no_bugster) {
+	    print POSTCOMMITLOG "skipping bugster update\n";
+	    return;
+    }
+
+    # The call to this function was step 12, keep on counting...
+
+    # STEP 13. Generate the xml for the update -- include suggested fix
+    # The method we call does a lot of work, follow steps 14-17 there.
+    #
+    my $suggested_fix = "$comment\n\n$diffs";
+    my ($fh, $filename, $attach_diffs_to_bug) =
+        generate_xml_for_update($bugid, $suggested_fix, 1, $crstatus, $source_line);
+
+    print POSTCOMMITLOG "Done generating the xml for bug $bugid from user $user\n";
+
+    # STEP 18. Run bt-cli to update Bugster CR with new info.
+    #
+    my $output = `$BTCLIENT update cr -U $BTUSER -pFile $BTPASSWD -f $filename`;
+    print POSTCOMMITLOG "Messages from first attempt at bug update:\n";
+    print POSTCOMMITLOG $output;
+
+    # STEP 19. If the update failed, try doing a partial update (best we can).
+    #
+    if (!($output =~ /CrNumber/)) {
+        # Update command failed (ie, didn't give back a CrNumber).
+        # We'll try to update the bug report with everything but 
+        # the suggested fix to at least get the state changed.
+
+        # force the adding of diffs later
+        $attach_diffs_to_bug = 1;
+
+        # Remove the previous temp files
+        unlink0($fh, $filename) or die "Error removing temp file $filename";
+
+        # STEP 19A. Generate the xml without the suggested fix
+        #
+        ($fh, $filename, my $ignore) = generate_xml_for_update($bugid, "", 0, $crstatus, $source_line);
+
+        # STEP 19B. Run bt-cli to do partial update.
+        #
+        $output = `$BTCLIENT update cr -U $BTUSER -pFile $BTPASSWD -f $filename`;
+        print POSTCOMMITLOG "Messages from second attempt at bug update (no sugg fix in bug):\n";
+        print POSTCOMMITLOG $output;
+
+        if (!($output =~ /CrNumber/)) {
+            #
+            # STEP 19C. Bug update failed, send mail to user telling them to update bug manually
+            #
+            print POSTCOMMITLOG "\n\nAck, update without suggested fix failed\n";
+            print POSTCOMMITLOG "PLEASE UPDATE THE BUG MANUALLY\n\n";
+
+            my $fail_subject = "Failed to update bug $bugid from $user\n";
+            my $fail_msg = "Failed to update bug $bugid from $user (without suggested fix field)\n";
+            $fail_msg .= "Update bug manually.  Errors and XML are below\n";
+            $fail_msg .= "Error from bugster CLI:  $output\n";
+            my $xmlfilecontents = `cat $filename`;
+            $fail_msg .= "XML file contents of $filename:\n";
+            $fail_msg .= "$xmlfilecontents";
+
+            send_mail($sunemailaddr, $sunemailaddr, $EMAILADDR, $fail_subject, $fail_msg);
+        }
+    }
+
+    # STEP 20. If we've determined we should attach the diffs to the bug, do it!
+    #
+    if ($attach_diffs_to_bug == 1) {
+        # Remove the previous temp files
+        unlink0($fh, $filename) or die "Error removing temp file $filename";
+
+        # generate the file containing just the commit comment and diffs
+        ($fh, $filename) = tempfile();
+        print $fh $suggested_fix;
+
+        # Create the tempfile for the attachment update
+        my ($attach_xml_fh, $attach_xml_filename) = tempfile();
+
+        # Create the writer object for the attachment update
+        my $attachment_xml_writer = new XML::Writer(DATA_MODE => 1,
+                                            DATA_INDENT => 4,
+                                            OUTPUT => $attach_xml_fh);
+
+        # Start the cr
+        $attachment_xml_writer->startTag("UpdateChangeRequest");
+        $attachment_xml_writer->startTag("ChangeRequest");
+        $attachment_xml_writer->startTag("Attachment");
+
+        # name of attachment in bugster UI
+        $attachment_xml_writer->startTag("Name");
+        $attachment_xml_writer->characters($bt_attach_name);
+        $attachment_xml_writer->endTag("Name");
+
+        $attachment_xml_writer->endTag("Attachment");
+
+        # CRNumber
+        $attachment_xml_writer->startTag("CrNumber");
+        $attachment_xml_writer->characters($subcr_id);
+        $attachment_xml_writer->endTag("CrNumber");
+
+        # end the CR
+        $attachment_xml_writer->endTag("ChangeRequest");
+        $attachment_xml_writer->endTag("UpdateChangeRequest");
+
+        $output = `$BTCLIENT attach cr -U $BTUSER -pFile $BTPASSWD -f $attach_xml_filename -attachment $filename`;
+        print POSTCOMMITLOG "Messages from attempt to add attachment:\n";
+        print POSTCOMMITLOG $output;
+
+        # Remove the temp files
+        unlink0($attach_xml_fh, $attach_xml_filename) or die "Error removing temp file $attach_xml_filename";
+    }
+
+    # Remove the temp files
+    unlink0($fh, $filename) or die "Error removing temp file $filename";
+}
+
+##########################################################################################################
+# Assess if the responsible engineer and release values are set. 
+# Also calculate how long the suggested fix and evaluation fields are so we don't overflow them.
+#
+# Input: main CR ID.
+#
+# Output: responsible engineer, release, length of suggested fix and eval fields.
+#
+##########################################################################################################
+sub analyze_current_cr {
+##########################################################################################################
+    my ($bugid) = @_;
+    
+    my $responsible_engineer = "";
+    my $release = "";
+    my $chars_in_suggested_fix = 0;
+    my $chars_in_evalutation = 0;
+
+    my $subcr = $crinfo{$bugid}{'subcr'};
+    my $cr_handle = $crinfo{$bugid}{'subcr_handle'};
+
+    print POSTCOMMITLOG "Analyzing existing bug $bugid subCR $subcr \n";
+
+    # STEP 15A is unnecessary, we already read XML from bugster
+
+    # STEP 15B moved over to select_subcr() subroutine!
+
+    # STEP 15C. If certain fields are already set, do not overwrite their value.
+
+    if (defined $cr_handle->{'ResponsibleEngineer'}) {
+        $responsible_engineer = "is_set_already";
+    }
+    
+    if (defined $cr_handle->{'Release'}) {
+        $release = "is_set_already";
+    }
+
+    # STEP 15D. Reload bug contents using subCR ID - unnecessary, already done.
+
+    # STEP 15E. Calculate length of suggested fix and evaluation fields
+    # in the bug notes (so we don't overflow the field with our update)
+    # 
+    if (defined $cr_handle->{'EngNote'}) {
+        # there isn't a good way to tell if we have multiple 
+        # notes (an array) or a single note (a hash), so hack!
+        #
+        my $eng_note_type = "$cr_handle->{'EngNote'}";
+        if ($eng_note_type =~ /ARRAY/) {
+            # we have an array...iterate through it
+            my $i;
+            for ($i = 0; ; $i++) {
+                # print POSTCOMMITLOG "Loop $i of eng notes\n";
+                if (defined $cr_handle->{'EngNote'}[$i]) {
+                    if ($cr_handle->{'EngNote'}[$i]->{Type} eq "Suggested Fix") {
+                        # print POSTCOMMITLOG "Loop $i of eng notes -- sugg fix\n";
+                        my $sugfix = $cr_handle->{'EngNote'}[$i]->{Note};
+                        $chars_in_suggested_fix = length $sugfix;
+                    } elsif ($cr_handle->{'EngNote'}[$i]->{Type} eq "Evaluation") {
+                        # print POSTCOMMITLOG "Loop $i of eng notes -- eval\n";
+                        my $evaluation = $cr_handle->{'EngNote'}[$i]->{Note};
+                        $chars_in_evalutation = length $evaluation;
+                    }
+                } else {
+                    # print POSTCOMMITLOG "Loop $i of eng notes -- the end\n";
+                    last;
+                }
+            }
+         } elsif ($eng_note_type =~ /HASH/) {
+            # we have a hash...assume it is only the description fields
+            if ($cr_handle->{'EngNote'}->{Type} ne "Description") {
+                print POSTCOMMITLOG "Unexpected singleton engnote type: $cr_handle->{'EngNote'}->{Type}\n";
+            } 
+        } else {
+            print POSTCOMMITLOG "We have neither a hash nor array: $eng_note_type\n";
+        }
+    }
+
+    print POSTCOMMITLOG "Existing bug has SubCR $subcr, RE $responsible_engineer, ".
+        "release $release, sugfix $chars_in_suggested_fix, eval $chars_in_evalutation\n";
+
+    return ($responsible_engineer, $release, $chars_in_suggested_fix, $chars_in_evalutation);
+}
+
+##########################################################################################################
+# Sends email from/to given addresses with given subject line and message contents.
+#
+# Input: FROM and TO address (usually the author of checkin, so he gets notification and replies), 
+#        CC address (usually the team's mailing alias so everyone gets a copy of checkin email),
+#        subject and body of the message.
+#        
+# Action: sends email. Job is backgrounded, method returns immediately, mailer will retry sending as needed.
+#
+# Output: none. Caller doesn't know if the email will be successfully sent.
+#
+##########################################################################################################
+sub send_mail {
+##########################################################################################################
+    my ($from, $to, $cc, $subject, $msg) = @_;
+
+    open (MAIL, "|/usr/sbin/sendmail -t ");
+    print MAIL "From: $from\n";
+    print MAIL "To: $to\n";
+    print MAIL "Cc: $cc\n";
+    print MAIL "Content-Type: text/plain\n";
+    print MAIL "Subject: $subject\n";
+    print MAIL $msg;
+    close (MAIL);
+}
+
+##########################################################################################################
+# For a given bug ID, get info from Bugster and print to given file. Return handle to XML data structure.
+#
+# Input: main CR ID, flag to know which handle to get - for main CR or for SubCR
+#
+# Action: Use bt_cli to read bug info from Bugster (this takes time!).
+#         Place XML handle and output filename into global %crinfo hash.
+#
+# Output: XML handle to this bug's record in the file.
+#
+##########################################################################################################
+sub get_cr_handle {
+##########################################################################################################
+    my ($maincr, $getcr) = @_;
+
+    # Check if we already have XML for requested CR; if so, do not re-read from Bugster
+    #
+    if (($getcr == $MAIN_CR) && defined $crinfo{$maincr}{'maincr_handle'}) {
+        return $crinfo{$maincr}{'maincr_handle'};
+    }
+    # This will happen if the bug was not of MR type, so subCR defaulted to main CR
+    #
+    if (($getcr == $SUB_CR) && defined $crinfo{$maincr}{'subcr_handle'}) {
+        return $crinfo{$maincr}{'subcr_handle'};
+    }
+
+    # Which CR shall we look up: main or sub?
+    #
+    my $bugid = ($getcr == $MAIN_CR) ? $maincr : $crinfo{$maincr}{'subcr'}; 
+
+    my $xmlfile = "$HOOKSDIR/$bugid.xml";
+
+    # get the raw xml for this bug using the identity style sheet
+    my $raw_xml = `$BTCLIENT print cr -U $BTUSER -pFile $BTPASSWD -s $HOOKSDIR/identity.xsl -o $xmlfile -id $bugid`;
+    $raw_xml = `cat $HOOKSDIR/$bugid.xml`;
+    # Debug
+    # print POSTCOMMITLOG "Raw xml from $xmlfile:\n$raw_xml\n\n";
+
+    # use the simple XML interface to access the fields
+    my $xmlobj = new XML::Simple;
+    my $data = $xmlobj->XMLin($xmlfile);
+    # Debug
+    # print POSTCOMMITLOG Dumper($data);
+
+    # pointer to the XML record for this Change Request
+    my $crhandle = $data->{'SOAP-ENV:Body'}->{'ChangeRequestPrintService:PrintChangeRequest'}->{'ChangeRequest'};
+
+    if ($getcr == $MAIN_CR) {
+        $crinfo{$maincr}{'maincr'} = $bugid;
+        $crinfo{$maincr}{'maincr_handle'} = $crhandle;
+        $crinfo{$maincr}{'maincr_file'} = $xmlfile;
+    } else {
+        $crinfo{$maincr}{'subcr'} = $bugid;
+        $crinfo{$maincr}{'subcr_handle'} = $crhandle;
+        $crinfo{$maincr}{'subcr_file'} = $xmlfile;
+    }
+    
+    return $crhandle;
+}
+
+##########################################################################################################
+# Select subCR with given target release from XML info on the main CR.
+#
+# Input: Main CR ID, target release.
+#
+# Action: Parse given XML to locate CrNumber for given Release value. If no match, default to main CR ID.
+#
+# Output: SubCR ID.
+#
+sub select_subcr {
+    my ($bugid, $target_release) = @_;
+
+    print POSTCOMMITLOG "Selecting SubCR for CR $bugid and Release $target_release \n";    
+
+    my $subcr_id = 0;
+    my $cr_handle = $crinfo{$bugid}{'maincr_handle'};
+
+    # STEP 15B. Locate correct SubCR by its Targeted Release
+    #
+    if (defined $cr_handle->{'SubChangeRequest'}) {
+
+        # See if we have one or more subCRs.
+        # there isn't a good way to tell if we have multiple notes (an array)
+        # or single note (a hash), so check for datatype and handle both.
+
+        my $subcr_type = "$cr_handle->{'SubChangeRequest'}";
+        if ($subcr_type =~ /ARRAY/) { # iterate over SubCRs, looking for the right release
+            my $i;
+            for ($i = 0; ; $i++) {
+                if (defined $cr_handle->{'SubChangeRequest'}[$i]) {
+                    my $id = $cr_handle->{'SubChangeRequest'}[$i]->{CrNumber}; 
+                    my $rel = $cr_handle->{'SubChangeRequest'}[$i]->{Release};
+                    print POSTCOMMITLOG "Looking at SubCR ID=$id for CR $bugid and Release $rel \n";
+
+                    if ($rel eq $target_release) {
+                        $subcr_id = $id; 
+                        print POSTCOMMITLOG "Found SubCR ID=$subcr_id for CR $bugid and Release $target_release \n";
+                    }
+                } else {
+                    last;
+                }
+            }
+        } elsif ($subcr_type =~ /HASH/) { # single value - check if it's the right release
+            my $id = $cr_handle->{'SubChangeRequest'}->{CrNumber};
+            my $rel = $cr_handle->{'SubChangeRequest'}->{Release};
+            print POSTCOMMITLOG "Looking at SubCR ID=$id for CR $bugid and Release $rel \n";
+
+            if ($rel eq $target_release) {
+                $subcr_id = $id;
+                print POSTCOMMITLOG "Found SubCR ID=$subcr_id for CR $bugid and Release $target_release \n";
+            }
+        } else { # this case is not handled, will default to main CR ID (below)
+            print POSTCOMMITLOG "We have neither a hash nor array: $subcr_type\n";
+        }
+    }
+    
+    # this will happen if the CR is not set up for Multiple Releases; default to main CR ID
+    #
+    if ($subcr_id == 0) { 
+        print POSTCOMMITLOG 
+            "Did not find SubCR ID for CR $bugid and Release $target_release, ".
+            "will use main CR id $bugid \n";
+        $subcr_id = $bugid;
+
+        # No need to re-read info from Bugster later on, since we will use main CR as subCR
+        $crinfo{$bugid}{'subcr'} = $subcr_id;
+        $crinfo{$bugid}{'subcr_handle'} = $cr_handle;
+        $crinfo{$bugid}{'subcr_file'} = $crinfo{$bugid}{'maincr_file'};
+    } else {
+        $crinfo{$bugid}{'subcr'} = $subcr_id;
+        # We don't have a direct handle to SubCR's XML yet 
+    }
+
+    return $subcr_id;
+}

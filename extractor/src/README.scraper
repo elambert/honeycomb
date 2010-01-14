@@ -1,0 +1,137 @@
+log_scraper - Filters a /var/adm/messages file and generates important 
+              information for service personel to toubleshoot.
+
+log_scraper
+  usage:
+    -s <start_date ex: Apr:12:13:23:12 >
+    -e <end_date ex:Apr:13:13:23:12 >
+    -o <output_directory>
+    -a <true|false>
+    -l <log_level[0-4]>
+    -L <list of space seperated messages file, provide absolute path with in quotes>
+    -n <num_msg_per_module>
+    -d <num_of_days>
+    -S <only_create_summary>
+    -m <module_list, comma seperated>
+    -v <true|false> Verbosity
+
+
+Honeycomb generates a lot of debugging and informational messages to syslog 
+and so the size of the logs is unwieldy from a serviceability perspective. 
+Additionally a service engineer will find it daunting to wade through the huge
+logs for interesting information. The time required for this could run in to 
+many hours. This tool is intended to help the service team to diagnose the 
+system and get the system on it's feet quickly in around an hours time. 
+
+It is also intended to document all the log messages seen in the scraper 
+output, and additionally provide work around where possible. The current 
+implementation of honeycomb is not clever about the logging and generates a 
+lot of messages. For instance the logs at Info level could really indicate 
+some issues in the system, where as a log at Severe level may not really 
+mean a system wide issue. But in general the Severe and Warning's posted will
+be useful for the system debugging. The scraper should be smart about which 
+levels of logging for the respective modules will be useful for troubleshooting.
+At the outset the scraper default output should provide the most important
+information from troubleshooting perspective. 
+
+
+OPTIONS
+=======
+All options need a value. There are no boolean options. Option -v needs a true/false specified.
+
+-S : Option to  collect module wise summary and latest 'M' messages per module. 
+The summary would print the number of messages of a particular logging level seen.
+The option will also print node wise summaries. This helps the service engineer to 
+get a over view of the system and so helps to look at interesting modules for triaging.
+
+-n : Option to collect last 'N' days worth of scrubbed log at default log level.
+
+-s + -e : Option to print scrubbed logs between a supplied start and end date
+
+-l : Option to specify additional logging level so more messages are scrubbed. 
+Probably used if more debugging information is needed. The level is 0-3, with 0 being the default. 
+
+-o : Option to specify the output directory where the scrubbed logs will be collected.
+
+-a : Option to collect 'all' the messages* files in /var/adm. This should 
+check for the available space to collect logs, if enough space is not 
+available try to collect as many log files as possible. 
+No scrubbing is done for this option. The Sun engineers can run the scrub tool 
+after they receive and uncompress all the messages files.
+
+-L : Option to accept a list of messages file (no patterns). The scrubbing will happen only on these.
+
+-v : Option to be verbose and chatty, not for service use. This is only to debug the tool.
+      
+The default will be to scrub the messages at log level 0 and create the 
+summaries of top 2 of the unzipped log files in the /var/adm directory.
+The tool could be run on a service processor or on a node in case the service
+processor is unavailable.
+
+Note on the output:
+===================
+The default run will create 3 files:
+
+- hot_messages_file: This file will have predefined messages that have been identified 
+as potential failure cases. A quick scan of this file will tell us if we see any bad things
+are happening in the cluster. This is the first file to be looked for immediate help.
+
+- Summary_header: This file lists statistics about the different types of error messages in the 
+whole cluster. After scanning this file one can determine where the potential failure lay.
+
+- Summary: This file lists the summary modulewise. After looking at the above header file, one
+can look at this file for troubles with specific modules. This file also has latest few messages
+modulewise.
+
+Non default runs with more levels will create additional per node files of the form
+node.<error_type>. Some example files are hcb101.severe, hcb101.warning etc. We don't foresee
+using non defaults in the normal circumstances.
+
+
+Command reference:
+==============
+  usage:
+    -s <start_date ex: Apr:12:13:23:12 >
+    -e <end_date ex:Apr:13:13:23:12 >
+    -o <output_directory>
+    -a <true|false>
+    -l <log_level[0-3]>
+    -n <num_msg_per_module>
+    -m <module_list, comma seperated>
+    -d <num_of_days>
+    -L <list of log files ssv with in quotes>
+    -v <true|false>
+
+Start_date/End_date: The tool will scrape the log messages only between these dates. The format 
+is mentioned in the usage message. Please the proper date as the tool will not validate it.
+
+output_directory: This is where the scraped messages and the summary files will land. The caller of the 
+tool will have the tar and gzip that directory. If this is not specified we store in /var/adm/scraper/<date>
+directory, again the caller needs to tar-gzip it.
+
+Log_level: This is the knob which can be turned for more details. The tool will automatically include modules 
+at lesser logging_level.  Level 0 should fetch most of the interesting information. But higher levels can be used 
+occasionally. When we need more information about a particular object or if we need all the messages from OAClient 
+we need to set the level to 3.
+
+num_msg_per_module : The summary file contains some stats at module level and that includes latest more or less 50 
+messages. We could get more if we want.
+
+num_of_days : Specify the number of days worth of log to be scraped.
+
+module_list: List of interesting modules csv and with in quotes. This should get the information only for the 
+             modules specified and nothing else.
+
+All : This option does not do any scraping. It just tar-gzips all the /var/adm/messages* files and put's it in the 
+output_log_dir. By default /var/adm/scraper/<date> should have it. The tool checks for the required space needed 
+in the output directory, if not it will fail. We could enhance it to collect latest 
+files.
+
+Examples:
+    
+        log_scraper.pl
+        log_scraper.pl -s 'Apr:12:13:23:12' -e 'Apr:13:13:23:12'
+        log_scraper.pl -o /var/adm/tmp/scraper -l 1 
+        log_scraper.pl -L "/var/adm/messages /var/adm/messages.0"
+
+

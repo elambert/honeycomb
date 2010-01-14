@@ -1,0 +1,78 @@
+/*
+ * Copyright © 2008, Sun Microsystems, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+
+// XXX This test used to pass because hidden fragment files were not
+// processed as missing (test bug). Now that hidden files are
+// considered missing, system metadata is not deleted and links do not
+// get updated.
+
+import com.sun.honeycomb.delete.Constants;
+import com.sun.honeycomb.oa.OAClient;
+
+ECHO("Verify that recovery works on deleted objects and completes delete when necessary");
+
+storesize = 10;
+
+ECHO("--> Store object of size " + storesize);
+STORE(1, storesize);
+DEREF(1,0);
+
+ECHO("--> Remove frag 4 of data and MD object so OA can't find it");
+FRAGREMOVE(0, 4, 0);
+FRAGREMOVE(1, 4, 0);
+
+ECHO("--> Delete the object while frag 4 is missing...");
+DELETE(1, true);
+
+ECHO("--> Recover frag 4 of data obj...");
+RECOVER(0, 4, 0);
+ECHO("--> Recover frag 4 of metadata obj...");
+RECOVER(1, 4, 0);
+
+ECHO("--> Expect that all fragments of the object are deleted");
+FRAGISDELETED(0, Constants.ALL_FRAGS, true);
+FRAGISDELETED(1, Constants.ALL_FRAGS, true);
+
+ECHO("Run recovery on each fragment of deleted objects");
+for (int i=0; i<7; i++) {
+    ECHO("---> Hide and recover deleted fragment " + i);
+    // in data object
+    FRAGREMOVE(0, i, 0);
+    RECOVER(0, i, 0);
+    FRAGISDELETED(0, i, true);
+    // in metadata object
+    FRAGREMOVE(1, i, 0);
+    RECOVER(1, i, 0);
+    FRAGISDELETED(1, i, true);
+}
+

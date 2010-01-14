@@ -1,0 +1,25 @@
+6684653 fixed
+
+Fragmenter has a path where it behaves as if it were performing a
+non-blocking read: if fewer than the requested bytes are read, it
+returns this value. This is unfortunate for two reasons:
+
+1. The number of bytes read includes parity data, so the check is meraningless
+2. If it really was a short read, the data will have gaps in the byte buffer. 
+   OAClient has no way of knowing how Fragmenter sliced up the bugger. 
+3. If some of the data reads failed, this path prevents us from proceeding 
+   to the RS recovery step.
+
+But it gets worse. If we failed on a BOTROS optimization of reading
+all of the data from fragment zero, Fragmenter proceeds to a normal
+read except that it excludes fragment 0 (in the BOTROS optimization,
+fragment 0 will be larger than expected, and will cause a buffer
+overflow). Unfortunately, the read operation in FragmentFileSet does
+not have the information about the failed read for fragment 0, so it
+returns without an error even if two additional reads fail, and random
+data is returned to the client.
+
+The fix is just to remove the early return and proceed through the
+standard path of checking for bad fragment reads.
+
+

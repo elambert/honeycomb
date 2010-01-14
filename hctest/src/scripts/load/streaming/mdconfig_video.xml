@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    $Id: mdconfig_video.xml 10858 2007-05-19 03:03:41Z bberndt $
+    
+    Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+    Use is subject to license terms.
+-->
+
+<!-- DO NOT EDIT-->
+
+<!-- Video Demo Schema, also used for streaming perf tests -->
+
+<metadataConfig>
+  <schema>
+    <namespace name="video" writable="true" extensible="true">
+      <field name="movie" type="string" indexable="true"/>
+      <field name="type" type="string" indexable="true"/>
+      <field name="title" type="string" indexable="true"/>
+      <field name="resolution" type="string" indexable="true"/>
+      <field name="date" type="long" indexable="true"/>
+      <field name="production" type="string" indexable="true"/>
+    </namespace>
+  </schema>
+
+  <fsViews>
+    <fsView name="Videos" filename="${title}.${type}" namespace="video" fsattrs="true">
+      <attribute name="production"/>
+      <attribute name="movie"/>
+      <attribute name="resolution"/>
+    </fsView>
+    <fsView name="Resolution" filename="${title}.${type}" namespace="video" fsattrs="true">
+      <attribute name="resolution"/>
+      <attribute name="movie"/>
+    </fsView>
+  </fsViews>
+
+  <tables>
+    <table name="video">
+      <column name="video.production" />
+      <column name="video.movie" />
+      <column name="video.resolution" />
+      <column name="video.title" />
+      <column name="video.type" />
+      <column name="video.date" />
+    </table>
+  </tables>
+
+</metadataConfig>

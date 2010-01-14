@@ -1,0 +1,603 @@
+#! /bin/sh
+#
+# $Id: testing2.honeycomb 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+# 
+#
+#
+#  In short this is a simple shell script that use the Honeycomb
+#  SDK cmds:   store, retrieve, schema, query, queryplus
+#  to do the following in a repeating loop:
+#	 0) verify file exists & cmds exist 
+#	 1) store file
+#	 2) retrieve 
+#	 3) cmp -l retrieved_file original_file
+#	 4) reads the schema
+#	 5) grabs 2 longs & 1 string metadata name out of the schema
+#		* it uses tail & awk & head & sed to grab the metadata name
+#	 6) store file using the metadata name
+#		* It stores this programs PID in a long metadata value
+#		* It stores the current loop count in a long metadata value
+#		* It stores the file into a string metadata value
+#	 7) query using the PID & loop count to get OID
+#	 8) verify the query worked by cmp'ing store OID with query return'd OID
+#	 9) queryplus using the PID & loop count to get OID
+#	10) verify the query worked by cmp'ing store OID with query return'd OID
+#	11) delete original OID 
+#		** It's not deleting the metadata store file..
+#		** So this can cause a Honeycomb to fill up...
+#		(if you want that just edit this script & add the delete cmd)
+#	12) verify loop & error count are less than requested values then loop
+#
+#	** This script logs creates a log file based on the variable
+#		LOGFILE, which by defaults is set to honey, and the PID
+#		of the script.   eg)  honey.log.8234
+#
+#	** The location of the log file is the CWD when the script is executed.
+#	
+#	** All cmds exit status's are checked for errors and all output
+#	** of the SDK cmds (error & stdout) are logged to the log file.
+#
+# How to run the script:
+#
+# {This is what I normally do}
+#	* cd to a location which has good deal of disk space because
+#	* the program logs to the cwd and retrieves the stored file
+#	* to the cwd.
+#
+#  ***REQUIRED STEP****
+#  ***REQUIRED STEP****
+#  ***REQUIRED STEP****
+#  Initial Step you must edit this script and make sure you have
+#  the correct path to the SDK cmds.  Search for the PATH var and set it.
+#	example:
+#       PATH=$PATH:/opt/clients/sdk/bin
+#
+#
+#  {usage}
+#  # ../testing2.honeycomb
+#  USAGE:  ../testing2.honeycomb  NUMBER_OF_PASSES  FILE  HONEYCOMB_STORAGE_HOST
+#
+#  {Sample of just running 1 copy of the script}
+#  # nohup ../testing2.honeycomb 10000 /etc/termcap 10.7.224.122 &
+#  #
+#	* the above will create a log file by the name "honey.log.PID"
+#
+#  {sample of running a number of copies from a script}
+#  # cat test1.ip.sh
+#  # test1 - is using different size files so I can look at the
+#  # cheat node and know what file size is being stored or retrieved
+#  # by the /var/log/messages file
+#  
+#  ../testing2.honeycomb 10000 /etc/group 10.7.224.122 &
+#  sleep 5   #  sleep is here to prevent initial startup race condition
+#  ../testing2.honeycomb 10000 /etc/termcap 10.7.224.122 &
+#  ../testing2.honeycomb 10000 1meg 10.7.224.122 &
+#  ../testing2.honeycomb 10000 2meg 10.7.224.122 &
+#  ../testing2.honeycomb 10000 3meg 10.7.224.122 &
+#  ../testing2.honeycomb 10000 4meg 10.7.224.122 &
+#  ../testing2.honeycomb 10000 5meg 10.7.224.122 &
+#  ../testing2.honeycomb 10000 10meg 10.7.224.122 &
+#  ../testing2.honeycomb 10000 2b 10.7.224.122 &
+#  # now am just looking for different size files
+#  for i in `/bin/ls /etc/*conf`;do
+#  ../testing2.honeycomb 10000 ${i} 10.7.224.122 &
+#  done
+#
+#  # nohup ./test1.ip.sh
+#
+#  
+# How to stop the current running tests (ie a normal shutdown):
+#
+#  # rm /tmp/testsrunning
+#     {This will cause a log entry in the log file}
+#
+#
+#
+# How to put all current running tests on hold & release the hold:
+#
+#  # touch /tmp/HOLDALL
+#	{this puts the script into a hold mode until the /tmp/HOLEALL
+#	 file is removed}
+#  # rm /tmp/HOLDALL
+#	{ restarts the test}
+#  Putting & releasing a test from hold will cause a log message in the log file
+#  Sample log message caused by holding & releasing:  
+#
+#  /tmp/HOLDALL found - suspending test at - 04/05/2005 14:55:40 UTC
+#  /tmp/HOLDALL or /tmp/testsrunning removed - suspension ended at  - 04/05/2005 14:56:40 UTC
+#
+#
+# Using the /tmp/HOLDALL to put a cyclic load on the box
+#  * Consider how a site might use the box and how the load varies during
+#  * the day and night.  You could make entries into the crontab to
+#  * cause the tests to hold and release which causes cyclic loads to the box
+#  Here's sample entries in the crontab:
+#	0 0,2,4,6,8,10,12,17,19 * * * /usr/bin/touch /tmp/HOLDALL
+#	20 0,2,4,6,8,10,12,17,19 * * * /bin/rm -f /tmp/HOLDALL
+#
+#
+#
+# How to read the logs:
+#
+#	* Normally you'd do a:
+#		# grep ERROR *log*
+#		- if you find errors inspect the log file and verify
+#		- the error with the honeycomb's cheat messages log.
+#
+#	* If you're trying to relate a number ERRORs in the *log* files 
+#		to specific times - such as an error is happening in multiple
+#		test *log* files.  Do the following:
+#		cat *log* | grep ERROR | sort   (it will sort errors
+#			based on timestamp.)
+#
+#	Here's a simple script to gather all log files into
+#	one output summary
+#
+#	#!/bin/sh
+#	#
+#	# This simple program to gather stats from testing2.honeycomb runs
+#	#
+#	
+#	echo "Info gathering from testing2.honeycomb..."
+#	date
+#	ps -ef | grep "testing2.honeycom" | grep -v grep > /tmp/temp.0
+#	echo ""
+#	
+#	if [ "x${1}" = "x-v" ]; then
+#		echo "List of the current testing2.honeycomb programs running"
+#		cat /tmp/temp.0 | sed -e "s/^.*sh//"
+#	fi
+#	
+#	echo ""
+#	echo "Current number of testing2.honeycom programs running:  `wc -l /tmp/temp.0 | awk '{ print $1 }' `"
+#	echo ""
+#	rm -f /tmp/temp.1
+#	for i in hon*log* ;do
+#		grep completed ${i} | tail -1 >> /tmp/temp.1
+#	done
+#	
+#	#now sum them up
+#	awk ' { comp += $7; err += $9 } END { print "Total passes complete is", comp, "with", err, "errors." }' /tmp/temp.1
+#	echo ""
+#	date
+#	## END 
+#
+# Here's what a typical log file looks like:
+#
+#	node60 test # head -25  honey.log.23316
+#	STARTING ../testing2.honeycomb TEST
+#	04/04/2005 23:27:18 UTC
+#	===========================================================
+#	GENERAL INFORMATION
+#	
+#	THE FILE stored and retrieved WAS NAMED:  '/etc/group'
+#	
+#	-rw-r--r--    1 root     root          685 Aug 20  2003 /etc/group
+#	
+#	NUM_OF_PASSES WANTED = 10000
+#	
+#	PID of ../testing2.honeycomb = 23316
+#	===========================================================
+#	CMD:  store -n 6 10.7.224.122 /etc/group
+#	0115698d98a56111d9a7cf001018032c17000018db0200000000
+#	CMD:  retrieve -n 6 10.7.224.122 0115698d98a56111d9a7cf001018032c17000018db0200000000 restored.file.23316
+#	CMD:  cmp -l /etc/group restored.file.23316
+#	CMD:  schema 10.7.224.122
+#	CMD:  store -m "cedars_ix=23316" -m "cedars_blood_type=/etc/group" -m "cedars_pass=0" 10.7.224.122 /etc/group
+#	0116694a11a56111d98e16001018032dcd000017680200000000
+#	CMD:  query 10.7.224.122 '"cedars_pass" = "0"' AND '"cedars_ix" = "23316"' | grep 0116694a11a56111d98e16001018032dcd000017680200000000
+#	CMD:  queryplus 10.7.224.122 '"cedars_pass" = "0"' AND '"cedars_ix" = "23316"' | grep 0116694a11a56111d98e16001018032dcd000017680200000000
+#	CMD:  delete 10.7.224.122 0115698d98a56111d9a7cf001018032c17000018db0200000000
+#	testing2.honeycomb: 04/04/2005 23:27:58 UTC : completed 1 with 0 errors.
+#	
+#
+# What to watch out for:
+#	* By default this script logs the time in UTC to match what
+#		the 'cheat' node logs its time in.
+#	  (Recommend you make sure the honeycomb has the same time
+#		as the client running this script - to sync log file times.)
+#	* where ever you execute this script its going to log
+#		all the cmds into a log file and its going to extract
+#		the file you asked it to store into the CWD.
+#		In short you could fill up a file system with logs files
+#		and/or the extracted file(s)
+#	* The script shuts down if it get initial errors
+#	* The script shuts down if it reaches the loop count
+#	* The script shuts down if it hits MAXERRORS (default == 50)
+#  
+#
+# Enhancements that need to be made:
+#	* Turn down the logging...only log passes & errors
+#	* add more functionality -- this was a quickly written test to do
+#		data cmp & using the SDK tools
+#	* add individual shutdown based on rm /tmp/??.PID
+
+##The LOGFILE varible name  (so the log file name will be: $LOGFILE.log.PID)
+LOGFILE=honey
+
+# seting TZ to the same as the honeycomb's cheat node which is in UTC
+# This helps in relating log file times with the honeycomb cheat messages
+# file.  (as long as you sync time up with the client & honeycomb)
+TZ=UTC;export TZ
+
+
+
+# Please set you path to the SDK bin directory which has the following
+# SDK cmds:
+#	store, retrieve, schema, query, queryplus
+PATH=$PATH:/opt/clients/sdk/bin:/opt/test/bin
+
+
+# Verify cmds store, retrieve, schema, query, queryplus exist & are executable
+for i in store  retrieve schema query queryplus; do
+	type ${i} > /dev/null 2>&1
+	if [ $? -ne 0 ]; then
+		echo "ERROR - stopping test, either the PATH is not set or CMD: \"${i}\" does not exist."
+		echo ""
+		exit 1
+	fi
+done
+
+
+
+# MAXERRORS var is used to stop the program when you're getting too many errors
+# If # of errors is greater than this value it shuts down the program
+MAXERRORS=50		
+
+# Initialize variables 
+LOOPS_COMPLETE=0
+ERRORS=0
+PID=$$
+
+# usage
+if [ $# -ne 3 ]; then
+	echo "USAGE:  $0  NUMBER_OF_PASSES  FILE  HONEYCOMB_STORAGE_HOST "
+	exit 1
+fi
+
+# set values from cmd line
+NUM_OF_PASSES=$1 
+FILE=$2
+HC=$3
+
+# verify file exists
+if [ ! -f $FILE ]; then
+	echo "ERROR - stopping test $0 - $FILE does not exist."
+	exit 1
+fi
+
+
+# initialize log file
+if [ -f /tmp/testsrunning ]; then
+	echo "STARTING $0 TEST " > $LOGFILE.log.$$ 2>&1
+	date "+%m/%d/%Y %T %Z" >> $LOGFILE.log.$$ 2>&1
+else
+	echo "STARTING $0 TEST " > $LOGFILE.log.$$ 2>&1
+	date "+%m/%d/%Y %T %Z" >> $LOGFILE.log.$$ 2>&1
+	# could use touch sets the /tmp/testsrunning constant
+	cp /dev/null /tmp/testsrunning > /dev/null 2>&1
+fi
+
+# Put general starting information into the log file
+echo "===========================================================" >> $LOGFILE.log.$$ 2>&1
+echo "GENERAL INFORMATION" >> $LOGFILE.log.$$ 2>&1
+echo "" >> $LOGFILE.log.$$ 2>&1
+echo "THE FILE stored and retrieved WAS NAMED:  '$FILE'" >> $LOGFILE.log.$$ 2>&1
+echo "" >> $LOGFILE.log.$$ 2>&1
+/bin/ls -l $FILE >> $LOGFILE.log.$$ 2>&1
+echo "" >> $LOGFILE.log.$$ 2>&1
+echo "NUM_OF_PASSES WANTED = $NUM_OF_PASSES" >> $LOGFILE.log.$$ 2>&1
+echo "" >> $LOGFILE.log.$$ 2>&1
+echo "PID of $0 = $$" >> $LOGFILE.log.$$ 2>&1
+echo "===========================================================" >> $LOGFILE.log.$$ 2>&1
+
+# subroutine used to stop and hold the script.
+checkshutdown () {
+        if [ -f /tmp/testsrunning ]; then
+		if [ -f /tmp/HOLDALL ]; then
+			echo "/tmp/HOLDALL found - suspending test at - `date \"+%m/%d/%Y %T %Z\"`">> $LOGFILE.log.$$
+			while [ -f /tmp/testsrunning -a -f /tmp/HOLDALL ]; do
+				sleep 30
+			done
+			echo "/tmp/HOLDALL or /tmp/testsrunning removed - suspension ended at  - `date \"+%m/%d/%Y %T %Z\"`" >> $LOGFILE.log.$$
+		fi
+
+		if [ -f /tmp/HOLD.$$ ]; then
+			echo "/tmp/HOLD.$$ found - suspending test at - `date \"+%m/%d/%Y %T %Z\"`">> $LOGFILE.log.$$
+			while [ -f /tmp/testsrunning -a -f /tmp/HOLD.$$ ]; do
+				sleep 30
+			done
+			echo "/tmp/HOLD.$$ or /tmp/testsrunning removed - suspension ended at - `date \"+%m/%d/%Y %T %Z\"`" >> $LOGFILE.log.$$
+		fi
+
+		if [ ! -f /tmp/testsrunning ]; then
+			echo "/tmp/testsrunning file removed stopping $0 test - `date \"+%m/%d/%Y %T %Z\"`" >> $LOGFILE.log.$$ 2>&1
+			echo "ENDING - completed $LOOPS_COMPLETE of ${NUM_OF_PASSES} passes with $ERRORS errors - `date \"+%m/%d/%Y %T %Z\"`">> $LOGFILE.log.$$
+
+			# cleanup temp files
+			rm -f restored.file.$$ key.$PID
+			rm -f /tmp/testsrunning
+			rm -f restored.file.$$ 
+			rm -f schema.file.$$
+			rm -f key.1.$PID
+			rm -f query.file.$$
+			rm -f queryplus.file.$$
+			rm -f query.logfile.$$
+			rm -f queryplus.logfile.$$
+
+			exit 0
+		fi
+		return 0
+        else
+		echo "FILE REMOVE SHUTDOWN OF $0 TEST " >> $LOGFILE.log.$$ 2>&1
+		date "+%m/%d/%Y %T %Z" >>$LOGFILE.log.$$ 2>&1
+
+		# cleanup temp files
+		rm -f restored.file.$$ key.$PID
+                rm -f /tmp/testsrunning
+		rm -f restored.file.$$ 
+		rm -f schema.file.$$
+		rm -f key.1.$PID
+		rm -f query.file.$$
+		rm -f queryplus.file.$$
+		rm -f query.logfile.$$
+		rm -f queryplus.logfile.$$
+               exit 0
+	fi
+}
+
+
+# main part of the program
+while [ $LOOPS_COMPLETE -lt $NUM_OF_PASSES ]; do
+
+	# verify the files /tmp/HOLDALL and 
+	# /tmp/testsruning exists and hold 
+	# or shutdown program
+	checkshutdown
+
+	# check to make sure maxerrors hasn't been hit if it has shutdown.
+        if [ $ERRORS -gt $MAXERRORS ]; then 
+                echo "To many ERRORS ($ERRORS), stopping test - `date \"+%m/%d/%Y %T %Z\"`" >> $LOGFILE.log.$$ 2>&1  
+		echo "ERROR SHUTDOWN OF $0 TEST " >> $LOGFILE.log.$$ 2>&1
+                exit 1  
+        fi  
+
+	# start the test 
+	# if a dependent part of the program has an error it should
+	# skip the remaining parts of the program -- ie to prevent multiple
+	# errors which were really just one error.
+
+
+	# The key.$PID is the OID of the store cmd.
+	rm -f key.$PID
+
+	# The Storing of the file & getting the OID
+	echo "CMD:  store -n 6 ${HC} ${FILE}" >> $LOGFILE.log.$$ 2>&1
+	store -n 6 ${HC} ${FILE} > key.$PID 2>&1
+	EX=$?
+	if [ $EX -ne 0 ]; then
+		cat key.$PID >> $LOGFILE.log.$$ 2>&1
+		echo "-----------------------------------------------------------" >> $LOGFILE.log.$$ 2>&1
+		echo "`date \"+%m/%d/%Y %T %Z\"` - ERROR - on \"store -n 6 ${HC} ${FILE}\" - exit status:  $EX" >> $LOGFILE.log.$$ 2>&1
+
+		date "+%m/%d/%Y %T %Z" >>$LOGFILE.log.$$ 2>&1
+		/bin/ls -l $FILE  >> $LOGFILE.log.$$ 2>&1
+		df -k .  >> $LOGFILE.log.$$ 2>&1
+		echo "-----------------------------------------------------------" >> $LOGFILE.log.$$ 2>&1
+		ERRORS=`expr $ERRORS + 1`
+	else
+		# put the OID into the log file
+		cat key.$PID >> $LOGFILE.log.$$ 2>&1
+
+		# verify the files /tmp/HOLDALL and 
+		# /tmp/testsruning exists and hold 
+		# or shutdown program
+		checkshutdown
+
+		rm -f restored.file.$$ 
+		echo "CMD:  retrieve -n 6 ${HC} `tail -1 key.$PID` restored.file.$$ " >> $LOGFILE.log.$$ 2>&1
+		retrieve -n 6 ${HC} `tail -1 key.$PID` restored.file.$$ >> $LOGFILE.log.$$ 2>&1
+		EX=$?
+		if [ $EX -ne 0 ]; then
+			echo "-----------------------------------------------------------" >> $LOGFILE.log.$$ 2>&1
+			echo "`date \"+%m/%d/%Y %T %Z\"` - ERROR - on \"retrieve -n 6 ${HC} `tail -1 key.$PID` restored.file.$$ \" - exit status:  $EX" >> $LOGFILE.log.$$ 2>&1
+			/bin/ls -l $FILE key.$PID restored.file.$$  >> $LOGFILE.log.$$ 2>&1
+			echo "-----------------------------------------------------------" >> $LOGFILE.log.$$ 2>&1
+			ERRORS=`expr $ERRORS + 1`
+		else
+
+			# verify the files /tmp/HOLDALL and 
+			# /tmp/testsruning exists and hold 
+			# or shutdown program
+			checkshutdown
+
+			echo "CMD:  cmp -l $FILE restored.file.$$" >> $LOGFILE.log.$$ 2>&1
+			cmp -l $FILE restored.file.$$ >> $LOGFILE.log.$$ 2>&1
+			if [ $? -ne 0 ]; then
+				ERRORS=`expr $ERRORS + 1`
+				echo "-----------------------------------------------------------" >> $LOGFILE.log.$$ 2>&1
+				echo "`date \"+%m/%d/%Y %T %Z\"` - ERROR - \"diff $FILE restored.file.$$\""  >> $LOGFILE.log.$$ 2>&1
+				/bin/ls -l $FILE key.$PID restored.file.$$ >> $LOGFILE.log.$$ 2>&1
+				echo "-----------------------------------------------------------" >> $LOGFILE.log.$$ 2>&1
+			fi
+
+			# verify the files /tmp/HOLDALL and 
+			# /tmp/testsruning exists and hold 
+			# or shutdown program
+			checkshutdown
+
+			echo "CMD:  schema ${HC} " >> $LOGFILE.log.$$ 2>&1
+			schema ${HC} > schema.file.$$ 2>&1
+			EX=$?
+			if [ $EX -ne 0 ]; then
+				cat schema.file.$$  >> $LOGFILE.log.$$ 2>&1
+				echo "-----------------------------------------------------------" >> $LOGFILE.log.$$ 2>&1
+				echo "`date \"+%m/%d/%Y %T %Z\"` - ERROR - on \"schema ${HC} > schema.file.$$\" - exit status:  $EX" >> $LOGFILE.log.$$ 2>&1
+				echo "-----------------------------------------------------------" >> $LOGFILE.log.$$ 2>&1
+				ERRORS=`expr $ERRORS + 1`
+			else
+
+				# This section of the code is reading the
+				# current metadata schema and grabbing
+				# 1 string & 2 long metadata names to be
+				# used with the store  & query cmds below
+				SS=`grep string schema.file.$$ | tail -1 | sed -e 's/^<//' | awk -F, '{print $1}'`
+				SL=`grep long schema.file.$$ | tail -1 | sed -e 's/^<//' | awk -F, '{print $1}'`
+				SHL=`grep long schema.file.$$ | tail -2 | head -1 | sed -e 's/^<//' | awk -F, '{print $1}'`
+
+				rm -f schema.file.$$
+
+				# verify the files /tmp/HOLDALL and 
+				# /tmp/testsruning exists and hold 
+				# or shutdown program
+				checkshutdown
+
+				# store file using metadata tags
+				echo "CMD:  store -m \"${SHL}=${PID}\" -m \"${SS}=${FILE}\" -m \"${SL}=${LOOPS_COMPLETE}\" ${HC} ${FILE} " >> $LOGFILE.log.$$ 2>&1
+				store -m "${SHL}=${PID}" -m "${SS}=${FILE}" -m "${SL}=${LOOPS_COMPLETE}" ${HC} ${FILE} > key.1.$PID 2>&1
+				EX=$?
+				if [ $EX -ne 0 ]; then
+					cat key.1.$PID >> $LOGFILE.log.$$ 2>&1
+					echo "-----------------------------------------------------------" >> $LOGFILE.log.$$ 2>&1
+					echo "`date \"+%m/%d/%Y %T %Z\"` - ERROR - on \"store -m \"${SHL}=${PID}\" -m \"${SS}=${FILE}\" -m \"${SL}=${LOOPS_COMPLETE}\" ${HC} ${FILE} \" - exit status:  $EX" >> $LOGFILE.log.$$ 2>&1
+					echo "-----------------------------------------------------------" >> $LOGFILE.log.$$ 2>&1
+					ERRORS=`expr $ERRORS + 1`
+				else
+					tail -1 key.1.$PID >> $LOGFILE.log.$$ 2>&1
+
+					# verify the files /tmp/HOLDALL and 
+					# /tmp/testsruning exists and hold 
+					# or shutdown program
+					checkshutdown
+
+					# Verify query finds the correct OID
+					echo "query ${HC} '""\"${SL}\" = \"${LOOPS_COMPLETE}\"""'"" AND '""\"${SHL}\" = \"${PID}\"""'" > query.file.$$
+					chmod 755 query.file.$$
+					# changed CMD to direct the output of
+					# the query cmd to a file with 2>&1
+					echo "CMD:  `cat ./query.file.$$` | grep `tail -1 key.1.$PID` " >> $LOGFILE.log.$$ 2>&1
+					./query.file.$$ > query.logfile.$$ 2>&1 
+					grep `tail -1 key.1.$PID` query.logfile.$$  > /dev/null 2>&1
+					EX=$?
+					if [ $EX -ne 0 ]; then
+						echo "-----------------------------------------------------------" >> $LOGFILE.log.$$ 2>&1
+						echo "`date \"+%m/%d/%Y %T %Z\"` - ERROR  - `cat ./query.file.$$` | grep `tail -1 key.1.$PID` - exit status:  $EX" >> $LOGFILE.log.$$ 2>&1
+						echo "Tailing the last 6 lines of the cmds output:" >> $LOGFILE.log.$$ 2>&1
+						tail -6 query.logfile.$$ >> $LOGFILE.log.$$ 2>&1
+						echo "-----------------------------------------------------------" >> $LOGFILE.log.$$ 2>&1
+						ERRORS=`expr $ERRORS + 1`
+					fi
+
+					# verify the files /tmp/HOLDALL and 
+					# /tmp/testsruning exists and hold 
+					# or shutdown program
+					checkshutdown
+
+					# Verify queryplus finds the correct OID
+					echo "queryplus ${HC} '""\"${SL}\" = \"${LOOPS_COMPLETE}\"""'"" AND '""\"${SHL}\" = \"${PID}\"""'" > queryplus.file.$$
+					chmod 755 queryplus.file.$$
+					# changed CMD to direct the output of
+					# the queryplus cmd to a file with 2>&1
+					echo "CMD:  `cat ./queryplus.file.$$` | grep `tail -1 key.1.$PID`" >> $LOGFILE.log.$$ 2>&1
+					./queryplus.file.$$ >  queryplus.logfile.$$ 2>&1
+					grep `tail -1 key.1.$PID` queryplus.logfile.$$  > /dev/null 2>&1
+					EX=$?
+					if [ $EX -ne 0 ]; then
+						echo "-----------------------------------------------------------" >> $LOGFILE.log.$$ 2>&1
+						echo "`date \"+%m/%d/%Y %T %Z\"` - ERROR  - `cat ./queryplus.file.$$` | grep `tail -1 key.1.$PID` - exit status:  $EX" >> $LOGFILE.log.$$ 2>&1
+						echo "Tailing the last 6 lines of the cmds output:" >> $LOGFILE.log.$$ 2>&1
+						tail -6 queryplus.logfile.$$ >> $LOGFILE.log.$$ 2>&1
+						echo "-----------------------------------------------------------" >> $LOGFILE.log.$$ 2>&1
+						ERRORS=`expr $ERRORS + 1`
+					fi
+
+				# at some point may consider deleting
+				# the stored file w/metadata tags but for
+				# now letting the hc get files its not deleting
+				# if you don't want this add delete cmd here.
+				# delete ${HC} `tail -1 key.1.$PID`  >> $LOGFILE.log.$$ 2>&1
+				fi
+				
+			fi
+
+
+			# verify the files /tmp/HOLDALL and 
+			# /tmp/testsruning exists and hold 
+			# or shutdown program
+			checkshutdown
+
+			# cleanup the temp files
+			rm -f restored.file.$$ 
+			rm -f schema.file.$$
+			rm -f key.1.$PID
+			rm -f query.file.$$
+			rm -f queryplus.file.$$
+			rm -f query.logfile.$$
+			rm -f queryplus.logfile.$$
+
+			echo "CMD:  delete ${HC} `tail -1 key.$PID`" >> $LOGFILE.log.$$ 2>&1
+			delete ${HC} `tail -1 key.$PID`  >> $LOGFILE.log.$$ 2>&1
+			EX=$?
+			if [ $EX -ne 0 ]; then
+				echo "-----------------------------------------------------------" >> $LOGFILE.log.$$ 2>&1
+				echo "`date \"+%m/%d/%Y %T %Z\"` - ERROR - on \"delete ${HC} `tail -1 key.$PID` \" - exit status:  $EX" >> $LOGFILE.log.$$ 2>&1
+				echo "-----------------------------------------------------------" >> $LOGFILE.log.$$ 2>&1
+				ERRORS=`expr $ERRORS + 1`
+			fi
+
+		fi
+	fi
+
+	# cleanup temp files
+	rm -f restored.file.$$ key.$PID  > /dev/null 2>&1
+
+	# log loops & erros
+	LOOPS_COMPLETE="`expr $LOOPS_COMPLETE + 1`"
+	echo "`basename $0`: `date \"+%m/%d/%Y %T %Z\"` : completed $LOOPS_COMPLETE with $ERRORS errors.">> $LOGFILE.log.$$
+
+done  # end of while loop
+
+# if you get here a normal shutdown has occurred. log it.
+echo "`date \"+%m/%d/%Y %T %Z\"` - NORMAL SHUTDOWN OF $0 TEST" >> $LOGFILE.log.$$ 2>&1
+
+# repeating cleanup temp files..just to be sure..
+rm -f restored.file.$$ key.$PID > /dev/null 2>&1
+rm -f restored.file.$$ 
+rm -f schema.file.$$
+rm -f key.1.$PID
+rm -f query.file.$$
+rm -f queryplus.file.$$
+rm -f query.logfile.$$
+rm -f queryplus.logfile.$$

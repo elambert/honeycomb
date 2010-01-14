@@ -1,0 +1,285 @@
+#################################################################################
+# $Id: extractor.cmds 11828 2008-02-20 00:29:32Z ks202890 $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# Command file used by the extractor subtasks to run commands on their assigned
+# subsystems.
+#
+# The ":" character is the field separator in each non-comment or non-empty
+# line. The typical format of each valid line to process is as follows:
+#
+# Field 1: The level of the command. The extractor and its subtasks support
+#	   a 'level' option. When the level is not specified or it is 0 all
+#	   levels are run. When the 'level' is any other valid number only
+#	   the commands assigned that number are processed.
+#
+# Field 2: The subsystem type where the command is run. Valid types are the
+#          the 'sp', all 'nodes', both 'switches, and the 'admin' CLI.
+#
+# Field 3: The relative location and name of the log file or subdirectory
+#	   where the command output is written
+#
+# Field 4: The 'command' and any 'options' required by the command. Special
+#	   indicators for some commands or their options are also supported.
+#
+#	   For example:
+#	   -----------
+#	   1) When the <1-n> indicator is inserted in the options for a
+#             command the command is run 1-n times subsituting the index
+#             value in place of the <> for the command.
+#             (i.e. 3 :switch :zlc-zre :zlc zre<1-8> query )
+#          2) When the command is <copy> a remote copy of the path for the
+#             command is placed under the field 3 subdirectory.
+#             (i.e. 4 :node :my_files :<copy> /tmp/myname/* )
+#          3) When the command ends with <IgnoreStatus [1-n]>, command status
+#             of 0 and of this value will be considered normal completion.
+#             (i.e. 1 :sp :format :<PreCmd echo |> format <IgnoreStatus 1>)
+#          4) When <PreCmd cmd-list] preceeds a command that cmd-list will 
+#             be run before the command exactly as it is.
+#          5) When <PostCmd cmd-list] follows a command that cmd-list will 
+#             be run after the command exactly as it is.
+#
+# Notes: 
+# 1) When the first non-white character on a line is the "#" character the
+#    line is treated as a comment line. 
+# 2) Empty lines are ignored.
+# 3) Be sure to add a ';' between multiple <PreCmd or <PostCMd cmd-list entries 
+#    or pipe '|' the <PreCmd cmd-list output to the command or the <PostCMd 
+#    cmd-list entries to form a complete SHELL executable command line.
+#    (i.e. <PreCmd mount /boot/images/0 ;> cat /boot/images/0/boot/grub/menu.lst 
+#          <PostCmd ; umount /boot/images/0>)
+# 4) <PreCmd and <PostCmd support is only implemented for simple commands.
+#
+#################################################################################
+
+#== Service Processor commands ==================================================
+   1	:sp	:ifconfig-a	:ifconfig -a
+   1	:sp	:netstat-rn	:netstat -rn
+   1	:sp	:netstat-an	:netstat -an
+   1	:sp	:arp-an		:arp -an 
+   1	:sp	:etc_hosts	:cat /etc/hosts
+   1	:sp	:dhtadm-P	:dhtadm -P
+   1	:sp	:pntadm-P-ip	:pntadm -P 10.123.45.0
+   1	:sp	:tftpboot	:ls -lR /tftpboot/
+   1	:sp	:df-h		:df -h
+   1	:sp	:mount		:mount
+   1	:sp	:share		:share
+   1	:sp	:etc_vfstab	:cat /etc/vfstab
+   1	:sp	:svcs-x		:svcs -x
+   1	:sp	:svcs-a		:svcs -a
+   1	:sp	:format		:<PreCmd echo |> format <IgnoreStatus 1>
+   1	:sp	:prtconf-v	:prtconf -v /devices
+   1	:sp	:iostat-E	:iostat -E
+   1	:sp	:ipcs		:ipcs
+   1	:sp	:ps-ef		:ps -ef
+   1	:sp	:top		:top -b ; sleep 10;top -b ; sleep 10;top -b
+   1	:sp	:ptree-a	:ptree -a
+   1	:sp	:ntpq-p		:ntpq -p
+   1	:sp	:zpool-status-x	:zpool status -x
+   1	:sp	:zpool-status-v	:zpool status -v
+   1	:sp	:zpool-list	:zpool list
+   1	:sp	:hc_version	:cat /export/jumpstart/honeycomb/hc_version 
+   1	:sp	:menu_lst	:<PreCmd mount /boot/images/0 ;> cat /boot/images/0/boot/grub/menu.lst <PostCmd ; umount /boot/images/0>
+   1	:sp	:menu_conf	:<PreCmd mount /boot/images/0 ;> cat /boot/images/0/boot/grub/menu.conf <PostCmd ; umount /boot/images/0>
+   1	:sp	:install_status	:install_status
+   3	:sp	:prtvtoc	:<prtvtoc> 
+   4	:sp	:ipm-cha-status	:ipmitool chassis status
+   4	:sp	:ipm-cha-power	:ipmitool power status
+   4	:sp	:ipm-lan-print2	:ipmitool lan print 2 <IgnoreStatus 1>
+   4	:sp	:ipm-sdr	:ipmitool sdr
+   4	:sp	:ipm-sensor	:ipmitool sensor
+   4	:sp	:ipm-fru	:ipmitool fru <IgnoreStatus 1>
+   4	:sp	:ipm-cha-res-ca :ipmitool chassis restart_cause
+   4	:sp	:ipm-bmc-info	:ipmitool bmc info
+   4	:sp	:ipm-sunoem	:ipmitool sunoem
+   4	:sp	:ipm-sel-elist	:ipmitool sel elist <IgnoreStatus 1>
+   10	:sp	:upgrade_checker	:upgrade_checker.pl
+   20	:sp	:date		:date
+   #Testing 21	:sp	:tmp_date	:/tmp/date
+   #Testing 21	:sp	:tmp_ps-ef	:/tmp/ps -ef
+   #Testing 22	:sp	:ps-efX		:ps -ef -X
+   #Testing 22	:sp	:dateX		:date -X
+   #Testing 23	:sp	:aaaa		:aaaa
+   #Testing 23	:sp	:bbbb-a-b-c-d	:bbbb -a -b -c -d
+
+#== Node commands ===============================================================
+   1	:node	:ifconfig-a	:ifconfig -a
+   1	:node	:netstat-rn	:netstat -rn
+   1	:node	:netstat-an	:netstat -an
+   1	:node	:arp-an		:arp -an 
+   1	:node	:etc_hosts	:cat /etc/hosts
+   1	:node	:df-h		:df -h
+   1	:node	:mount		:mount
+   1	:node	:share		:share
+   1	:node	:etc_vfstab	:cat /etc/vfstab
+   1	:node	:svcs-a		:svcs -a
+   1	:node	:format		:<PreCmd echo |> format <IgnoreStatus 1>
+   1	:node	:prtconf-v	:prtconf -v /devices
+   1	:node	:iostat-E	:iostat -E
+   1	:node	:ps-ef		:ps -ef
+   1	:node	:top		:top -b ; sleep 5;top -b ; sleep 5;top -b
+   1	:node	:ptree-a	:ptree -a
+   1	:node	:ntpq-p		:ntpq -p
+   1	:node	:prtconf-v	:prtconf -v /devices
+   1	:node	:zpool-status-x	:zpool status -x
+   1	:node	:zpool-status-v	:zpool status -v
+   1	:node	:zpool-list	:zpool list
+   1	:node	:irules		:/opt/honeycomb/bin/irules.sh
+   1	:node	:mailbox	:/opt/honeycomb/bin/nodemgr_mailbox.sh
+   1	:node	:resolv.conf	:cat /etc/resolv.conf <IgnoreStatus 2>
+   1	:node	:df		:df
+   1	:node	:cluster_conf	:cat /opt/honeycomb/share/cluster_config.properties
+   1	:node	:menu_lst	:<PreCmd mount /boot/images/0 ;> cat /boot/images/0/boot/grub/menu.lst <PostCmd ; umount /boot/images/0>
+   1	:node	:menu_conf	:<PreCmd mount /boot/images/0 ;> cat /boot/images/0/boot/grub/menu.conf <PostCmd ; umount /boot/images/0>
+   1	:node	:prstat-2-5	:prstat 2 5
+   1	:node	:opt-hc_version	:cat /opt/honeycomb/version 
+   1	:node	:var_svc_log_app_hc_ver	:cat /var/svc/log/application-honeycomb-verification?default.log
+   1	:node	:var_svc_log_app_hc_ser	:cat /var/svc/log/application-honeycomb-server?default.log
+   1	:node	:disklabel	:disklabel.sh
+   1	:node	:dmidecode	:dmidecode
+   1	:node	:svcs-x		:svcs -x
+   1	:node	:ipcs		:ipcs
+   1	:node	:zdb		:zdb
+   1	:node	:cfgadm		:cfgadm
+   2	:node	:var_svc_logs	:<copy> /var/svc/log/*honeycomb*
+   2	:node	:data_hadb_logs	:<copy> /data/*/hadb/log/ma.log
+   2	:node	:config		:<copy> /config/SUNWhadb
+   2	:node	:config		:<copy> /config/diskmap
+   2	:node	:config		:<copy> /config/dumpadm
+   2	:node	:config		:<copy> /config/config_defaults.properties
+   2	:node	:config		:<copy> /config/config.properties*
+   2	:node	:config		:<copy> /config/silo_info.xml*
+   3	:node	:prtvtoc	:<prtvtoc> 
+   4	:node	:ipm-cha-status	:ipmitool chassis status
+   4	:node	:ipm-cha-power	:ipmitool power status
+   4	:node	:ipm-lan-print2	:ipmitool lan print 2
+   4	:node	:ipm-sdr	:ipmitool sdr
+   4	:node	:ipm-sensor	:ipmitool sensor
+   4	:node	:ipm-fru	:ipmitool fru
+   4	:node	:ipm-cha-res-ca :ipmitool chassis restart_cause
+   4	:node	:ipm-bmc-info	:ipmitool bmc info
+   4	:node	:ipm-sunoem	:ipmitool sunoem
+   4	:node	:ipm-sel-elist	:ipmitool sel elist
+   5	:node	:hadbm-version	:hadbm version
+   5	:node	:hadbm-domain	:<PreCmd echo 'admin' |> hadbm status honeycomb --nodes <PostCmd | sed -e 's/Please enter the password for the admin system user.[\* ]*//'>
+   5	:node	:hadbm-domain	:<PreCmd echo 'admin' |> hadbm listdomain <PostCmd | sed -e 's/Please enter the password for the admin system user.[\* ]*//'>
+   5	:node	:hadbm-list	:<PreCmd echo 'admin' |> hadbm list  <PostCmd | sed -e 's/Please enter the password for the admin system user.[\* ]*//'>
+   5	:node	:hadbm-dev-info	:<PreCmd echo 'admin' |> hadbm deviceinfo honeycomb  <PostCmd | sed -e 's/Please enter the password for the admin system user.[\* ]*//'>
+   5	:node	:hadbm-res-info	:<PreCmd echo 'admin' |> hadbm resourceinfo honeycomb  <PostCmd | sed -e 's/Please enter the password for the admin system user.[\* ]*//'>
+   5	:node	:hadbm-status	:<PreCmd echo 'admin' |> hadbm status honeycomb --nodes  <PostCmd | sed -e 's/Please enter the password for the admin system user.[\* ]*//'>
+   20	:node	:date		:date
+   #Testing 21	:node	:tmp_date	:/tmp/date
+   #Testing 21	:node	:tmp_ps-ef	:/tmp/ps -ef
+   #Testing 22	:node	:ps-efX		:ps -ef -X
+   #Testing 22	:node	:dateX		:date -X
+   #Testing 23	:node	:aaaa		:aaaa
+   #Testing 23	:node	:bbbb-a-b-c-d	:bbbb -a -b -c -d
+
+#== Switch commands =============================================================
+   1	:switch	:vrrpconfig-a	:vrrpconfig -a
+   1	:switch	:root_version	:cat /root/version
+   1	:switch	:switch.conf	:cat /etc/honeycomb/switch.conf
+   1	:switch	:iptables	:iptables -L -t nat
+   1	:switch	:etc_hosts	:cat /etc/hosts
+   1	:switch	:ntpq-p		:ntpq -p 
+   1	:switch	:ntptrace	:ntptrace
+   1	:switch	:etc_ntpconf	:cat /etc/ntp.conf
+   1	:switch	:http_cgi-bin_version	:cat /http/cgi-bin/version
+   1	:switch	:http_cgi-bin_zirule-all	:cat /http/cgi-bin/zirule-all
+   1	:switch	:http_cgi-bin_zimask-all	:cat /http/cgi-bin/zimask-all
+   2	:switch	:zlc-zre	:zlc zre<1-8> query
+   4	:switch	:ifconfig-a	:ifconfig -a
+   4	:switch	:arp-an		:arp -an
+   4	:switch	:route-en	:route -en	
+   4	:switch	:route-C	:route -C	
+   4	:switch	:netstat-s	:netstat -s
+   4	:switch	:zl2_table	:zl2_table
+   4	:switch	:zl2_table-p1	:zl2_table -p 1
+   4	:switch	:zport		:zport
+   4	:switch	:zport-p1	:zport -p 1
+   4	:switch	:zvlan_table	:zvlan_table
+   4	:switch	:zvlan_table-p1	:zvlan_table -p 1
+   4	:switch	:zvlan_stg-i0	:zvlan_stg -i 0
+   4	:switch	:zvlan_stg-p1-i0	:zvlan_stg -p 1 -i 0
+   4	:switch	:ztrunk_group		:ztrunk_group
+   4	:switch	:ztrunk_group-p1	:ztrunk_group -p 1
+   4	:switch	:ztrunk_bitmap		:ztrunk_bitmap
+   4	:switch	:ztrunk_bitmap-p1	:ztrunk_bitmap -p 1
+   4	:switch	:portregs	:/etc/rcZ.d/tools/portregs.sh <0-23>
+   4	:switch	:mmuportregs	:/etc/rcZ.d/tools/mmuportregs.sh <0-23>
+   4	:switch	:mmuportregs-ipic0	:/etc/rcZ.d/tools/mmuportregs.sh ipic0
+   4	:switch	:mmuportregs-ipic1	:/etc/rcZ.d/tools/mmuportregs.sh ipic1
+   4	:switch	:mmuportregs-cpu0	:/etc/rcZ.d/tools/mmuportregs.sh cpu0
+   4	:switch	:mmuportregs-cpu1	:/etc/rcZ.d/tools/mmuportregs.sh cpu1
+   4	:switch	:mmuregs	:/etc/rcZ.d/tools/mmuregs.sh
+   4	:switch	:zstats-m	:zstats -m <1-24>
+   4	:switch	:dmesg		:dmesg
+   4	:switch	:etc_version	:cat /etc/version
+   4	:switch	:uname-a	:uname -a
+   4	:switch	:ps-axu		:ps axu
+   4	:switch	:zmnt-l		:zmnt -l
+   4	:switch	:zmnt-c-l	:zmnt -c -l <IgnoreStatus 1>
+   20	:switch	:date		:date	
+   #Testing 21	:switch	:tmp_date	:/tmp/date
+   #Testing 21	:switch	:tmp_ps-ef	:/tmp/ps -ef
+   #Testing 22	:switch	:ps-efX		:ps -ef -X
+   #Testing 22	:switch	:dateX		:date -X
+   #Testing 23	:switch	:aaaa		:aaaa
+   #Testing 23	:switch	:bbbb-a-b-c-d	:bbbb -a -b -c -d
+
+#== Admin CLI commands ==========================================================
+   1	:admin	:alertcfg	:alertcfg
+   1	:admin	:df		:df
+   1	:admin	:df-p-hq	:df -p -h
+   1	:admin	:sensors	:sensors
+   1	:admin	:hwstat		:hwstat	
+   1	:admin	:version-v	:version -v
+   1	:admin	:cellcfg	:cellcfg	
+   1	:admin	:hiveadm-s	:hiveadm -s
+   1	:admin	:hivecfg	:hivecfg	
+   2	:admin	:locale		:locale -F
+   2	:admin	:license	:license -F  
+   2	:admin	:sysstat	:sysstat	
+   2	:admin	:sysstat-r	:sysstat -F -r
+   2	:admin	:logcfg		:logcfg -F
+   2	:admin	:ddcfg		:ddcfg -F
+   2	:admin	:hadb-status	:hadb status -F
+   3	:admin	:mdconfig-l	:mdconfig -l
+   20	:admin	:date		:date
+   #Testing 21	:admin	:tmp_date	:/tmp/date
+   #Testing 21	:admin	:tmp_ps-ef	:/tmp/ps -ef
+   #Testing 22	:admin	:ps-efX		:ps -ef -X
+   #Testing 22	:admin	:dateX		:date -X
+   #Testing 23	:admin	:aaaa		:aaaa
+   #Testing 23	:admin	:bbbb-a-b-c-d	:bbbb -a -b -c -d

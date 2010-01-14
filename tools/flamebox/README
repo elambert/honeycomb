@@ -1,0 +1,45 @@
+What is Flamebox? 
+-----------------
+A framework for tracking automated builds and tests. 
+
+It provides instantaneous view of the state of a software project: when build N happened, which checkins are new in build N versus build N-1, did build N succeed or fail, which test suites failed on build N, which checkins and their authors are to blame for breaking build N or tests on it. The view is tied to a version control system (default: CVS with Bonsai Web interface, we ported it to use Subversion with ViewCVS Web interface)and a bug tracking system (default: Bugzilla). 
+
+
+What is the difference between Tinderbox2 and Flamebox? 
+-------------------------------------------------------
+Two main differences: 
+
+1) Flamebox is a completely separate, much simpler codebase, easier to set up. 
+
+2) Tinderbox2 tracks only builds. A build may be configured to run a set of tests, but Tinderbox will display a single result for the build and all of its tests: either everything passed, or something failed. To know what failed, you need to access the build logs and figure it out. Flamebox, on the other hand, is capable of tracking build status and status of each defined test (or test suite) on it. You can see at a glance which specific tests (test suites) failed on a build. This feature makes Flamebox better suited to the needs of a QA team. 
+
+Using flamebox 
+--------------
+
+The query page is self-explanatory: just enter time limits and, optionally, task names. 
+
+Leftmost column is Time with 5-minute granularity. Second column, called Who, contains links to CVS checkins made during the displayed time period. Links are implemented via Bonsai and should be clickable. Note - the column will be empty if there were no checkins during specified time; not an error. Third column and anything futher to the right are Tasks. Each task column corresponds to a hash entry you specified in config/tasks.pl and can represent a build, a test, a test suite, or anything else runnable. The name of the task is displayed vertically as a PNG image so it takes up less space; if some PNG don't show up, fix them by running the following perl inside flamebox/bin directory: 
+
+perl -e "require db.pl; redraw_all_images()"
+
+(On Solaris, I did this:  perl -e "require './db.pl'; redraw_all_tasks()")
+
+Each task column contains links to logs for task runs. Mouseover on the link shows pass/fail status. 
+The legend seems to be L for successes (Log? Link?) and E for failures (Error). Links point to zipped logs (gz); clicking on a link unzips the log. The background is green if latest run of all tasks succeeded, and weird golden-brown if some failed. If the output page has bright red background, something went wrong inside flamebox itself (empty result set, i.e. no matching tasks or CVS checkins for your query, is also "wrong"). If things are well with flamebox, you should see a few columns of tasks with some green color. 
+
+Okay, so how did all these task runs happen, and how did logs get to Flamebox? 
+
+To run a task (or all tasks continuously), use flamebox/bin/flamebox_client.pl script. Run it with --help for some usage info. Common use cases: 
+
+./flamebox_client.pl --once --verbose hello This command will run task "hello" (defined in config/tasks.pl) once, and post results. It will generate some output for you to have a clue. --dumpresult adds verbosity. Always use this command after adding a new task to test for potential issues (syntax etc). 
+
+./flamebox_client.pl --daemonize build-quince hello ls This command will run the three tasks repeatedly, with flamebox client running as a daemon. 
+
+There should be a way to run all tasks repeately, but I have not found it so far. 
+
+Option --taskdir is funny because it expects different file names in given directory: once and tasks instead of the standard tasks.pl, and doesn't seem to work anyway. This needs more investigation. 
+
+Note: running the same task more than once per 5 minutes is pointless because only the latest log link for the 5-minute period will be displayed and accessible from Flamebox. 
+
+Note on module name: I had a problem with this. There is a single definition of module name in config/params.pl: $module = "all" (for instance). If different module is specified for a task, the database query doesn't find it. So it seems that module variable is a dummy, and only one value should be used. I could be wrong... needs investigation. 
+

@@ -1,0 +1,436 @@
+#
+# $Id: build-bootstap-install.txt 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+This document defines the sequence of steps for the build,
+bootstrap/reinitialization and installation/upgrade of Honeycomb systems.
+
+Authors:
+Mike G
+Olavi
+Joshua
+Andyman
+
+
+Building Honeycomb Software.
+
+1.  Build Honeycomb Software (Joshua)
+    a.  Obtain a sourceforge account from Andyman.  Subsitute "<sf-user>" with
+        your sourceforge login below.
+    b.  Setup your environment.
+            CVSROOT=:ext:<sf-user>@hc-sourceforge.sfbay.sun.com:/cvsroot/honeycomb
+            CVS_RSH=ssh
+    c.  Create a directory for the repository.
+            mkdir build
+            cd build
+    d.  Check out the repository, subsituting the branch name for "<branch>".
+        The current integration/test branch name is QA.
+            cvs co -r <branch> honeycomb
+    e.  Build.
+            cd honeycomb
+            ant tar
+        This will create two files of interest.
+            honeycomb-bin.tar.gz
+            cluster/cluster_config.properties.<cluster>
+        These will be used when building the initrd.
+ 
+2.  Build bzImage (Mike G)
+
+    a. Login as root to a machine running Linux 2.6 and with 2GB free
+       disk space.
+
+    b. Checkout a Honeycomb cvs tree, following the above instructions.
+
+    c. Build the gentoo kernel and platform image:
+
+       # cd honeycomb
+       # ant kernel
+
+    d. This process will take up to six hours to complete. The
+       resulting kernel image will be under:
+
+       platform/build/bzImage
+
+3.  Build initrd (Mike G)
+
+    a. Login as root to any Linux machine.
+
+    b. Checkout a Honeycomb cvs tree, following the above instructions.
+
+    c. Build the gentoo kernel and platform images:
+
+       # cd honeycomb
+       # ant initrd
+
+    d. This process will only take a couple of minutes to complete. If
+       a gentoo kernel and platform image was built in the same
+       workspace in the above step, it will be used to construct the
+       initrd. Otherwise, the latest gentoo kernel and platform image
+       from hc-dev will be used.
+
+    e. The resulting initrd will be under:
+
+       platform/build/initrd-hcb-0.3.3.gz
+
+       Honeycomb bits and a valid cluster_config.properties file for
+       the target cluster will have to be added to this image before
+       it can be used.
+
+
+4. Upgrade procedure (Olavi)
+
+    PREREQUISITE: You need to have a working cluster with a recent bits
+
+    a. Create iinitrd.gz for your cluster following the instructions   
+       in step 3
+
+    b. Can create an upgrade image using the <workspace>/tools/mkimage.sh
+       script. You should run in in the basedir of the cvs tree or set
+       basedir (the script executes a java class from honeycomb.jar).
+
+           ./tools/mkimage.sh <dir_with_bzImage> <imagepath> [version]
+
+      For example:
+
+           ./tools/mkimage.sh /export/honeycomb/dev105 /images/image-1.23 1.23
+
+       If you do not specify version the script will construct one for you.
+       Currently, the script will print the content of the upgrade image
+       certificate to the standard error.
+
+    c. Install the image on your cluster
+
+       Once the image is ready you can install it on a cluster using CLI.
+       For example:
+
+           %> ssh admin@dev104-admin getimage http://129.153.4.111/image-1.23
+          debug: updating from: http://129.153.4.152/image-1.23
+
+       This takes about 30 seconds.
+
+       In the log you will see Rpc* and BootImage* messages.
+
+       The bzImage and initrd.gz files will be installed in
+       /boot/0/boot/versions/<version> on each node.
+   
+       In the directory /boot/0/boot there will be a symlink
+
+           active -> versions/<version>
+
+       which in our case is 
+
+           active -> versions/1.23
+
+       To verify that everything went ok type
+
+           %> tail -10 /boot/0/boot/log
+
+       and you should see something like this:
+
+           + ls -l /boot/0/boot/active/bzImage
+           -rw-r--r--    1 root     root      1590451 May 20 00:58
+/boot/0/boot/active/bzImage
+           + ls -l /boot/0/boot/active/initrd.gz
+           -rw-r--r--    1 root     root     67488776 May 20 00:58
+/boot/0/boot/active/initrd.gz
+           + ls -l /boot/0/boot/active
+           lrwxrwxrwx    1 root     root           18 May 20 00:58
+/boot/0/boot/active -> versions/1.23
+           + ls -l /boot/0/boot/lilo.conf
+           -rw-r--r--    1 root     root          755 May 20 00:58
+/boot/0/boot/lilo.conf
+           + ls -l /boot/0/boot/map
+           -rw-------    1 root     root      2068992 May 20 00:59
+           /boot/0/boot/map
+
+    d. Reboot the cluster
+
+           %> ssh admin@dev104-admin reboot
+
+
+
+Bootstrapping/Reinitalizing a Honeycomb Cluster.
+(Olavi)
+
+A.  Rig Clusters
+
+  A.1  Using a cheat node.
+
+    a.  Put your initrd.gz and bzImage in the cheat node's /tftboot/
+        directory and configure /tftpboot/pxelinux.cfg/default to reference
+        your file names.
+   
+default vmlinuz
+timeout 0
+serial 0 9600
+label vmlinuz
+        kernel my.bzImage
+        append ramdisk=307200 initrd=my.initrd.gz root=/dev/ram0
+        ipappend 1
+
+    b.  Stop Honeycomb software on all the nodes.
+
+            /opt/honeycomb/etc/init.d/honeycomb stop
+
+        Verify that all java processes have exited.
+
+    c.  umount all the /boot/? and /data/? directories.
+
+    d.  Clear the partition table of all node's disks.
+        Use reinitdisk.  It is located in CVS under the
+        honeycomb/test/src/cluster/utils/ directory.
+        scp reinitdisk to each node and run it.
+
+    e.  Now that their disks are cleared, each node will netboot off of the
+        cheat node.  Reboot each node.  diskinit will run and recreate
+        partitions and create/mount filesystems.
+
+    f.  Once diskinit has finished, install a base installation onto each
+        node.  Use the install.sh script located in CVS under the
+        honeycomb/tools/ directory.
+
+    g.  Reboot each node.
+
+  A.2 Without a cheat node.
+
+    For those clusters without a cheat node, bootstrapping/reinitializing is
+    a bit trickier.
+
+    a.  On all nodes except for one...
+          - wipe the disk partitions using reinitdisk located in CVS in the 
+            honeycomb/test/src/cluster/utils/ directory.
+          - shutdown
+
+    b.  Update the cluster_config.properties file in the initrd.gz to allow 
+        a single node to become master.
+
+            gunzip initrd.gz
+            mkdir mnt
+            mount -o loop initrd mnt
+            # edit mnt/opt/honeycomb/share/cluster_config.properties. set,
+            # honeycomb.cm.cmm.singlemode = true
+            umount mnt
+            gzip initrd
+
+    c.  Upgrade the single node left up with the new build using install.sh 
+        located in CVS in the honeycomb/tools/ directory.  Reboot.  Now you 
+        have a new image running off the ramdisk.
+
+    d.  Stop Honeycomb software.
+
+            /opt/honeycomb/etc/init.d/honeycomb stop
+
+        Verify that all java processes have exited.
+
+    e.  umount all /boot/? and /data/? directories.
+
+    f.  Reinitialize the disks using reinitdisk located in CVS in the 
+        test/src/cluster/utils/ directory.  scp it to the node and run it.
+
+    g.  Start Honeycomb software.
+
+            /opt/honeycomb/etc/init.d/honeycomb start
+
+        This will cause diskinit to reformat the disks and create/mount
+        file systems.  Wait until all the disks have been refomatted and 
+        mounted.
+
+    h.  Edit the cluster_config.properties file in the initrd.gz once again.
+        This time set "honeycomb.cm.cmm.singlemode = true".
+
+    d.  Re-install the software using install.sh once again.  Now you have
+        a new install on a fresh set of disks.
+
+    e.  Boot up the remaining set of nodes.  Now they will boot off the master
+        loading a fresh installation into ramdisk.  Now for each non-master 
+        node
+            - reinitdisk
+            - restart Honeycomb
+            - install.sh
+            - reboot
+
+B. Proxy Clusters
+C. HON Clusters
+
+  C.1  Using a cheat node.
+
+    a.  Prepare your Honeycomb initrd.gz following the instructions in
+        step 3
+
+    b.  Copy the bzImage and initrd.gz to the cheat node:
+
+        scp bzImage root@<cheatnode>:/tftpboot
+        scp initrd.gz root@<cheatnode>:/tftpboot
+
+    c.  Copy the PXELinux files from your workspace to the cheatnode:
+
+		tar -C <workspace>/platform -cf - tftpboot/pexlinux.0 \
+		  tftplinux/pxelinux.cfg | ssh root@<cheatnode> tar -xf -
+
+        Node that this step is needed only in case of BIOS with PXE.
+        If your nodes have redboot it is not necessary.
+   
+    d.  Stop Honeycomb software on all the nodes:
+
+           /opt/honeycomb/etc/init.d/honeycomb stop
+
+        Verify that all java processes have exited:
+
+           pgrep -l java
+
+    e.  Stop MySQL servers
+
+           pkill -f mysql
+           pgrep -l -f msql
+
+    f.  Stop NFS
+
+           /etc/init.d/nfs stop
+
+    g.  On all the nodes unmount all disk partitions
+
+           umount $(mount | grep '/dev/[hs]d' | sed 's/ .*//')
+
+    h.  Clear the partition table of all node's disks:
+
+	       for f in /dev/[sh]d[a-z] ; do
+             dd if=/dev/zero of=${f} bs=1024k count=1
+           done
+           sync
+           sleep 10
+
+        Verify with sfdisk
+
+           sfdisk -uS -l
+
+    i.  Reboot all the nodes.
+
+        The nodes will boot from network and you should see output
+        on the serial console.
+
+        Since disk partition table has been cleared the diskinit service
+        should partion disk on startup and create file systems.
+
+        Wait until disk init finished and all the file systems are mounted.
+
+    i.  Use the <workspace>/tools/install.sh script to upload bzImage
+        and initrd.gz to the boot directory on each node
+
+        Note that if you use RedBoot running lilo has no effect on disk
+        boot but should cause no harm either.
+
+    k.  Reboot all the nodes.
+
+        You should see output from the serial console.
+        Verify that the nodes boot from disk.
+
+  A.2 Without a cheat node.
+
+    For those clusters without a cheat node, bootstrapping/reinitializing is
+    a bit trickier.
+
+    PREREQUISITE: You need to have a working cluster
+
+    a.  Stop Honeycomb on all the nodes
+
+           /opt/honeycomb/etc/init.d/honeycomb stop
+
+        Verify that all java processes have exited:
+
+           pgrep -l java
+
+    b.  Stop MySQL servers on all the nodes
+
+           pkill -f mysql
+           pgrep -l -f msql
+
+    c.  Stop NFS on all the nodes
+
+           /etc/init.d/nfs stop
+
+    d. Find the *master* node that runs the dhcp server
+
+           pgrep -l dhcp
+
+    e.  On all *other* the nodes:
+
+        Unmount all disk partitions
+
+           umount $(mount | grep '/dev/[hs]d' | sed 's/ .*//')
+
+        Clear the disk partition table on all disks:
+
+	       for f in /dev/[sh]d[a-z] ; do
+             dd if=/dev/zero of=${f} bs=1024k count=1
+           done
+           sync
+           sleep 10
+
+        Verify with sfdisk
+
+           sfdisk -uS -l
+
+    f. Reboot all *other( nodes
+
+        The nodes will boot from network and you should see output
+        on the serial console.
+
+        Since disk partition table has been cleared the diskinit service
+        should partion disk on startup and create file systems.
+
+        Wait until disk init finished and all the file systems are mounted.
+
+    h. On the *master* node
+
+       Unmount all disk partitions
+
+           umount $(mount | grep '/dev/[hs]d' | sed 's/ .*//')
+
+         Clear the disk partition table on all disks:
+
+	       for f in /dev/[sh]d[a-z] ; do
+             dd if=/dev/zero of=${f} bs=1024k count=1
+           done
+           sync
+           sleep 10
+
+        Verify with sfdisk
+
+           sfdisk -uS -l
+
+    i. Reboot the master node
+
+       The node should boot from network. Diskinit should partition disk,
+       initialize and mount file systems.

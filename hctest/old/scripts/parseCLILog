@@ -1,0 +1,165 @@
+#!/usr/bin/perl
+#
+# $Id: parseCLILog 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+use strict;
+
+MAIN: {
+    if ($#ARGV != 0) { # one arg
+        usage();
+        exit 1;
+    }
+
+    open (LOGFILE, $ARGV[0]) || die ("unable to open logfile $ARGV[0]\n");
+
+    # we use these vars to hold the oldest value since status changed,
+    my ($old_timestamp, $old_status) = (-1, -1);
+
+    # these vars are used to calculate statistics
+    my $longest_uptime = -1;
+    my $longest_downtime = -1;
+    my $total_uptime_records = 0;
+    my $total_downtime_records = 0;
+    my $total_downtime_changes = 0;
+    my $total_uptime_changes = 0;
+    my $total_changes = 0;
+    my $total_uptime = 0;
+    my $total_downtime = 0;
+    my ($first_timestamp, $last_timestamp) = (-1, -1);
+    my $last_status = -1;
+
+    while (not eof (LOGFILE)) {
+        my $line = <LOGFILE>;
+        chomp $line;
+        my ($timestamp, $status) = split (/:/, $line);
+        #print "read $timestamp $status\n";
+
+        if ($old_timestamp == -1) {
+            $first_timestamp = $timestamp;
+            $old_timestamp = $timestamp;
+            $old_status = $status;
+        }
+
+        my $delta = calculateDelta ($old_timestamp, $timestamp);
+
+        if (($old_timestamp != $timestamp) and ($status != $old_status)) {
+            # we've had a status change, so do some calculations and display
+            # pretty info
+            $total_changes += 1;
+            displayLine ($old_timestamp, $timestamp, $status);
+
+            $old_timestamp = $timestamp;
+            $old_status = $status;
+
+            if ($status == 0) {
+                $total_downtime += $delta;
+                $total_downtime_changes += 1;
+            } else {
+                $total_uptime += $delta;
+                $total_uptime_changes += 1;
+            }
+        }
+
+        if ($status == 0) {
+            $total_uptime_records += 1;
+        } else {
+            $total_downtime_records += 1;
+        }
+
+        # always update these fields because we never know if this record
+        # might be our last.
+        $last_timestamp = $timestamp;
+        #print "last status set to : $status\n";
+        $last_status = $status;
+    }
+
+    # when we get here, we need to use the last known value of timestamp to
+    # calculate the final 'delta'
+    my $delta = calculateDelta ($old_timestamp, $last_timestamp, $last_status);
+    displayLine ($old_timestamp, $last_timestamp, not $last_status);
+
+    # now print out some useful statistics
+    print ("\n");
+    print ("log run: " . (localtime $first_timestamp) . " to "
+            . (localtime $last_timestamp) . " ("
+            . ($total_uptime + $total_downtime) . " sec.)\n");
+    print ("number of master node availability changes: $total_changes\n");
+    print ("total uptime: $total_uptime sec.\n");
+    print ("total downtime: $total_downtime sec.\n");
+    print ("total records: " . ($total_uptime_records 
+                                + $total_downtime_records) . "\n");
+    print ("       uptime: $total_uptime_records\n");
+    print ("      downime: $total_downtime_records\n");
+    my $avg = 0;
+    if ($total_downtime_records > 0) {
+       $avg =  $total_downtime / $total_downtime_changes;
+    }
+    print ("avg. failover time: $avg sec.\n");
+
+    close (LOGFILE);
+    exit 0;
+}
+
+sub calculateDelta {
+    my $then = shift;
+    my $now = shift;
+
+    my $delta = $now - $then;
+    return $delta;
+}
+
+sub displayLine {
+    my $then = shift;
+    my $now = shift;
+    my $status = shift;
+
+    my $time1 = localtime $then;
+    my $time2 = localtime $now;
+    my $delta = calculateDelta ($then, $now);
+
+    if ($status > 0) {
+        print ("up   for $delta seconds from $time1 to $time2");
+    }
+    else {
+        print ("down for $delta seconds from $time1 to $time2");
+    }
+
+    print ("\n");
+}
+
+sub usage {
+    print ("usage: parseCLILog [filename]\n");
+}

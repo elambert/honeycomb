@@ -1,0 +1,160 @@
+#
+# $Id: Makefile.orig 10855 2007-05-19 02:54:08Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+SMP = 1
+PATCHED_KERNEL = 0
+
+ARCH = $(shell uname -m)
+OS = $(shell uname -s)
+
+# Override guessed config for UML
+#ARCH = um
+#SUBARCH = i386
+
+
+KERNEL_NAME = $(shell uname -r)
+KERNEL_VERSION = $(shell uname -r | awk -F'.' '{printf "%d.%d.%d", $$1, $$2, int($$3)}')
+
+KERNEL_HEADERS = /lib/modules/$(KERNEL_NAME)/build/include
+SYSTEM_MAP = /boot/System.map-$(KERNEL_NAME)
+
+
+MOD_CC = gcc
+MOD_LD = ld
+
+ifeq ($(ARCH),alpha)
+MOD_ARCH_CFLAGS = -ffixed-8 -mno-fp-regs
+endif
+
+
+ifeq ($(ARCH),sparc64)
+MOD_CC = sparc64-linux-gcc
+MOD_LD = ld -m elf64_sparc
+MOD_ARCH_CFLAGS = -fomit-frame-pointer -m64 -pipe -mno-fpu \
+	-mcpu=ultrasparc -mcmodel=medlow -ffixed-g4 \
+	-fcall-used-g5 -fcall-used-g7
+endif
+
+
+ifeq ($(ARCH),um)
+# XXX We can't guess where the UML kernel is located,
+# so the path to the source tree is hardcoded here.
+KERNEL_ROOT = /build0/chris/uml/linux-2.4.19
+KERNEL_HEADERS = $(KERNEL_ROOT)/include
+KERNEL_ARCH_HEADERS = $(KERNEL_ROOT)/arch/$(ARCH)/include
+KERNEL_MODE_TT_HEADERS = $(KERNEL_ROOT)/arch/$(ARCH)/kernel/tt/include
+KERNEL_MODE_SKAS_HEADERS = $(KERNEL_ROOT)/arch/$(ARCH)/kernel/skas/include
+
+MOD_ARCH_CFLAGS =  -Wall -Wstrict-prototypes -Wno-trigraphs -O2 \
+	-fno-strict-aliasing -fno-common \
+	-U__$(SUBARCH)__ -U$(SUBARCH) -DUM_FASTCALL -D__arch_um__ \
+	-DSUBARCH=\"$(SUBARCH)\" \
+	-DMODULE \
+	-D_LARGEFILE64_SOURCE -Derrno=kernel_errno \
+	-I$(KERNEL_ARCH_HEADERS) \
+	-I$(KERNEL_MODE_TT_HEADERS) -I$(KERNEL_MODE_SKAS_HEADERS) \
+
+SYSTEM_MAP=system.map.uml
+endif
+
+
+ifeq ($(ARCH),i686)
+MOD_ARCH_CFLAGS = -Wall -Wstrict-prototypes -O2 -pipe
+endif
+
+
+MOD_CFLAGS = -g -DMODULE -D__KERNEL__ \
+	-include $(KERNEL_HEADERS)/linux/modversions.h  \
+	$(MOD_ARCH_CFLAGS) -I$(KERNEL_HEADERS)
+
+
+ifeq ($(SMP), 1)
+	GENKSYMS_SMP_PREFIX = -p smp_
+else
+	GENKSYMS_SMP_PREFIX = 
+endif
+
+
+# Must match tcp_abort.h.
+TCP_DEVICE = /dev/tcpabort
+TCP_MAJOR = 122
+
+
+MODULE = tcpabort.o
+MODULE_OBJS = tcp_abort.o
+MODULE_KSYMS = tcp_ksyms.c
+
+
+all:: $(MODULE) test
+
+tcp_abort.o: tcp_abort.c tcp_abort.h tcp_ksyms.c
+
+
+$(MODULE): $(MODULE_OBJS) mod_ksym.ld $(MODULE_OBJS:%.c=%.o)
+	$(MOD_LD) -r -o $@ $(MODULE_OBJS) $(shell cat mod_ksym.ld)
+
+
+$(MODULE_OBJS:%.c=%.o):
+	$(MOD_CC) -o $@ -c $*.c $(MOD_CFLAGS) 
+
+
+# No patching required with RedHat kernels
+ifeq ($(PATCHED_KERNEL),1)
+mod_ksym.ld:
+	cp /dev/null $@
+else
+mod_ksym.ver: $(MODULE_KSYMS)
+	$(MOD_CC) -E -D__GENKSYMS__ $(MOD_CFLAGS) $< | \
+	/sbin/genksyms $(GENKSYMS_SMP_PREFIX) -k $(KERNEL_VERSION) >$@
+
+mod_ksym.ld: ksym_addr.sh $(SYSTEM_MAP) $(MODULE_KSYMS) mod_ksym.ver
+	sh ./ksym_addr.sh $(SYSTEM_MAP) $(MODULE_KSYMS) mod_ksym.ver >$@
+
+system.map.uml:
+	nm $(KERNEL_ROOT)/linux >$@
+endif
+
+
+test: tcp_test
+
+tcp_test: tcp_test.c
+	$(CC) -g -Wall -o $@ $< --static && strip $@
+
+clean:
+	rm -f $(MODULE) $(MODULE_OBJS) tcp_test mod_ksym.ver mod_ksym.ld system.map.uml
+
+dev_install:
+	mknod $(TCP_DEVICE) c $(TCP_MAJOR) 0

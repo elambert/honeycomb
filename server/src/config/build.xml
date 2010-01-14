@@ -1,0 +1,164 @@
+<!--
+ $Id: build.xml 3416 2005-01-31 21:59:58Z rw151951 $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for cluster configuration files
+--> 
+<project name="cluster_config" default="cluster_configs" basedir=".">
+  <description>
+    Builds HC cluster config files. This build file covers both the common
+    cluster files and building individual config files for specific clusters
+  </description>
+
+<!-- BASE_CONFIG ******************************************************** --> 	 
+   <target name="base_config"> 	 
+     <description>Builds common, shared config files</description> 
+     <copy todir="${server.dist.sharedir}" overwrite="true">
+       <fileset dir="${server.config.srcdir}">
+         <include name="*.in" />
+       </fileset>
+       <mapper type="glob" from="*.in" to="*"/>
+       <filterset>
+         <filter token="JAVA" value="${java.bin}" />
+         <filter token="PREFIX" value="${install.basedir}" />
+         <filter token="PACKAGE" value="${java.pkgname}" />
+         <filter token="CLASSPATH" value="${server.dist.classpath}" />
+         <filter token="CLASSDIR" value="${server.build.classdir}" />
+         <filter token="LIBDIR" value="${install.libdir}" />
+         <filter token="LOGCONF" value="${install.logconf}" />
+         <filter token="EMMA_OPT_COVERAGE_FILE_PLATFORM_SERVERS" value="${emma.opt.coverage.file.platform_servers}" />
+         <filter token="EMMA_OPT_RT_CONTROL_PORT_PLATFORM_SERVERS" value="${emma.opt.rt.control.port.platform_servers}" />
+         <filter token="EMMA_OPT_COVERAGE_FILE_LAYOUT_SERVERS" value="${emma.opt.coverage.file.layout_servers}" />
+         <filter token="EMMA_OPT_RT_CONTROL_PORT_LAYOUT_SERVERS" value="${emma.opt.rt.control.port.layout_servers}" />
+         <filter token="EMMA_OPT_COVERAGE_FILE_API_SERVERS" value="${emma.opt.coverage.file.api_servers}" />
+         <filter token="EMMA_OPT_RT_CONTROL_PORT_API_SERVERS" value="${emma.opt.rt.control.port.api_servers}" />
+         <filter token="EMMA_OPT_COVERAGE_FILE_IO_SERVERS" value="${emma.opt.coverage.file.io_servers}" />
+         <filter token="EMMA_OPT_RT_CONTROL_PORT_IO_SERVERS" value="${emma.opt.rt.control.port.io_servers}" />
+         <filter token="EMMA_OPT_COVERAGE_FILE_MASTER_SERVERS" value="${emma.opt.coverage.file.master_servers}" />
+         <filter token="EMMA_OPT_RT_CONTROL_PORT_MASTER_SERVERS" value="${emma.opt.rt.control.port.master_servers}" />
+         <filter token="EMMA_OPT_COVERAGE_FILE_ADMIN_SERVERS" value="${emma.opt.coverage.file.admin_servers}" />
+         <filter token="EMMA_OPT_RT_CONTROL_PORT_ADMIN_SERVERS" value="${emma.opt.rt.control.port.admin_servers}" />
+         <filter token="EMMA_OPT_COVERAGE_FILE_DATADOCTOR" value="${emma.opt.coverage.file.layout_servers}" />
+         <filter token="EMMA_OPT_RT_CONTROL_PORT_DATADOCTOR" value="${emma.opt.rt.control.port.layout_servers}" />
+       </filterset>
+     </copy>	 
+    <copy file="${server.config.srcdir}/metadata_config_factory.xml"
+      todir="${server.dist.sharedir}"/>
+    <copy file="${server.config.srcdir}/metadata_config_factory_legacy_101.xml"
+      todir="${server.dist.sharedir}"/>
+    <copy file="${server.config.srcdir}/metadata_config_template.xml"
+      todir="${server.dist.sharedir}"/>
+    <copy file="${server.config.srcdir}/metadata_config_mp3demo.xml"
+      todir="${server.dist.confdir}"/>
+    <copy file="${server.config.srcdir}/metadata_config_photodemo.xml"
+      todir="${server.dist.confdir}"/>
+    <copy file="${server.config.srcdir}/metadata_config_qa.xml"
+      todir="${server.dist.confdir}"/>
+   </target>
+
+   <target name="syslog_files">
+     <copy overwrite="true"
+       file="${server.config.srcdir}/syslog-ng-template.conf"
+       tofile="${server.dist.sharedir}/syslog-ng.conf" />
+     <copy overwrite="true"
+       file="${server.config.srcdir}/syslog-ng-install.sh.in"
+       tofile="${server.dist.bindir}/syslog-ng-install.sh" />
+   </target>
+
+   <!-- Madre de Dios! We have to run the C pre-processor! -->
+   <target name="run_cpp" depends="base_config">
+     <exec dir="${server.dist.sharedir}"
+           executable="sh"
+           failonerror="yes">
+       <env key="${test}" value="1"/>
+       <env key="${emma.jvmflag}" value = "1" />
+       <arg value="-c"/>
+       <arg value="perl -pi.bak ${server.config.srcdir}/preprocessor.pl node_config.xml &lt;/dev/null"/>
+     </exec>
+   </target>
+
+  <!-- CLUSTER_CONFIGS **************************************************** -->
+  <target name="cluster_configs.prepare" depends="run_cpp,syslog_files">
+    <description>Builds individual, cluster specific config files</description>
+    <echo message="building cluster config files"/>
+    <exec dir="${server.config.srcdir}/clusters"
+          executable="${bash.bin}"
+          failonerror="yes"
+          output="${server.build.confdir}/config_compilation.log">
+      <arg value="-c"/>
+      <!--
+        For each .conf file, concatenate it with cluster_config.properties.in
+      -->
+      <arg value="for conf in *.conf; do cat ${server.config.srcdir}/cluster_config.properties.in $conf > ${server.build.confdir}/cluster_config.properties.${conf%.conf}; done"/>
+    </exec>
+  </target>
+
+  <target name="cluster_configs.standard"
+	  depends="cluster_configs.prepare"
+	  unless="hcserver.config.cluster">
+    <copy file="${server.config.srcdir}/cluster_config.properties.in" 
+          tofile="${server.dist.sharedir}/cluster_config.properties"/>
+  </target>
+
+  <target name="cluster_configs.specific"
+	  depends="cluster_configs.prepare"
+	  if="hcserver.config.cluster">
+    <copy file="${server.build.confdir}/cluster_config.properties.${hcserver.config.cluster}"
+          tofile="${server.dist.sharedir}/cluster_config.properties"
+          overwrite="true"
+          failonerror="false"/>
+  </target>
+
+  <target name="cluster_configs"
+	  depends="cluster_configs.standard, cluster_configs.specific">
+    <exec executable="ln" dir="${server.dist.confdir}">
+        <arg value="-sf"/>
+        <arg value="../share/cluster_config.properties"/>
+        <arg value="config_defaults.properties"/>
+    </exec>
+  </target>
+
+  <!-- CLEAN ************************************************************** -->
+  <target name="config_clean">
+    <delete file="${server.dist.sharedir}/logging.properties"/>
+    <delete file="${server.dist.sharedir}/cluster_config.properties"/>
+    <delete file="${server.dist.sharedir}/node_config.xml"/>
+    <delete file="${server.dist.sharedir}/AdminResources_en.properties"/>
+    <delete file="${server.dist.sharedir}/AdminResources_fr.properties"/>
+    <delete file="${server.dist.sharedir}/AdminResources_ge.properties"/>
+    <delete file="${server.dist.sharedir}/AdminResources_ja.properties"/>
+    <delete file="${server.dist.sharedir}/AdminResources_sc.properties"/>
+  </target>  
+  
+</project>
+

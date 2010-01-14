@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Sun StorageTek 5800 System Metadata Configuration Rules. (Sun Microsystems, Inc.) Version 0.7 -->
+<!-- The ELEMENTS of the metadata config -->
+
+<!-- metadataConfig -->
+<!-- A metadataConfig element requires a schema element and optional
+     fsViews and tables elements. -->
+<!ELEMENT metadataConfig (schema, fsViews?, tables?)>
+
+<!-- schema -->
+<!-- A schema element can contain a sequence of zero or more namespace
+     and field elements. -->
+<!ELEMENT schema (namespace*, field*)>
+
+<!-- namespace -->
+<!-- A namespace element can contain a sequence of zero or more 
+     namespace and field elements. Metadata is grouped into namespaces 
+     and identified by a uniform resource identifier (URI). There is 
+     no limit on the number of namespaces that can be encapsulated 
+     within a given namespace level (subnamespaces). For example,
+     <namespace name="format" writable="true" extensible="true">
+	 <namespace name="mp3" writable="true" extensible="true">
+	     <field name="artist" type="string" length="128" queryable="true"/>
+	     <field name="album" type="string" length="128" queryable="true"/>
+	     <field name="title" type="string" length="128" queryable="true"/>
+	     <field name="type" type="string" length="128" queryable="true"/>
+	     <field name="year" type="long" queryable="true"/>
+         </namespace>
+	 <field name="ref" type="string" length="100" queryable="true"/>
+     </namespace> 
+     Note:
+     1. An additional child namespace may be added to an already 
+        committed namespace if and only if the extensible attribute of
+        the committed namespace is set to "true".
+     2. An additional field may be added to an already committed
+        namespace if and only if the extensible attribute of the
+        committed namespace is set to  "true".
+     3. A namespace with an extensible attribute set to "true" can be
+        empty without any field or namespace subelements. These can be
+        added after the namespace is created.
+     4. A namespace with an extensible attribute set to false should
+        not be empty.
+ -->
+<!ELEMENT namespace (namespace*, field*)>
+
+<!-- field -->
+<!-- A field element is used to represent the name and type of a
+     possible value in the extended metadata -->
+<!ELEMENT field EMPTY>
+
+<!-- fsViews -->
+<!-- The fsViews element holds the virtual file system views that can
+      be browsed using WebDAV. It can contain zero or more fsView
+      elements, defining different virtual file system views against
+      metadata.
+  -->
+<!ELEMENT fsViews (fsView*)>
+
+<!-- fsView -->
+<!-- The fsView element is used to define a new virtual file system 
+     view and must contain one or more attribute elements. It
+     represents a sequence of attribute names and an expression for
+     the filename. The sequence of directories from the root to the
+     leaf node is the sequence of values of the attributes. For
+     example, 
+     <fsViews>
+             <fsView name="byAuthor" filename="${description}.pdf" 
+                 namespace="dc" readonly="false" 
+                 filesonlyatleaflevel="true"  fsattrs="false">
+                     <attribute name="dc.identifier"/>
+                     <attribute name="dc.creator"/>
+                     <attribute name="dc.date"/>
+             </fsView>
+     </fsViews>
+ -->
+<!ELEMENT fsView (attribute+)>
+
+<!-- attribute -->
+<!-- The attribute element is used within an fsView to define the set
+     of fields that are used in the "directory names" part of the
+     view. Each attribute contains a single field, and corresponds to
+     one level of the directory hierarchy in the virtual view.
+ -->
+<!ELEMENT attribute EMPTY>
+
+<!-- tables -->
+<!-- The tables element is used to hold the table definitions that
+     describe the layout of attributes as columns in a given table
+     within the extended cache. You can greatly improve the
+     performance of query and store operations by grouping metadata
+     fields that commonly occur together in the same table and by
+     separating metadata fields that do not commonly occur together
+     into separate tables. -->
+<!ELEMENT tables (table*)>
+
+<!-- table -->
+<!-- The table element must contain one or more column elements.
+     It is used to group metadata fields that commonly occur during
+     store and query operations to optimize the performance
+     characteristics of these operations.  For example,
+     <tables>
+             <table name="reference"/>
+                     <column name="mp3.artist"/>
+                     <column name="mp3.album"/>
+                     <column name="mp3.title"/>
+                     <column name="dates.year"/>
+             </table>
+     </tables>
+     The following guidelines should be taken when defining the layout
+     of columns in a tables:
+     1. Maximum number of tables allowed is 1000. Of these 1000,
+        roughly 100 are reserved for system use.  Each table and each
+        index (described below under fsViews) counts against this
+        maximum.
+     2. Each table can include no more than 254 fields.
+     3. Maximum number of bytes allowed for any single row in a table
+        is 8080. See below under field definitions for the
+        contribution of each column to this maximum.
+     4. Each metadata field can be a column in only one table.
+     5. When specifying a field as a column in a table, be sure to use
+        the field's fully qualified name (namespace.field).
+     6. Tables may contain fields from more than one namespace.
+     7. If you do not specify a field as a column in a table, that
+        field is stored in its own separate table, as the single
+        column in that table.
+     8. If you want to assign a field as a column in a table, you must
+        do so when you first add the field to the schema definition.
+     9. Once you have assigned a field to a table, you cannot move
+        that field to another table, or move it to a different column
+        within the table.
+     10. You cannot add or remove columns from a table once you have
+        defined the table.
+     11. Field elements that have the "queryable" attribute set
+         to "false" are not allowed in a table and may not be used in
+         queries.
+     12. The theoretical maximum number of queryable fields in a
+         schema would occur if no indexes are needed and if each table
+         holds the full complement of 254 fields/table.  In this case,
+         the schema could hold 228,600 fields in 900 tables.  By
+         contrast, a table layout that supports 15 fields per table
+         and one index per table would allow up to 6750 fields in the
+         schema.
+   -->
+<!ELEMENT table (column+)>
+
+<!-- column -->
+<!-- The column element is used to specify each metadata field as a
+     column within a particular table declaration. See example above.
+ -->
+<!ELEMENT column EMPTY>
+
+<!-- namespace attributes -->
+<!-- The ATTRIBUTES within each element of the metadata config -->
+<!-- The namespace attributes are used to specify the following:
+     1. name - The name by which a defined namespace is
+        referenced. (Required) 
+     2. writable - If a namespace is writable, you can specify any
+        field in that namespace at the time an object is stored. A
+        namespace may be changed from writable to non-writable by a
+        future configuration update. Note that once a namespace is
+        not writable, new writable subnamespaces cannot be created.
+        The default value is "true".
+     3. extensible - You can expand an extensible namespace in a
+        subsequent configuration update by adding more attributes or
+        more subnamespaces to it. A namespace may be changed from
+        extensible to non-extensible. The default value is true.
+ -->
+<!ATTLIST namespace
+	name CDATA #REQUIRED
+	writable (true | false) "true"
+	extensible (true | false) "true"
+>
+
+
+<!-- field attributes -->
+<!-- The field attributes are used to specify the following:
+     1. name - The name by which extended metadata is
+        referenced. (Required) 
+     2. type - The data type for the defined field. This can be a
+        choice from the list of supported types. Supported values are
+        long, double, string, char, binary, date, time, timestamp,
+        objectid. (Required)
+     3. length - The length applies to the fields of type string, char
+        and  binary. The length attribute is important because there
+        are limits to the number of bytes that each table row and each
+        index can store. Trying to store a field that is longer than
+        the specified length will result in an error. When planning
+        tables, be aware that the maximum number of bytes allowed for
+        any single row in the table is 8080. You might want to specify
+        as small a length value as possible for each field (column) in
+        the table so that you can fit as many columns as possible in
+        the table.
+
+        From this 8080 bytes, subtract 78 bytes of overhead
+        for the table as a whole, and then 2 bytes of overhead for
+        each column in the table, and then the field size of each
+        field as defined below.
+
+        The following lists the number of bytes that a field (column)
+          of each type consumes:
+        Type          Space Consumed
+        ====          ==============
+
+        string        twice the length of the field
+        char          length of the field
+        binary        length of the field
+        long          8 bytes
+        double        8 bytes
+        timestamp     8 bytes
+        date          4 bytes
+        time          4 byes
+        objectID      (30 bytes, included in the system overhead)
+
+        For example a field of type string with length 80 consumes 2
+        bytes for overhead plus 160 bytes for the field length, for a
+        total of 162 bytes. A field of type date consumes 2 bytes for
+        overhead plus 4 bytes for field length, for a total of 6 bytes.
+
+        Examples of fields to be added to a table: 
+        Field         Type     Length Setting   Bytes Required
+        ====          =====    ============      =============
+        mp3.artist    string     256            514
+        mp3.album     string     256            514
+        mp3.title     string     512            1026
+        dates.year    long       NA             10
+     4. queryable - The queryable attribute indicates that the field
+        is available for queries. If a field is not used in queries
+        you may set the value to false. (Default is set to "true".)
+  -->
+<!ATTLIST field
+	name CDATA #REQUIRED
+	type (long | double | string | char | binary | date | time | timestamp | objectid) #REQUIRED
+	length CDATA #IMPLIED
+	queryable (true | false) "true"
+>
+
+<!-- fsView attributes -->
+<!-- The fsView attributes are used to specify the following:
+     1. name - The name is the top-level directory name of the virtual
+        file system view. (Required) 
+
+     2. filename - The expression used to represent the
+        filename. (Required)  
+        It defines the way to construct filenames for objects selected
+        by the view. To create the filename component of an fsView,
+        field values are combined together with literal text into a
+        filename string. Each field in the filename is specified
+        using the syntax of ${field_name}. For example,
+        <fsViews>
+            <fsView name="byArtist" 
+                    namespace="mp3"
+                    filename="${title}.{type}" 
+                    fsattrs="true" 
+                    filesonlyatleaflevel="true"> 
+                <attribute name="artist"/>
+                <attribute name="album"/>
+            </fsView>
+            <fsView name="byAlbum" 
+                    filename="${mp3.title}.mp3"
+                    readonly="true" 
+                    fsattrs="true"> 
+                <attribute name="mp3.album"/>
+            </fsView>
+        </fsViews>
+        For example, if the byArtist view is exposed via the WebDAV
+        protocol, an example URL to a particular object might be:
+            http://path.to.hive/webdav/byArtist/The Beatles/Abbey Road/Something.mp3
+        This would correspond to an object stored in the 5800 system with
+        the following metadata values:
+            mp3.artist = "The Beatles"
+            mp3.album  = "Abbey Road"
+            mp3.title  = "Something"
+            mp3.type   = "mp3"
+
+     3. namespace - The namespace defines a schema namespace prefix
+        for all of the names used (that is, title will be parsed as
+        mp3.title). (Not required)
+        The namespace field is optional. If you do not specify the
+        namespace field, you must use fully qualified names for all
+        attributes in the file system view (in other words, you must
+        use mp3.title, not title). You may use attributes from
+        different namespaces within the same file system view.
+ 
+    4. readonly - The readonly attribute for fsViews allows you to
+        specify that users accessing data through WebDAV cannot create
+        or delete objects in the file system view.
+
+     5. filesonlyatleaflevel - The filesonlyatleaflevel attribute
+        controls a choice on filesystem layout. (default is "true").
+        In the default layout (filesonlyatleaflevel="true"), all files
+        will occur at the bottom-most level of the directory hierarchy.
+        In the alternate layout (filesonlyatleaflevel="false"), files
+        can occur at any level of the directory hierarchy depending on
+        the actual values of the metadata fields.
+
+        Specifically, in the default layout an object will only show
+        up in the view if it has metadata values for all fields that
+        are specified both in the attribute list (for the directory
+        hierarchy) and in the filename specifier. An object that is
+        missing a value for some of these fields simply does not
+        appear when the view is displayed. Hence, all objects that do
+        show up always appear at the bottom, or leaf, level of the
+        directory hierarchy.
+
+        In the alternate layout, an object will show up in the view if
+        it has values for all of the filename fields and an initial
+        subset of the fields in the directory hierarchy. The object
+        will appear in the directory corresponding to its bottom-most
+        defined attribute.  For example, in the byArtist view
+        described above, an object with the metadata values,
+            mp3.artist="My Band"
+            mp3.title="My Song"
+            mp3.type="mp3"
+       would show up in the byArtist view in the following location:
+            http://path.to.hive/webdav/byArtist/My Band/My Song.mp3
+
+        Note: All attributes in an fsView for which you have specified
+        filesonlyatleaflevel = "false" must be in the same table.
+
+     6. fsattrs - The 5800 system exports a number of file attributes
+        as part of a virtual file system view. In addition to those
+        attributes that are always exported, you may choose to have
+        the remaining attributes in the filesystem namespace
+        (filesystem.mimetype and filesystem.mtime) exported with the
+        files. If you choose this option, the WebDAV browser uses the
+        filesystem.mimetype attribute as Content-type in the HTTP
+        header. With Content-type supplied in the HTTP header, when a
+        user clicks on a link to download the file, WebDAV opens the
+        appropriate program. Without Content-type in the HTTP header,
+        the WebDAV browser does not know the file's type and simply
+        prompts the user to save the file to disk.
+
+     7. Each fsView in the metadata config causes the system to create
+        an index within the query engine to speed up queries.  As an
+        optional step to speed up query performance, create an
+        artificial set of fsViews that matches the characteristics of
+        your most important queries. For highest query performance,
+        design the set of fsViews in your metadata config to observe
+        these guidelines for each important query:
+        
+        a. All the fields referenced by the query should be in the
+           same table.
+        b. There should be an fsView that references those fields in
+           an initial subset of its attribute and filename fields.
+        c. The total size of the fields referenced in that fsView
+           should be less than 1024 minus 78.
+        d. define the minimum set of fsViews that achieves good
+           performance.
+ -->
+<!ATTLIST fsView
+	name CDATA #REQUIRED
+	filename CDATA #REQUIRED
+	namespace CDATA #IMPLIED
+	readonly (true | false) "false"
+	filesonlyatleaflevel (true | false) "true"
+	fsattrs (true | false) "false"
+>
+
+<!-- name attribute within "attribute" -->
+<!-- The name attribute within "attribute" is used to represent a
+     single field name that indicates a directory in the sequence of
+     directories from the root to the leaf node in a virtual file
+     system view. (Required) -->
+<!ATTLIST attribute
+	name CDATA #REQUIRED
+>
+
+<!-- name attribute within "table" -->
+<!-- The name attribute within "table" is used to represent a defined
+     table. (Required) -->
+<!ATTLIST table
+	name CDATA #REQUIRED
+>
+
+<!-- name attribute within "column" -->
+<!-- The name attribute within "column" is used to represent a the
+        field name of the column. (Required) -->
+<!ATTLIST column
+	name CDATA #REQUIRED
+>
+

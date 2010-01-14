@@ -1,0 +1,135 @@
+#
+# $Id: testlist_help_bad.cli 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+test.case.name=help-good-arg-test
+TEST_ARGS='cmddef: help| \
+           -re,\"df .*\" => sub { \&reportPass(); }| \
+           -re, \"unknown option .*\" => sub { &reportFail(); }| \
+           cmddef: help df| \
+           -re,\"Usage: .*\" => sub { &reportPass(); } | \
+           -re, \"unknown option .*\" => sub { &reportFail(); }| \
+           -re, \".* command not found .*\" => sub { &reportFail(); } \
+           cmddef: help logout| \
+           -re,\"Usage: .*\" => sub { &reportPass(); } | \
+           -re, \"unknown option .*\" => sub { &reportFail(); }| \
+           -re, \".* command not found .*\" => sub { &reportFail(); } \
+           cmddef: help shutdown| \
+           -re,\"Usage: .*\" => sub { &reportPass(); } | \
+           -re, \"unknown option .*\" => sub { &reportFail(); }| \
+           -re, \".* command not found .*\" => sub { &reportFail(); } \
+           cmddef: help wipe| \
+           -re,\"Usage: .*\" => sub { &reportPass(); } | \
+           -re, \"unknown option .*\" => sub { &reportFail(); }| \
+           -re, \".* command not found .*\" => sub { &reportFail(); } \
+           cmddef: help help| \
+           -re,\"Usage: .*\" => sub { &reportPass(); } | \
+           -re, \"unknown option .*\" => sub { &reportFail(); }| \
+           -re, \".* command not found .*\" => sub { &reportFail(); } \
+           cmddef: help passwd| \
+           -re,\"Usage: .*\" => sub { &reportPass(); } | \
+           -re, \"unknown option .*\" => sub { &reportFail(); }| \
+           -re, \".* command not found .*\" => sub { &reportFail(); } \
+           cmddef: help syscfg| \
+           -re,\"Usage: .*\" => sub { &reportPass(); } | \
+           -re, \"unknown option .*\" => sub { &reportFail(); }| \
+           -re, \".* command not found .*\" => sub { &reportFail(); } \
+           cmddef: help hwcfg| \
+           -re,\"Usage: .*\" => sub { &reportPass(); } | \
+           -re, \"unknown option .*\" => sub { &reportFail(); }| \
+           -re, \".* command not found .*\" => sub { &reportFail(); } \
+           cmddef: help sysstat| \
+           -re,\"Usage: .*\" => sub { &reportPass(); } | \
+           -re, \"unknown option .*\" => sub { &reportFail(); }| \
+           -re, \".* command not found .*\" => sub { &reportFail(); } \
+           cmddef: help hwstat| \
+           -re,\"Usage: .*\" => sub { &reportPass(); } | \
+           -re, \"unknown option .*\" => sub { &reportFail(); }| \
+           -re, \".* command not found .*\" => sub { &reportFail(); } \
+           cmddef: help schemacfg| \
+           -re,\"Usage: .*\" => sub { &reportPass(); } | \
+           -re, \"unknown option .*\" => sub { &reportFail(); }| \
+           -re, \".* command not found .*\" => sub { &reportFail(); } \
+           cmddef: help version| \
+           -re, \".* unknown  .*\" => sub { &reportFail(); }| \
+           -re, \".* command not found .*\" => sub { &reportFail(); }'
+cli_tests/test		dtonga
+test.case.name=help-bad-arg-test
+TEST_ARGS='cmddef: help -help| \
+           -re,\"df .*\" => sub { \&reportFail(); }| \
+           -re, \"unknown option .*\" => sub { &reportPass(); }| \
+           cmddef: help -BBB| \
+           -re, \"unknown option .*\" => sub { &reportPass(); }| \
+           -re, \".* command not found\" => sub { &reportPass(); } \
+           cmddef: help -F| \
+           -re, \"unknown option .*\" => sub { &reportPass(); }| \
+           -re, \".* command not found\" => sub { &reportPass(); } \
+           cmddef: help logstat| \
+           -re,\"Usage: .*\" => sub { &reportPass(); } | \
+           -re, \"unknown option .*\" => sub { &reportPass(); }| \
+           -re, \".* command not found\" => sub { &reportPass(); } \
+           cmddef: help -version| \
+           -re,\"Usage: .*\" => sub { &reportPass(); } | \
+           -re, \"unknown option .*\" => sub { &reportPass(); }| \
+           -re, \".* command not found\" => sub { &reportPass(); } \
+           cmddef: help -help| \
+           -re, \"unknown option .*\" => sub { &reportPass(); }| \
+           -re, \".* command not found\" => sub { &reportPass(); } \
+           cmddef: help 12333333333333333333333333333333333333333333333| \
+           -re, \"unknown option .*\" => sub { &reportPass(); }| \
+           -re, \".* command not found\" => sub { &reportPass(); } \
+           cmddef: help -1234444444444444444444444444444444444| \
+           -re, \"unknown option .*\" => sub { &reportPass(); }| \
+           -re, \".* command not found\" => sub { &reportPass(); } \
+           cmddef: help ???| \
+           -re, \"unknown option .*\" => sub { &reportPass(); }| \
+           -re, \".* command not found\" => sub { &reportPass(); } \
+           cmddef: help -v| \
+           -re,\"help .*\" => sub { &reportFail(); } | \
+           -re, \"unknown option .*\" => sub { &reportPass(); }| \
+           -re, \".* command not found\" => sub { &reportPass(); } \
+           cmddef: help \+\#\$\$| \
+           -re, \"unknown option .*\" => sub { &reportPass(); }| \
+           -re, \".* command not found\" => sub { &reportPass(); } \
+           cmddef: help --help| \
+           -re,\"Usage: .* \" => sub { &reportPass(); } | \
+           -re, \"unknown option .*\" => sub { &reportPass(); }| \
+           -re, \".* command not found\" => sub { &reportPass(); } \
+           cmddef: help wipe df logout| \
+           -re, \"Usage: .*\" => sub { &reportPass(); }| \
+           -re, \".* unknown  .*\" => sub { &reportPass(); }| \
+           -re, \".* command not found\" => sub { &reportPass(); }' 
+cli_tests/test		dtonga
+

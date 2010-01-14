@@ -1,0 +1,152 @@
+<!--
+ $Id: build.xml 10857 2007-05-19 03:01:32Z bberndt $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for honeycomb server component.
+--> 
+
+<project name="filesystem" default="native">
+  <description>
+    Honeycomb filesystem component. Building this project results in a 
+    Solaris package named SUNWhcfs.
+  </description>
+
+  <!-- first, local, user specified .ant.properties files take precedence -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <!-- second, use the build.properties for this package -->
+  <property file="${basedir}/../filesystem/build.properties"/>
+
+  <!-- lastly, use the top-level builds properties file -->
+  <property file="${basedir}/../build/build.properties"/>
+
+  <property name="filesystem.native.fscachedir"
+    value="${filesystem.build.basedir}/fscache"/>
+
+  <property name="filesystem.native.archivedir"
+    value="${filesystem.build.basedir}/archive"/>
+
+  <path id="filesystem.build.classpath">
+    <pathelement location="${server.dist.libdir}/honeycomb-server.jar"/>
+    <pathelement location="${external.dist.libdir}/jetty-4.2.20.jar"/>
+    <pathelement location="${external.dist.libdir}/db-4.2.jar"/>
+    <pathelement location="${common.dist.libdir}/${jarname.common}"/>
+    <pathelement location="${external.dist.libdir}/je.jar"/>
+  </path>
+
+  <target name="prepare">
+    <tstamp/>
+    <mkdir dir="${filesystem.build.basedir}"/>
+    <mkdir dir="${filesystem.build.classdir}"/>
+    <mkdir dir="${filesystem.dist.basedir}"/>
+    <mkdir dir="${filesystem.dist.libdir}"/>
+    <mkdir dir="${filesystem.native.fscachedir}"/>
+    <mkdir dir="${filesystem.native.archivedir}"/>
+    <mkdir dir="${filesystem.dist.bindir}"/>
+  </target>
+
+  <target name="compile" depends="prepare">
+    <javac classpathref="filesystem.build.classpath"
+      srcdir="${filesystem.java.srcdir}"
+      destdir="${filesystem.build.classdir}"
+      debug="${javac.debug}"
+      deprecation="${javac.deprecation}"
+      source="${javac.source}"
+      optimize="${javac.optimize}"/>
+  </target>
+
+  <target name="jar" depends="compile">
+    <jar jarfile="${filesystem.jar}">
+      <fileset dir="${filesystem.build.classdir}"/>
+    </jar>
+  </target>
+
+  <target name="native" depends="jar,fscache_build,archive_build,cp_scripts">
+  </target>
+
+  <target name="cp_scripts" depends="prepare">
+    <copy todir="${filesystem.dist.bindir}">
+      <fileset dir="${filesystem.scripts.srcdir}">
+        <include name="*.sh"/>
+      </fileset>
+    </copy>
+    <chmod dir="${filesystem.dist.bindir}" includes="*.sh" perm="a+rx" />
+  </target>
+
+  <target name="fscache_build">
+    <exec dir="${filesystem.srcdir}/native/fscache" executable="${make.bin}" failonerror="true">
+      <arg value="LIBDIR=${filesystem.dist.libdir}"/>
+      <arg value="FSJAR=${filesystem.jar}"/>
+      <arg value="INCDIR=${filesystem.native.fscachedir}"/>
+      <arg value="BDBDIR=${external.dist.libdir}"/>
+      <arg value="INSTALLDIR=${filesystem.dist.libdir}"/>
+      <arg value="BUILDDIR=${filesystem.native.fscachedir}"/>
+    </exec>
+  </target>
+
+  <target name="archive_build" depends="prepare">
+    <exec dir="${filesystem.srcdir}/native/archive" executable="${make.bin}" failonerror="true">
+      <arg value="LIBDIR=${filesystem.dist.libdir}"/>
+      <arg value="FSJAR=${filesystem.jar}"/>
+      <arg value="INCDIR=${filesystem.native.archivedir}"/>
+      <arg value="EXTLIBDIR=${external.dist.libdir}"/>
+      <arg value="EXTINCDIR=${external.dist.incdir}"/>
+      <arg value="INSTALLDIR=${filesystem.dist.libdir}"/>
+      <arg value="BUILDDIR=${filesystem.native.archivedir}"/>
+    </exec>
+  </target>
+
+  <target name="pkg"
+    depends="native"
+    description="Build the solaris package">
+
+	<exec executable="${pkgmk.bin}" failonerror="yes">
+	  <!-- arg value="" does not work here for some reason -->
+	  <arg line="-o -d ${filesystem.pkgdir} -f ${filesystem.pkg.srcdir}/prototype -r ${filesystem.dist.basedir}"/>
+	</exec>
+	
+	<exec executable="${pkgtrans.bin}" failonerror="yes">
+	  <arg line="-s ${filesystem.pkgdir} SUNWhcfs.pkg SUNWhcfs"/>
+	</exec>
+  </target>
+  
+  <!-- ************************************************************** -->
+  <target name="build_pkg" depends="pkg"
+    description="compile sources and create the solaris package" />
+
+  <!-- CLEAN ************************************************************** -->
+  <target name="clean" description="cleans workspace of all generated files">
+    <delete dir="${filesystem.build.basedir}"/>
+  </target>
+
+</project>

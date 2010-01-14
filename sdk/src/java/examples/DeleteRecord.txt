@@ -1,0 +1,20 @@
+
+Name
+       DeleteRecord - Delete the Record associated with an OID
+        
+Synopsis
+       java DeleteRecord <IP | Host> <OID> [OPTIONS]
+        
+Description
+       Delete Record. Delete the Record with the specified OID. If this is
+       the only record pointing to the data, the data will be deleted too.
+        
+Options
+       -v
+              Print deleted OID to stdout
+        
+       -h
+              Print this message
+        
+Examples
+       java DeleteRecord server @SampleOID@

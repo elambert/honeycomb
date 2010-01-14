@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="retrieve">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>Honeycomb retrieve test.</description>
+    </info>
+        
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+        
+        <loadproperties uri="storage://INPUT/hc.properties"/>
+		<!-- default values incase you want to run this test on its own
+		     instead of within the perf tessuite -->
+		<property name="runid" value="${dtf.timestamp}"/>
+        <metadata id="MDEMPTY"/>
+    </local>
+    
+    <!-- Lock as many components as necessary by the test. -->
+    <for property="client" range="1..${hc.perf.clients}">
+        <local>
+            <lockcomponent id="CLIENT${client}">
+                <attrib name="hc.client.type" value="${hc.client.type}"/>
+            </lockcomponent>
+        </local>
+    </for>
+    
+    <!-- select oids from object database where we've already had stores -->
+    <query type="${hc.test.db.type}" 
+           event="hc.object" 
+           uri="storage://OUTPUT/${hc.test.db.file}"
+           cursor="object">
+        <select>
+            <field name="oid"/>
+            <field name="file.type"/>
+            <field name="file.length"/>
+            <field name="file.offset"/>
+        </select>
+        <where>
+            <and>
+                <neq op1="deleted"      op2="true" nullable="true"/>
+                <eq  op1="file.length"  op2="${hc.filesize}"/>
+            </and>
+        </where>
+    </query>
+    
+    <local>
+        <echo>
+        Retrieving ${hc.filesize} byte(s) objects 
+        from ${hc.cluster.datavip}:${hc.cluster.dataport} 
+        using ${hc.perf.clients} client(s) and ${hc.perf.threads} thread(s)
+        for ${hc.perf.duration}</echo>
+    </local>
+
+    <try>
+        <record type="txt"
+                event="hc.retrieve" 
+                uri="storage://OUTPUT/retrieve_perf_${hc.filesize}.txt">
+        	<attribute name="runid" value="${runid}"/>
+            <parallelloop property="client" range="1..${hc.perf.clients}">
+			    <component id="CLIENT${client}">
+                    <attribute name="client" value="CLIENT${client}"/>
+                    <loop range="1..${hc.perf.threads}"
+                          property="thread"
+                          type="parallel"> 
+                		<loop range="${hc.perf.duration}" 
+                              property="iteration"
+                              type="timer">
+     				        <fetchresult cursor="object" recycle="true"/>
+                            <retrieve datavip="${hc.cluster.datavip}"
+                                      port="${hc.cluster.dataport}" 
+                                      oid="${object.oid}"
+                                      node="${hc.loadgaming.node}"
+                                      verify="${hc.data.verify}"
+            					      monitor="${hc.channel.monitoring}"
+                                      continueOnFailure="${hc.continueonfailure}">
+                            	<file length="${object.file.length}"
+                            	      type="${object.file.type}"
+                            	      offset="${object.file.offset}"/>
+                            </retrieve>
+                        </loop>
+                    </loop>
+                </component>
+            </parallelloop>
+        </record>
+    	<catch exception="${dtf.NoMoreResultsException}">
+        	<local>
+                <echo>All done retrieving, no more data to delete.</echo>
+            </local>
+        </catch>
+    </try>
+    <local>
+        <echo>
+        Runid: ${runid}</echo>
+    </local>
+</script>

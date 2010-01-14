@@ -1,0 +1,92 @@
+<!--
+    $Id: build.xml 10854 2007-05-19 02:52:12Z bberndt $
+
+    Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+    Use is subject to license terms.
+-->
+
+<project name="CMM" default="dist">
+
+  <property name="srcDir" value="${basedir}/src"/>
+  <property name="manifest" value="${srcDir}/MANIFEST.MF"/>
+
+  <property name="builddir" value="${basedir}/../../build/unit_tests/CMM"/>
+  <property name="classes" value="${builddir}/classes"/>
+  <property name="dist" value="${builddir}/dist"/>
+  <property name="binDir" value="${dist}/bin"/>
+  <property name="libDir" value="${dist}/lib"/>
+  <property name="configDir" value="${dist}/config"/>
+  <property name="testDir" value="${dist}/tests"/>
+  <property name="jarFile" value="${libDir}/CMMTest.jar"/>
+  
+  <property name="server.jar" value="${basedir}/../../build/server/dist/lib/honeycomb-server.jar"/>
+  <property name="utests.jar" value="${basedir}/../../build/unit_tests/dist/honeycomb-utests.jar"/>
+  <property name="bsh.jar" value="${basedir}/../../external/lib/bsh-2.0b2.jar"/>
+
+  <path id="classpath">
+    <pathelement location="${server.jar}"/>
+    <pathelement location="${utests.jar}"/>
+    <pathelement location="${bsh.jar}"/>
+  </path>
+
+  <target name="prepare">
+    <tstamp/>
+    <mkdir dir="${classes}"/>
+    <mkdir dir="${dist}"/>
+    <mkdir dir="${libDir}"/>
+    <mkdir dir="${binDir}"/>
+    <mkdir dir="${configDir}"/>
+    <mkdir dir="${testDir}"/>
+  </target>
+
+  <target name="compile" depends="prepare">
+    <javac classpathref="classpath"
+      srcdir ="${srcDir}/java"
+      destdir="${classes}"
+      debug="on"
+      deprecation="on"
+      optimize="off"
+      source="1.4"/>
+  </target>
+
+  <target name="jar" depends="prepare,compile">
+    <jar jarfile="${jarFile}"
+      manifest="${manifest}">
+      <fileset dir="${classes}"/>
+    </jar>
+  </target>
+
+  <target name="dist" depends="prepare,jar">
+    <copy file="${server.jar}" toDir="${libDir}"/>
+    <copy file="${utests.jar}" toDir="${libDir}"/>
+    <copy file="${bsh.jar}" toDir="${libDir}"/>
+
+    <copy toDir="${binDir}">
+      <fileset dir="${srcDir}/scripts" includes="*"/>
+    </copy>
+    <chmod perm="755">
+      <fileset dir="${binDir}"
+        includes="*"/>
+    </chmod>
+
+    <copy toDir="${testDir}">
+      <fileset dir="${srcDir}/tests"
+               includes="*"/>
+    </copy>
+    <chmod perm="755">
+      <fileset dir="${testDir}"
+               includes="*sh"/>
+    </chmod>
+    
+    <copy
+      file="${basedir}/../../build/server/dist/share/AdminResources_en.properties"
+      toDir="${libDir}"/>
+
+    <copy
+       file="${srcDir}/config_defaults.properties"
+       toDir="${configDir}"/>
+
+  </target>
+
+</project>
+

@@ -1,0 +1,26 @@
+# $Id: advquery_md_randgen_idx.txt 11701 2007-12-13 15:43:18Z dr129993 $
+#
+[advquery_onetable_idx.one]fixed{02x:0-255}
+/[advquery_onetable_idx.two]fixedOnly
+/[advquery_onetable_idx.three]{1c:70,77}
+/[advquery_onetable_idx.four]prefix{03d:1,10,50,200,600,750}postfix
+/[advquery_onetable_idx.five]{03d:0-999}
+/[advquery_onetable_idx.six]{04d:0-9999}
+/[advquery_onetable_idx.seven]{4s:10-20:10}
+/[advquery_onetable_idx.eight]{02x:0-255}standard
+/[advquery_onetable_idx.nine]{4s:10-20:10}
+/[advquery_onetable_idx.ten]Long{02d:10-34}Value
+/[advquery_onetable_idx.eleven]{4s:10-20:10}
+/[advquery_onetable_idx.twelve]LongField{4s:30-40:10}Value
+/[advquery_onetable_idx.thirteen]LongField{4s:30-40:10}Value
+/[advquery_onetable_idx.fourteen]{4s:10-20:10}
+/[advquery_onetable_idx.fifteen]Long{02d:10-34}Value
+/[advquery_onetable_idx.sixteen]{4s:10-20:10}
+/[advquery_onetable_idx.seventeen]{02x:0-255}standard
+/[advquery_onetable_idx.eighteen]{4s:10-20:10}
+/[advquery_onetable_idx.nineteen]{04d:0-9999}
+/[advquery_onetable_idx.twenty]{03d:0-999}
+/[advquery_onetable_idx.twenty_one]prefix{03d:1,10,50,200,600,750}postfix
+/[advquery_onetable_idx.twenty_two]{1c:70,77}
+/[advquery_onetable_idx.twenty_three]fixedOnly
+/[advquery_onetable_idx.twenty_four]fixed{02x:0-255}

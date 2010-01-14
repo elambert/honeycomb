@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="perfmonitor">
+	<info>
+		<author>
+			<name>Rodney Gomes</name>
+			<email>rodney.gomes@sun.com</email>
+		</author>
+		<description></description>
+	</info>
+
+	<local>
+		<createstorage id="INPUT" path="${dtf.xml.path}/input" />
+		<createstorage id="TINPUT" path="${dtf.xml.path}" />
+		<createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+
+		<loadproperties uri="storage://INPUT/hc.properties" />
+		<import uri="storage://INPUT/${hc.metadata.filename}" />
+
+		<property name="hc.test.db.type" value="txt" />
+		<property name="hc.iteration.duration" value="60s" />
+	</local>
+
+	<query uri="storage://INPUT/clientsidestats.log" type="txt"
+		event="hc.store" cursor="perfcursor" />
+
+	<record type="object" uri="property://dbperf">
+		<stats cursor="perfcursor" event="stats" />
+	</record>
+	<local>
+		<echo>
+			Events per second: ${dbperf.avg_occ} 
+			Total of Events:   ${dbperf.tot_occ} 
+			Total Duration:    ${dbperf.tot_dur}s
+		</echo>
+	</local>
+
+	<query uri="storage://INPUT/serversidestats.log" 
+	       type="txt"
+	       event="hc.stat.cpu" 
+	       cursor="sscursor"/>
+
+	<query uri="storage://INPUT/clientsidestats.log" 
+	       type="txt"
+	       event="hc.store"
+	       cursor="cscursor">
+		<select>
+			<field name="commitlatency" />
+		</select>
+	</query>
+
+	<query uri="storage://INPUT/clientsidestats.log" 
+	       type="txt"
+	       event="hc.store"
+	       cursor="cscursor2">
+		<select>
+			<field name="ctime" />
+		</select>
+	</query>
+	
+	<graph uri="storage://OUTPUT/graph.svg"
+     	   type="${hc.graph.type}"
+     	   title="CPU Usage With Store Operations">
+     	   
+     	<series name="Commit Latency (ms)"
+			cursor="cscursor"/>
+
+     	<series name="Stores per second"
+			cursor="cscursor2" 
+			mode="histogram"
+		    sampleunit="1s"/> 
+			
+		<series name="Average CPU Usage across the cluster (%)" 
+		        cursor="sscursor"
+			    aggregateby="node"
+			    sampleunit="5s"/>
+	</graph>
+
+	<query uri="storage://INPUT/serversidestats.log" 
+	       type="txt"
+	       event="hc.stat.cpu" 
+	       cursor="sscursor2">
+	       <select>
+	       		<field name="API-SERVERS"/>
+	       		<field name="node"/>
+	       </select>
+	</query>
+
+	<graph uri="storage://OUTPUT/hadb_cpu_usage.svg"
+     	   type="${hc.graph.type}"
+     	   title="API-SERVERS CPU usage on all nodes">
+		<series name="CPU Usage (%)" 
+		        cursor="sscursor2"
+		        separateby="node"/>
+	</graph>
+
+</script>

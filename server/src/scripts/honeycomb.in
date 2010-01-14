@@ -1,0 +1,300 @@
+#!/usr/bin/bash
+#
+# $Id: honeycomb.in 11859 2008-02-28 17:28:51Z ktripp $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+# chkconfig: 2345 61 61
+# description: Honeycomb cluster init script
+
+# Include smf lib
+. /lib/svc/share/smf_include.sh
+
+INSTALL_DIR=@PREFIX
+MAILBOXES_ROOT=/mailboxes
+HCNFS_CACHE=/nfsdisks
+UPGRADE_FLAG=/tmp/inupgrade
+NMSTARTED_FLAG=/var/run/nmstarted
+SERVICETAG_REGISTRY=/var/sadm/servicetag/registry/servicetag.xml
+
+WGET=/usr/sfw/bin/wget
+
+NODEMGR_PID=/var/adm/hcndmgr.pid
+
+usage()
+{
+    echo "Usage : `basename $0` [start | clusterstart | stop | restart]"
+    echo ""
+    exit 1
+}
+
+reset_dir()
+{
+    if test -d $1
+    then
+        rm -fr $1/*
+    else
+        mkdir -p $1
+    fi
+}
+
+# Ensure that clean unmount flag is set for a given disk.
+# It may already be set by HC Java code, this is extra assurance.
+#
+setCleanUnmountFlag()
+{
+  D=$1 # disk id: 0 1 2 3
+  PREFIX=/config/clean_unmount_
+  case $D in 
+      0)
+          DEV=dev_dsk_c0t0d0s4
+          ;;
+      1)
+          DEV=dev_dsk_c0t1d0s4
+          ;;
+      2)
+          DEV=dev_dsk_c1t0d0s4
+          ;;
+      3)
+          DEV=dev_dsk_c1t1d0s4
+          ;;
+      *)
+	logger -p local0.warn "honeycomb.stop: invalid disk id: $D"
+        return
+  esac
+  FNAME=${PREFIX}_${DEV}
+  touch $FNAME
+}
+
+
+start()
+{
+    # Check for the existence of /var/run/nmstarted flag
+    # If flag does not exist, this is the first time honeycomb has 
+    # started - create flag.
+    if [ ! -e $NMSTARTED_FLAG ]; then
+	touch $NMSTARTED_FLAG
+    fi
+
+    # coredump are disabled for now
+    # it should be possible to write coredump on the first local partition.
+    # ulimit -c unlimited
+
+    # cleanup initial filesystem state
+    # FIXME - we need to do it this way because a Managed service cannot
+    # distinguish between the first time it starts (and should initialize
+    # its state) versus a restart after a failure.
+    # Adding the number of restart per service in the node mgr mailbox
+    # should be enough 
+    reset_dir $MAILBOXES_ROOT
+    reset_dir $HCNFS_CACHE
+
+    # Delete the flag that indicates we're in upgrade. This is only used
+    # while an upgrade is in progress, and should not be present when
+    # starting up honeycomb.
+    if [ -e $UPGRADE_FLAG ]; then
+	rm -f $UPGRADE_FLAG
+    fi
+
+    # Check for the existence of the service tag registry
+    # It shouldn't exist until we are ready to create it
+    # The delete here will handle an ungracefull exits
+    # that may of left the file on the system 
+    if [ -e $SERVICETAG_REGISTRY ]; then
+        rm -f $SERVICETAG_REGISTRY 
+    fi
+
+
+    ulimit -n 90000
+    echo `ulimit -a`
+
+    # Add a static route for mboxd's multicast port. If we don't explictly
+    # add this mboxd will sometimes fail to start.
+    nodeip=`hostname|sed 's/[a-z]*//g'`
+    route add net 225.0.0.0 10.123.45.${nodeip} 1
+
+    CUR_DIR=`pwd`
+    cd @PREFIX
+
+    # redirect stdout,stderr to enable getting stack traces with "kill -QUIT"
+    # -DNODE-SERVERS makes the process easily recognizeable in ps table
+
+    @JAVA -DNODE-SERVERS -server -Dsun.io.useCanonCaches=false -Xms128m -Xmx128m -Djava.library.path=@PREFIX/lib -classpath @HCJARS -Djava.util.logging.config.file=@LOGCONF @EMMA_OPT_RT_CONTROL_FALSE @EMMA_OPT_COVERAGE_FILE_START com.sun.honeycomb.cm.node_mgr.NodeMgr >/tmp/hc_nodemgr.out 2>&1 &
+
+    PID=$!
+    if [ -f "${NODEMGR_PID}" ]; then
+	rm "${NODEMGR_PID}"
+    fi
+    echo $PID>${NODEMGR_PID}
+
+    logger -p local0.info "honeycomb.start: Starting NodeMgr, process ID $PID"
+
+    svcs -x honeycomb-server | grep "Start method is running."
+    if [ $? -eq 0 ]; then
+	logger -p local0.info "honeycomb.start: NodeMgr started by Greenline"
+    else
+	logger -p local0.info "honeycomb.start: NodeMgr started manually - Greenline is not monitoring"
+    fi
+
+    exit 0
+}
+
+stop()
+{
+    logger -p local0.info "honeycomb.stop: In honeycomb stop method"
+
+    STATUS=0;
+    KILL_NODE_MGR=0;
+    if [ -f "${NODEMGR_PID}" ]; then
+       PID=`cat "${NODEMGR_PID}"`
+       if [ -d /proc/"${PID}" ]; then
+          KILL_NODE_MGR=1
+       else
+          KILL_NODE_MGR=0
+       fi
+       rm "${NODEMGR_PID}"
+    else 
+       KILL_NODE_MGR=1; 
+    fi
+
+    if [ ${KILL_NODE_MGR} != 1 ]; then
+	logger -p local0.info "honeycomb.stop: NodeMgr wasn't stopped - asking it to stop"
+    	echo "Asking the Node Manager to stop"
+        @JAVA -Xms16m -Xmx16m -Djava.library.path=@PREFIX/lib -classpath @HCJARS -Djava.util.logging.config.file=@@LOGCONF @EMMA_OPT_RT_CONTROL_FALSE @EMMA_OPT_COVERAGE_FILE_STOP com.sun.honeycomb.cm.node_mgr.NodeMgrClient stop
+
+        STATUS=$?;
+    fi
+
+    logger -p local0.info "honeycomb.stop: Taking down adapters"
+    # Take down the adapters which may have the internal and external
+    # admin VIPs
+    ifconfig bge0:2 0.0.0.0 down
+    ifconfig nge0:2 0.0.0.0 down
+    ifconfig bge1000:2 0.0.0.0 down
+    ifconfig nge1000:2 0.0.0.0 down
+    logger -p local0.info "honeycomb.stop: Done taking down adapters"
+
+    if [ ! $STATUS -eq 0 ]; then
+        # Kill all instances of remaining JVM
+	logger -p local0.info "honeycomb.stop: killing remaining JVMs"
+        COUNT=0;
+        while [ $COUNT -lt 10 ]; do
+            pgrep java > /dev/null;
+            STATUS=$?
+            if [ $STATUS -eq 0 ]; then
+                pkill -9 java
+            else
+                break;
+            fi
+            COUNT=`expr $COUNT + 1`;
+        done
+	logger -p local0.info "honeycomb.stop: killed remaining JVMs"
+    fi
+    
+    REBOOT="`prtconf -v /devices | sed -n '/server-reboot/{;n;p;}' | cut -f2 -d \'`"
+
+    logger -p local0.info "honeycomb.stop: about to reboot"
+
+    # Exit normally if we're not rebooting the node. smf will restart
+    # us. Otherwise if we're rebooting, exit with an error so that
+    # smf doesn't restart us.
+    if [ -f /config/noreboot ]; then
+        logger -p local0.warn "honeycomb.stop: not rebooting the node because of the existence of /config/noreboot"
+        exit 0
+    elif [ "$REBOOT" = "false" ]; then
+	logger -p local0.warn "honeycomb.stop: not rebooting the node because server-reboot was set to false"
+	exit 0
+    else
+    	
+        # for all disks: unshare, sync, unmount, set clean unmount flag
+
+        for X in 0 1 2 3; do  	
+    	    logger -p local0.info "honeycomb.stop: unsharing /data/$X"    	
+    	    /usr/sbin/unshare -F nfs /data/$X
+            SHARED=`/usr/sbin/share |grep /data/$X`
+            if [ "$?" == "0" ]; then 
+                logger -p local0.warn "honeycomb.stop: disk still shared: $SHARED"
+            fi
+        done
+
+
+    	logger -p local0.info "honeycomb.stop: syncing..."    	
+    	# Mike said 3 times is the right way to go...
+        /usr/sbin/sync
+    	/usr/sbin/sync
+    	/usr/sbin/sync
+    	
+        for X in 0 1 2 3; do 
+    	    logger -p local0.info "honeycomb.stop: umounting /data/$X"    	
+    	    /usr/sbin/umount -f /data/$X
+            MOUNTED=`/usr/sbin/mount |grep /data/$X`
+            if [ "$?" == "0" ]; then 
+                logger -p local0.warn "honeycomb.stop: disk still mounted: $MOUNTED"
+            else
+                setCleanUnmountFlag $X
+            fi
+        done
+    	
+    	logger -p local0.info "honeycomb.stop: umounting /config"    	
+    	/usr/sbin/umount -f /config    	
+    	
+    	logger -p local0.info "honeycomb.stop: rebooting node"    	
+    	/usr/sbin/reboot -n
+
+    	logger -p local0.info "honeycomb.stop: You shouldn't see this!!!"    	
+       
+        exit $SMF_EXIT_ERR_FATAL
+    fi
+}
+
+case $1 in
+    "clusterstart")
+        start
+        ;;
+    "start")
+        start
+        ;;
+
+    "stop")
+        stop
+        ;;
+
+    "restart")
+        stop
+        start
+        ;;
+
+    *)
+        usage
+esac

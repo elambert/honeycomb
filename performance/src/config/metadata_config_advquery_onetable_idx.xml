@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 
+
+  $Id: metadata_config_advquery_onetable_idx.xml 11701 2007-12-13 15:43:18Z dr129993 $
+
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+
+Use /opt/honeycomb/bin/metadata_merge_config.sh to add this config to
+the existing one -->
+
+<!-- This file contains the performance schema, used to pass the performance and
+blockstore suite tests. Merge accordingly before running those ! -->
+
+<metadataConfig>
+  <schema>
+
+    <namespace name="advquery_onetable_idx" writable="true" extensible="true">
+            
+      <field name="test_start_timestamp" type="long" />
+      <field name="test_id" type="string" length="64" />
+      <field name="iteration" type="long" />
+      <field name="insert_timestamp" type="long" />
+      <field name="client" type="string" length="64" />
+      
+      <field name="one" type="string" length="64" />
+      <field name="two" type="string" length="64" />
+      <field name="three" type="string" length="64" />
+      <field name="four" type="string" length="64" />
+      <field name="five" type="string" length="64" />
+      <field name="six" type="string" length="64" />
+      <field name="seven" type="string" length="64" />
+      <field name="eight" type="string" length="64" />
+      <field name="nine" type="string" length="64" />
+      <field name="ten" type="string" length="64" />
+      <field name="eleven" type="string" length="64" />
+      <field name="twelve" type="string" length="64" />
+      <field name="thirteen" type="string" length="64" />
+      <field name="fourteen" type="string" length="64" />
+      <field name="fifteen" type="string" length="64" />
+      <field name="sixteen" type="string" length="64" />
+      <field name="seventeen" type="string" length="64" />
+      <field name="eighteen" type="string" length="64" />
+      <field name="nineteen" type="string" length="64" />
+      <field name="twenty" type="string" length="64" />
+      <field name="twenty_one" type="string" length="64" />
+      <field name="twenty_two" type="string" length="64" />
+      <field name="twenty_three" type="string" length="64" />
+      <field name="twenty_four" type="string" length="64" />
+      <field name="twenty_five" type="string" length="64" />
+      
+    </namespace>
+
+  </schema>
+  
+  <fsViews>
+
+    <fsView name="idxComplexOrEqualQuery" filename="${system.object_id}">
+      <attribute name="advquery_onetable_idx.one" />
+      <attribute name="advquery_onetable_idx.eighteen"/>
+      <attribute name="advquery_onetable_idx.twenty_one"/>
+    </fsView>
+
+    <fsView name="idxComplex2Query" filename="${system.object_id}">
+      <attribute name="advquery_onetable_idx.eight"/>
+      <attribute name="advquery_onetable_idx.thirteen"/>
+      <attribute name="advquery_onetable_idx.twenty_one"/>
+      <attribute name="advquery_onetable_idx.three"/>
+    </fsView>
+
+  </fsViews>
+
+  <tables>
+    <table name="advquery_onetable_idx">
+      <column name="advquery_onetable_idx.test_start_timestamp"/>
+      <column name="advquery_onetable_idx.test_id"/>
+      <column name="advquery_onetable_idx.iteration"/>
+      <column name="advquery_onetable_idx.insert_timestamp"/>
+      <column name="advquery_onetable_idx.client"/>
+      
+      <column name="advquery_onetable_idx.one"/>
+      <column name="advquery_onetable_idx.two"/>
+      <column name="advquery_onetable_idx.three"/>
+      <column name="advquery_onetable_idx.four"/>
+      <column name="advquery_onetable_idx.five"/>
+      <column name="advquery_onetable_idx.six"/>
+      <column name="advquery_onetable_idx.seven"/>
+      <column name="advquery_onetable_idx.eight"/>
+      <column name="advquery_onetable_idx.nine"/>
+      <column name="advquery_onetable_idx.ten"/>
+      <column name="advquery_onetable_idx.eleven"/>
+      <column name="advquery_onetable_idx.twelve"/>
+      <column name="advquery_onetable_idx.thirteen"/>
+      <column name="advquery_onetable_idx.fourteen"/>
+      <column name="advquery_onetable_idx.fifteen"/>
+      <column name="advquery_onetable_idx.sixteen"/>
+      <column name="advquery_onetable_idx.seventeen"/>
+      <column name="advquery_onetable_idx.eighteen"/>
+      <column name="advquery_onetable_idx.nineteen"/>
+      <column name="advquery_onetable_idx.twenty"/>
+      <column name="advquery_onetable_idx.twenty_one"/>
+      <column name="advquery_onetable_idx.twenty_two"/>
+      <column name="advquery_onetable_idx.twenty_three"/>
+      <column name="advquery_onetable_idx.twenty_four"/>
+      <column name="advquery_onetable_idx.twenty_five"/>
+  </table>
+
+  </tables>
+
+</metadataConfig>

@@ -1,0 +1,12 @@
+UpdateClients
+ResetSchema
+SdkRegressionTests
+CAPI
+WebdavOfoto
+DataPathRegressionTests
+HealingBasicTests
+FragmentSingleTests
+FragmentDoubleTests
+InstallWhitebox
+ResetSchema
+HadbTests

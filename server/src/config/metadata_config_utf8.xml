@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+ $Id: metadata_config_utf8.xml 10855 2007-05-19 02:54:08Z bberndt $
+
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+
+   Usage Hints:
+
+   Use "native2ascii -encoding utf-8 metadata_config_utf8.xml
+   myfile.txt" to convert the utf-8 codes to Java-style Unicode
+   escapes.
+
+   Use "export LC_ALL=en_CA.UTF-8;vi metadata_config_utf8.xml" to see
+   the characters in a useful font.
+
+-->
+
+<metadataConfig>
+  
+  <schema>
+
+    <namespace name="utf8" writable="true" extensible="true">
+      <field name="мне не вредит" type="string" length="32" />
+      <field name="আমার কোনো" type="string" length="32" />
+      <field name="それは私を傷つけません" type="string" length="32" />
+      <field name="我能吞下玻璃而不伤身体" type="string" length="32" />
+      <field name="fname" type="string" length="128" />
+    </namespace>
+
+  </schema>
+
+  <fsViews>
+    <fsView name="utf8HashDirs" filename="${utf8.fname}" >
+      <attribute name="utf8.мне не вредит" unset="unk" />
+      <attribute name="utf8.আমার কোনো" unset="unk" />
+      <attribute name="utf8.それは私を傷つけません" unset="unk" />
+      <attribute name="utf8.我能吞下玻璃而不伤身体" unset="unk" />
+    </fsView>
+  </fsViews>
+
+  <tables>
+    <table name="utf8">
+      <column name="utf8.мне не вредит" />
+      <column name="utf8.আমার কোনো" />
+      <column name="utf8.それは私を傷つけません" />
+      <column name="utf8.我能吞下玻璃而不伤身体" />
+      <column name="utf8.fname" />
+    </table>
+  </tables>
+
+</metadataConfig>

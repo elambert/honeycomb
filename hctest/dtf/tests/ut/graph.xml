@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="graph">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF distribute performance test.</description>
+    </info>
+        
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+        
+        <loadproperties uri="storage://INPUT/ut.properties"/>
+        
+        <property name="agent.ids" value="D1"/>
+        <property name="i" value="1000"/>
+        <property name="worker" value="1"/>
+    </local>
+    
+    <for property="agent" range="${agent.ids}">
+    	<local>
+            <lockcomponent id="${agent}">
+            	<attrib name="type" value="dtfa"/>
+            </lockcomponent>
+        </local>
+    </for>
+    
+    <record type="txt" 
+            uri="storage://OUTPUT/perf_dist.txt" 
+            append="false"
+            event="dtf">
+        <parallelloop property="agent" range="${agent.ids}">
+            <distribute property="iter" 
+                        iterations="${i}" 
+                        workers="${worker}"
+                        id="dist1">
+                <event name="dtf.component">
+                    <component id="${agent}">
+                        <event name="dtf.echo">
+                       	    <attribute name="iteration" value="${iter}"/>
+                        </event>
+                    </component>
+                </event>
+           </distribute>
+       </parallelloop>
+	</record>
+
+	<query uri="storage://OUTPUT/perf_dist.txt" 
+           type="txt" 
+           event="dtf.component"
+           cursor="perfcursor"/>
+           
+    <record type="object" uri="property://perf"> 
+	    <stats cursor="perfcursor" event="stats"/>
+    </record> 
+    
+    <local>
+   		<echo>
+              Distribute Performance
+              
+              Events per second: ${perf.avg_occ}
+              Total of Events:   ${perf.tot_occ}
+              Total Duration:    ${perf.tot_dur}s
+              Max duration:      ${perf.max_dur}s
+              Min duration:      ${perf.min_dur}s
+              AVg duration:      ${perf.avg_dur}s
+        </echo> 
+    </local>
+
+ 	<query uri="storage://OUTPUT/perf_dist.txt" 
+           type="txt" 
+           event="dtf.echo"
+           cursor="perfcursor"/>
+           
+    <graph title="Unit testing..."
+           uri="storage://OUTPUT/test.svg"
+           type="svg">
+        <series name="Events per second"
+                cursor="perfcursor"
+                mode="histogram"/>       
+    </graph>
+    
+ 	<query uri="storage://OUTPUT/perf_dist.txt" 
+           type="txt" 
+           event="dtf.echo"
+           cursor="perfcursor"/>
+           
+    <graph title="Unit testing..."
+           uri="storage://OUTPUT/test.png"
+           type="png">
+        <series name="Events per second"
+                cursor="perfcursor"
+                mode="histogram"/>       
+    </graph>
+    
+</script>

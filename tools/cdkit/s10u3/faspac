@@ -1,0 +1,1035 @@
+#!/sbin/sh
+#
+# $Id: faspac 10853 2007-05-19 02:50:20Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+# @(#) faspac.sh 1.18 01/10/12 SMI
+
+# faspac - converts packages to/from class archive format
+#	USAGE : faspac [-m <archiveMethod>] [-a] [-s] [-q] [-d <Base Directory>]
+#		[-x <Exclude List>] [<List of Packages>]
+#
+#	DESC :	Unless the '-s' option is specified, this utility converts
+#		a standard ABI-type package to the class archive
+#		format used for bundled packages starting with release
+#		2.5. The resulting package is smaller and installs from the
+#		CD more quickly than the package in full directory
+#		format. This utility works only with ABI or or class
+#		archive format packages. To convert older compressed
+#		formats to/from ABI use the utility repac.sh 
+#
+#		The resulting package will have an additional directory in
+#		the top directory called 'archive.' In this directory will be
+#		all of the archives named by class. The install directory
+#		will contain the class action scripts necessary to unpack
+#		each archive. Absolute paths are not archived.
+#
+#	OPTIONS :
+#	m	Use a different method for archive/compression. As of 28u4
+#		bzip2 is the default compression utilities used. To switch
+#		to zip/unzip use "-m zip" or for cpio/compress use "-m cpio".
+#
+#	a	Fix attributes (must be root)
+#
+#	s	Standard ABI type package translation. This takes a
+#		cpio'd and/or compressed package and makes it a standard
+#		ABI compliant package format.
+#
+#	q	quiet mode
+#
+#	d [bd]	This is a directory in which all packages present will
+#		be acted upon as required by the command line. This is
+#		mutually exclusive with the <List of Packages> entry.
+#
+#	x [el]	Comma separated or quoted, space-separated list of
+#		packages to exclude from processing.
+#
+
+#
+# Constants
+#
+TOOBIG=675
+USAGE="Usage: ${PROGNAME} [-m <archiveMethod>] [-a] [-s] [-q] [-d <Base Directory>] [-x <Exclude List>] [<List of Packages>]"
+PROGNAME=`/usr/bin/basename $0`
+CAS_TEMPLATE=`dirname $0`/i.template
+M4=/usr/ccs/bin/m4
+NAWK=/usr/bin/nawk
+WC=/usr/bin/wc
+EGREP=/usr/bin/egrep
+SED=/usr/bin/sed
+CPIO=/usr/bin/cpio
+ZIP=/usr/bin/zip
+UNZIP=/usr/bin/unzip
+BZIP=/usr/bin/bzip2
+BZCAT=/usr/bin/bzcat
+COMP=/usr/bin/compress
+UNCOMP=/usr/bin/uncompress
+ECHO=/usr/bin/echo
+VALPATH=/usr/sadm/bin/valpath
+ARCH=""
+CPIOARCH=""
+
+BZIP_CMDS="$CPIO $BZIP $BZCAT"
+ZIP_CMDS="$ZIP $UNZIP"
+CPIO_CMDS="$CPIO $COMP"
+REQD_CMDS="$VALPATH $M4 $NAWK $WC $EGREP $SED $ECHO"
+
+#
+# Globals
+#
+Comp=0
+Large=0
+Has_x=0
+
+#
+# Some Functions
+#
+
+#
+# Remove the temporary files
+#
+# $1 - Exit code
+
+cleanup() {
+	rm -f /usr/tmp/rp$$*	
+	exit $1
+}
+
+# Archive and compress the class using cpio and bzip.
+#
+# $1 - Archive class
+# $2 - Archive path
+# $3 - class
+
+do_bzip() {
+
+	$CPIO -oc -C 512 -O ${2} < ${1}
+	if [ $? -ne 0 ]; then
+		if [ -f ${2} ]; then
+			/usr/bin/rm -f ${2}
+		fi
+		msg_ind "cpio of ${3} failed with error $?."
+		cleanup 1
+	fi
+	$BZIP -9 ${2}
+	if [ $? -eq 0 ]; then
+		success ${1} "${2}.bz2" ${3}
+	else
+		msg_ind "zip of ${3} failed with error $?."
+		cleanup 1
+	fi
+	install_script ${PkgPath} ${3}
+}
+
+# do_zip - Archive the class using zip.
+#
+# $1 - Archive class
+# $2 - Archive path
+# $3 - class
+
+do_zip() {
+	/usr/bin/cat ${1} | $ZIP -9 -q ${2} -@
+	if [ $? -eq 0 ]; then
+		/usr/bin/mv ${2}.zip ${2}
+		success ${1} ${2} ${3}
+	else
+		msg_ind "zip of ${3} failed with error $?."
+	fi
+	install_script ${PkgPath} ${3}
+}
+
+#
+# do_cpio - Archive the class using cpio.
+#
+# $1 - Archive class
+# $2 - Archive path
+# $3 - class
+
+do_cpio() {
+	$CPIO -oc -O ${2} < ${1}
+	if [ $? -eq 0 ]; then
+		success ${1} ${2} ${3}
+		$COMP ${2}
+		if [ -f ${2}.Z ]; then
+			CPIOARCH="compCpio"
+		else
+			msg_ind "Compression is inappropriate for ${2}."
+			CPIOARCH="cpio"
+		fi
+
+	else
+		msg_ind "cpio of ${2} failed with error $?."
+		if [ -f ${2} ]; then
+			/usr/bin/rm -f ${2}
+		fi
+		cleanup 1
+	fi
+	install_script ${PkgPath} ${3}
+
+}
+
+#
+# success - Generic success routine for either archive utility used.
+#
+# $1 - Archive class
+# $2 - Archive path
+# $3 - class
+
+success() {
+	/usr/bin/chmod 644 ${2}
+	/usr/bin/cat ${1} | xargs -l5 /usr/bin/rm -f
+	PkgIsStandard=0
+}
+
+#
+# non_classes - Set Class to the list of degenerate classes in this package.
+#
+non_classes() {	# $1 = Package Directory
+    Pkgd="$1"
+    Map="${Pkgd}/pkgmap"
+
+    # Create a list of all classes
+    Class=`$NAWK '
+	$1 != ":" && $2 ~ /[^i]/ { Class[$3]++ }
+	END {
+	    for (i in Class)
+		print i
+	}
+	' ${Map}`
+
+    # Weed out those that have install class action scripts
+    if [ ! -z "${Class}" ]; then
+	set -- ${Class}
+	Class=""
+	while [ ! -z "$1" ]; do
+	    if [ -f "${Pkgd}/install/i.$1" -o "$1" = "build" -o \
+		"$1" = "sed" -o "$1" = "awk" ]
+	    then
+		shift
+		continue
+	    else
+		Class="${Class} $1"
+	    fi
+	    shift
+	done
+    fi
+
+    # Class is a space separated list of the 'degenerate' classes
+    $ECHO ${Class}
+    return 0
+}
+
+#
+# install_script - insert the correct class action script into the
+# install directory
+#
+install_script () {	# $1 is package directory $2 is class
+    msg_ind "Constructing class action script."
+
+    if [ ! -d $1/install ]; then
+		/usr/bin/mkdir $1/install
+    fi
+
+    targ=$1/install/i.$2
+
+    Cmd="-D_thisclass=$2"
+
+	if [ "$CPIOARCH" = "compCpio" ];then
+		Cmd="$Cmd -Dcomp=1"
+	elif [ "$CPIOARCH" = "cpio" ];then
+		Cmd="$Cmd -Dcpio=1"
+	elif [ "$ARCH" = "zip" ]; then
+		Cmd="$Cmd -Dzip=1"
+	elif [ "$ARCH" = "bzip" ]; then
+		Cmd="$Cmd -DbZip=1"
+	fi
+
+    if [ $Large -gt 0 ]; then
+		Cmd="$Cmd -Dlarge=1"
+	fi
+
+    if [ $Has_x -gt 0 ]; then
+		Cmd="$Cmd -Dhas_x=1"
+	fi
+
+    $M4 -B8192 $Cmd $CAS_TEMPLATE | $SED s/@/\\$/g | $NAWK '$1 != "#" { print}' > $targ
+}
+#
+# DoInfo - update the pkginfo file
+#
+DoInfo () {	# $1 = pkginfo $2 = pkgmap $3 = class list
+    if [ -z ${3} ]; then
+	cleanup 0
+    fi
+
+    msg_ind "Modifying ${PkgName}/pkginfo."
+
+    /usr/bin/cat ${1} | $NAWK '
+	BEGIN {
+	    src_const = 0
+	    dst_const = 0
+	    cas_const = 0
+	}
+	/PKG_SRC_NOVERIFY/ {
+	    if (src_const == 0) {
+		src_line = $0
+		src_const = 1
+	    } else {
+		src_line = sprintf("%s %s", src_line, substr($0, index($0,"=")+1))
+	    }
+	    next
+	}
+	/PKG_DST_QKVERIFY/ {
+	    if (dst_const == 0) {
+		dst_line = $0
+		dst_const = 1
+	    } else {
+		dst_line = sprintf("%s %s", dst_line, substr($0, index($0,"=")+1))
+	    }
+	    next
+	}
+	/PKG_CAS_PASSRELATIVE/ {
+	    if (cas_const == 0) {
+		cas_line = $0
+		cas_const = 1
+	    } else {
+		cas_line = sprintf("%s %s", cas_line, substr($0, index($0,"=")+1))
+	    }
+	    next
+	}
+	{ print }
+	END {
+	    if (src_const == 0) {
+		printf("PKG_SRC_NOVERIFY=%s\n", classes)
+	    } else {
+		printf("%s %s\n", src_line, classes)
+	    }
+	    if (dst_const == 0) {
+		printf("PKG_DST_QKVERIFY=%s\n", classes)
+	    } else {
+		printf("%s %s\n", dst_line, classes)
+	    }
+	    if (cas_const == 0) {
+		printf("PKG_CAS_PASSRELATIVE=%s\n", classes)
+	    } else {
+		printf("%s %s\n", cas_line, classes)
+	    }
+	    printf("#FASPACD=%s\n", classes)
+	} ' classes="$3" > ${1}.tmp
+
+    /usr/bin/mv ${1}.tmp ${1}
+
+    # Now update the pkgmap
+    Isum=`/usr/bin/sum $1 | $NAWK '{ print $1 }'`
+    Isize=`$WC -c $1 | $NAWK '{ print $1 }'`
+
+    /usr/bin/cat $2 | $NAWK '
+	/i pkginfo/ {
+	    printf("%d %s %s %d %d %d\n", $1, $2, $3, size, sum, $6)
+	    next
+	}
+	{ print }
+	' sum=$Isum size=$Isize > ${2}.tmp
+
+    /usr/bin/mv ${2}.tmp ${2}
+}
+#
+# UnInfo - remove the verify qualifiers from pkginfo
+#
+UnInfo () {	# $1 = pkginfo file $2 = pkgmap $3 = class list
+    if [ -z ${3} ]; then
+		cleanup 0
+    fi
+
+    msg_ind "Modifying ${PkgName}/pkginfo."
+
+    /usr/bin/cat ${1} | $NAWK '
+	{ split(classes, class) }
+	/PKG_SRC_NOVERIFY/ {
+	    doprint=0
+	    line = substr($0, index($0,"=")+1)
+	    fldcount=split(line, list)
+	    for(fld=1; fld<=fldcount; fld++) {
+		for(cls=1; class[cls]; cls++) {
+		    if(class[cls] == list[fld]) {
+			list[fld] = "-1"
+		    }
+		}
+	    }
+	    output="PKG_SRC_NOVERIFY="
+	    for(fld=1; fld<=fldcount; fld++) {
+		if(list[fld] != "-1" && list[fld] ) {
+		    if (doprint==0) {
+			output = sprintf("%s%s", output, list[fld])
+		    } else {
+			output = sprintf("%s %s", output, list[fld])
+		    }
+		    doprint=1
+		}
+	    }
+	    if (doprint==1) {
+		printf("%s\n", output)
+	    }
+	    next
+	}
+	/PKG_DST_QKVERIFY/ {
+	    doprint=0
+	    line = substr($0, index($0,"=")+1)
+	    fldcount=split(line, list)
+	    for(fld=1; fld<=fldcount; fld++) {
+		for(cls=1; class[cls]; cls++) {
+		    if(class[cls] == list[fld]) {
+			list[fld] = "-1"
+		    }
+		}
+	    }
+	    output="PKG_DST_QKVERIFY="
+	    for(fld=1; fld<=fldcount; fld++) {
+		if(list[fld] != "-1") {
+		    if (doprint==0) {
+			output = sprintf("%s%s", output, list[fld])
+		    } else {
+			output = sprintf("%s %s", output, list[fld])
+		    }
+		    doprint=1
+		}
+	    }
+	    if (doprint==1) {
+		printf("%s\n", output)
+	    }
+	    next
+	}
+	/PKG_CAS_PASSRELATIVE/ {
+	    doprint=0
+	    line = substr($0, index($0,"=")+1)
+	    fldcount=split(line, list)
+	    for(fld=1; fld<=fldcount; fld++) {
+		for(cls=1; class[cls]; cls++) {
+		    if(class[cls] == list[fld]) {
+			list[fld] = "-1"
+		    }
+		}
+	    }
+	    output="PKG_CAS_PASSRELATIVE="
+	    for(fld=1; fld<=fldcount; fld++) {
+		if(list[fld] != "-1") {
+		    if (doprint==0) {
+			output = sprintf("%s%s", output, list[fld])
+		    } else {
+			output = sprintf("%s %s", output, list[fld])
+		    }
+		    doprint=1
+		}
+	    }
+	    if (doprint==1) {
+		printf("%s\n", output)
+	    }
+	    next
+	}
+	/#FASPACD=/ {
+	    next
+	}
+	{ print }
+	 ' classes="$3" > ${1}.tmp
+
+    /usr/bin/mv ${1}.tmp ${1}
+
+    # Now update the pkgmap
+    Isum=`/usr/bin/sum $1 | $NAWK '{ print $1 }'`
+    Isize=`$WC -c $1 | $NAWK '{ print $1 }'`
+
+    /usr/bin/cat $2 | $NAWK '
+	/i pkginfo/ {
+	    printf("%d %s %s %d %d %d\n", $1, $2, $3, size, sum, $6);
+	    next;
+	}
+	{ print }
+	' sum=$Isum size=$Isize > ${2}.tmp
+
+    /usr/bin/mv ${2}.tmp ${2}
+}
+#
+# display message if quiet is off
+#
+msg_opt() {
+    if [ ${Quiet} -eq 0 ]; then
+	$ECHO $1
+    fi
+    return 0
+}
+#
+# display indented message if quiet is off
+#
+msg_ind() {
+    if [ ${Quiet} -eq 0 ]; then
+	$ECHO "  "$1
+    fi
+    return 0
+}
+#
+# DoMap - add third entry to the pkgmap of a possibly compressed package
+# if it is required.
+#
+DoMap() {
+    size=`/usr/bin/du -s ${PkgPath} | $NAWK '{printf($1)}'`
+
+    if [ -f ${PkgPath}/pkgmap.tmp ]; then
+	usr/bin/rm ${PkgPath}/pkgmap.tmp
+    fi
+
+    /usr/bin/cat ${PkgPath}/pkgmap | $NAWK '
+	$1 ~ /[:]/ {	# size line
+	    if (NF == 3) {	# if this package was uncompressed
+		if( s < $3-4 ) {	# & now compression is significant
+		    printf(": %s %s %s\n", $2, $3, s)	# add 3rd entry
+		} else {	# no change
+		    print;
+		}
+	    } else {	# it was compressed in the first place
+		if( s < $4-4 || s > $4+4 ) { # & diff is significant
+		    if( s < $3-20) {	# & its still compressed
+			printf(": %s %s %s\n", $2, $3, s) # new 3rd ent
+		    } else {
+			printf(": %s %s\n", $2, $3)	# remove 3rd entry
+		    }
+		} else {	# no change
+		    print;
+		}
+	    }
+	    next
+	}
+	    { print } ' s=$size > ${PkgPath}/pkgmap.tmp
+    if [ -s ${PkgPath}/pkgmap.tmp ]; then
+	msg_ind "Modifying ${PkgName}/pkgmap."
+	/usr/bin/rm ${PkgPath}/pkgmap
+	/usr/bin/mv ${PkgPath}/pkgmap.tmp ${PkgPath}/pkgmap
+    else
+	/usr/bin/rm  ${PkgPath}/pkgmap.tmp
+    fi
+    return 0
+}
+
+#
+# excluded - check a list of excluded directories (ExclLst)
+#
+excluded() {
+    $ECHO $2 | $EGREP $1 > /dev/null 2>&1 && return 1
+    return 0
+}
+
+#
+# Comfirm that all archival commands are available.
+#
+checkArchCmds() {
+
+	if [ "$ARCH" = "bzip" ]; then
+		archCmds="$BZIP_CMDS"
+	elif [ "$ARCH" = "zip" ]; then
+		archCmds="$ZIP_CMDS"
+	else
+		archCmds="$CPIO_CMDS"
+	fi
+
+	for cmd in $archCmds; do
+		if [ ! -x "$cmd" ]; then
+			$ECHO "Cannot find required archival command: $cmd."
+			cleanup 1
+		fi
+	done
+}
+
+#
+# Confirm that all generic executables are available
+#
+checkReqdCmds() {
+
+	for cmd in $REQD_CMDS; do
+		if [ ! -x "$cmd" ]; then
+			$ECHO "Cannot find required executable: $cmd."
+			cleanup 1
+		fi
+	done
+
+}
+
+#
+# main
+#
+
+trap 'cleanup 1' 1 2 3 15
+
+BaseDir=""
+DirName=""
+ExclLst=""
+CompMeth=""
+Quiet=0
+Attr_fix=0
+dashD=0
+Attr_only=0
+MkStandard=0
+svd=`/usr/bin/pwd`
+
+if type getopts | $EGREP 'not found' > /dev/null
+then
+	eval set -- "`getopt sd:x:m:qa "$@"`"
+	if [ $? -ne 0 ]; then
+		$ECHO $USAGE
+		cleanup 1
+	fi
+	for i in $*
+	do
+		case $i in
+		-a)	Attr_fix=1; shift;;
+		-d)	BaseDir=$1; dashD=1; shift 2;;
+		-s)	MkStandard=1; shift;;
+		-x)	ExclLst=$1; shift 2;;
+		-q)	Quiet=1; shift;;
+		-m)	CompMeth=$1; shift;;
+		--)	shift; break;;
+		esac
+	done
+else
+	while getopts sd:x:m:qa i
+	do
+		case $i in 
+		a)	Attr_fix=1;;
+		d)	BaseDir=${OPTARG}; dashD=1;;
+		s)	MkStandard=1;;
+		x)	ExclLst=${OPTARG};;
+		q)	Quiet=1;;
+		m)	CompMeth=${OPTARG};;
+		\?)	$ECHO $USAGE
+			cleanup 1;;
+		esac
+	done
+	shift `expr ${OPTIND} - 1`
+fi
+
+checkReqdCmds # make sure we can even run in this environment
+
+#
+# Only runs on Solaris!
+#
+if [ ! -f /etc/vfstab ]; then
+    $ECHO "${PROGNAME}: This script may only be executed under Solaris!"
+    $ECHO $USAGE
+    cleanup 1
+fi
+
+if [ $# -eq 0 -a -z "${BaseDir}" ]; then
+    $ECHO $USAGE
+    cleanup 1
+fi
+
+if [ $Attr_only -eq 1 -a $Attr_fix -eq 1 ]; then
+    $ECHO "-a and -A are mutually exclusive."
+    cleanup 1
+fi
+
+if [ `/usr/ucb/whoami` != root -a $Attr_fix -eq 1 ]; then
+    $ECHO "-a requires root permissions."
+    cleanup 1
+fi
+
+# If no archival method is selected then use bzip2 as the default.
+
+if [ ${MkStandard} -eq 0 ]; then
+	if [ -z "${CompMeth}" -o "${CompMeth}" = "bzip" ]; then
+		ARCH="bzip"
+	elif [ ${CompMeth} = "cpio" ]; then
+		ARCH="cpio"
+	elif [ ${CompMeth} = "zip" ]; then
+		ARCH="zip"
+	fi
+fi
+	
+if [ -n "${BaseDir}" ]; then
+    if [ $BaseDir = "." ]; then
+		BaseDir=$svd
+    else
+		$ECHO $BaseDir | ckpath -a 1>/dev/null 2>/dev/null
+		if [ $? -ne 0 ]; then
+	    	BaseDir=$svd/$BaseDir
+		fi
+    fi
+else
+	for arg in $@; do
+		$VALPATH -a $arg
+		if [ $? = 0 ]; then
+			BaseDir=`dirname $arg`
+		else
+			arg="$svd/$arg"
+			BaseDir=`dirname $arg`
+		fi
+		break
+	done
+    #BaseDir=$svd
+fi
+
+ToCheck=$@
+
+if [ -z "${ToCheck}" ]; then
+    checkPkgs=`$ECHO $BaseDir/*`
+else
+	for p in ${ToCheck}; do
+		pkgToCheck=`/usr/bin/basename $p`
+		tmpToCheck=`$ECHO $BaseDir/$pkgToCheck`
+		checkPkgs="$checkPkgs $tmpToCheck"
+		#ToCheck=`$ECHO $BaseDir/$@`
+	done
+fi
+
+for PkgPath in ${checkPkgs}; do
+    PkgIsStandard=0	# pkg is ABI format
+
+    PkgName=`/usr/bin/basename $PkgPath`
+
+    excluded $PkgName "$ExclLst"
+
+    if [ $? -eq 0 ]; then
+	#
+	# Do some preprocessing to simplify things later.
+	#
+	if [ ! -d ${PkgPath} ]; then
+	    $ECHO "No such package as ${PkgName}"
+	    continue
+	fi
+	Map="${PkgPath}/pkgmap"
+	Info="${PkgPath}/pkginfo"
+	if [ ! -f ${Map} -o ! -f ${Info} ]; then
+	    $ECHO "Package ${PkgName} is incomplete"
+	    continue
+	fi
+
+	if [ ${MkStandard} -eq 1 ]; then
+		if [ -f ${PkgPath}/reloc.cpio -o -f ${PkgPath}/root.cpio ]; then
+			ARCH="cpio"
+		elif [ -f ${PkgPath}/reloc.cpio.Z -o -f ${PkgPath}/root.cpio.Z ]; then
+			ARCH="compCpio"
+		elif [ -f ${PkgPath}/reloc.Z -o -f ${PkgPath}/root.Z -o \
+		  -f ${PkgPath}/reloc -o -f ${PkgPath}/root ]; then
+			ARCH="old"
+		elif [ -d ${PkgPath}/archive ]; then
+		    Classes=`$EGREP "#FASPACD=" $Info | $NAWK '{print substr($0, index($0, "=")+1)}'`
+		    if [ -z "${Classes}" ]; then
+				$ECHO "WARNING: Package appears to be archived by a tool other than faspac"
+		    fi
+	
+			# Since there is only one method of archival to be used for
+			# multiple classes only the first one found is needed to
+			# determine the unarchival tool.
+	
+			for cls in $Classes; do
+				if [ -f "${PkgPath}/archive/$cls.bz2" ]; then
+					ARCH="bzip"
+				elif [ -f "${PkgPath}/archive/$cls.Z" ]; then
+					ARCH="compCpio"
+				else
+					ARCH="zip"
+				fi
+				break
+			done
+		fi
+	fi
+	#
+	# If it's not cpio'd & not compressed & not old & it has the
+	# appropriate directories, it's ABI.
+	#
+	if [ -d ${PkgPath}/reloc -o -d ${PkgPath}/root ]; then
+		if [ ! -d ${PkgPath}/archive ]; then
+	    	PkgIsStandard=1
+		fi
+	else
+		msg_ind "Conversion is inappropriate for ${PkgName}."
+		continue
+	fi
+
+	# If no archive method has been detected then conversion is
+	# inappropriate.
+	if [ -z "$ARCH" ]; then
+	    msg_ind "Conversion is inappropriate for ${PkgName}."
+	    continue
+	fi
+
+	msg_opt "Processing: ${PkgName}"
+
+	if [ "$ARCH" = "old" ]; then
+	    $ECHO "Format of ${PkgName} is obsolete. It must be converted"
+	    $ECHO "to ABI format as follows."
+	    $ECHO "    repac.sh -ts ${PkgName}"
+	    continue
+	fi
+
+	checkArchCmds
+
+	#
+	# This converts a class archive package to a standard
+	# package (ABI)
+	#
+	if [ ${MkStandard} -eq 1 ]; then
+    if [ ${PkgIsStandard} -eq 0 ]; then
+		Inplace=0
+		if [ -d ${PkgPath}/archive ]; then
+		    for class in $Classes
+		    do
+				if [ $Inplace -eq 0 ]; then
+			    	if [ ! -d ${PkgPath}/reloc ]; then
+						/usr/bin/mkdir ${PkgPath}/reloc
+			    	fi
+			    	Inplace=1
+				fi
+				cd ${PkgPath}/reloc
+				Archive=${PkgPath}/archive/$class
+				ArScript=${PkgPath}/install/i.$class
+				if [ "$ARCH" = "compCpio" -o \
+					"$ARCH" = "cpio" -o "$ARCH" = "bzip" ]; then
+					msg_ind "Unarchiving ${Archive}. \c"
+				else
+					msg_ind "Unarchiving ${Archive}."
+				fi
+				if [ "$ARCH" = "compCpio" -o "$ARCH" = "cpio" ]; then
+			    	$UNCOMP ${Archive}
+					if [ -f $Archive ]; then
+						$CPIO -idukm -I ${Archive}
+						if [ $? -eq 0 ]; then
+							/usr/bin/rm -f ${Archive}
+							msg_ind "Removing class action script."
+							/usr/bin/rm -f ${ArScript}
+						else
+							msg_ind "cpio of ${Archive} failed with error $?."
+							continue
+						fi
+					fi
+				elif [ "$ARCH" = "bzip" ]; then
+					$BZCAT ${Archive}.bz2 | $CPIO -idukm -C 8192
+					if [ -f ${Archive}.bz2 ]; then
+						if [ $? -eq 0 ]; then
+							/usr/bin/rm -f ${Archive}
+							msg_ind "Removing class action script."
+							/usr/bin/rm -f ${ArScript}
+						else
+							msg_ind "bunzip of ${Archive} failed with error $?."
+							continue
+						fi
+					fi
+				elif [ "$ARCH" = "zip" ]; then
+					$UNZIP -oq ${Archive} 
+					if [ $? -eq 0 ]; then
+						msg_ind "Removing class action script."
+						/usr/bin/rm -f ${ArScript}
+					else
+						msg_ind "unzip of ${Archive} failed with error $?."
+						continue
+					fi
+				else
+					msg_ind "No supported archival method has been detected."
+				fi		
+		    done
+		    cd ${svd}
+		fi
+
+		if [ ! -z "${Classes}" ]; then
+		    UnInfo ${Info} ${Map} "$Classes"
+		fi
+
+		/usr/bin/rm -fr  ${PkgPath}/archive
+
+		# Modify the pkgmap if package is compressed differently
+		DoMap 
+	else
+		msg_ind "Package is already ABI standard."
+    fi
+    continue	# Done with this package
+
+	#
+	# Here we are going to do something to an ABI.
+	#
+	# This goes through the pkgmap, selecting entities from each
+	# degenerate class to archive. Entities in scripted classes
+	# must remain in directory format since they must be directly
+	# accessable by their Class Action Scripts.
+	#
+	else
+	    FnlClass=""
+	    Class=`non_classes ${PkgPath}`
+	    if [ -z "${Class}" ]; then
+		msg_ind "No items appropriate for archive."
+		continue
+	    fi
+
+	    # FilePref is the list of files and directories NOT to archive.
+	    # FilePref.class is the list of files to archive for a
+	    # particular class
+   	    /usr/bin/rm -f /usr/tmp/rp$$.${PkgName}*
+	    FilePref=/usr/tmp/rp$$.${PkgName}
+
+	    # If this is to have correct attributes then set them
+	    if [ $Attr_fix -eq 1 ]; then
+		msg_ind "Synchronizing file attributes."
+		/usr/sbin/pkgchk -f -d ${BaseDir} ${PkgName} 1>/dev/null 2>/dev/null
+	    fi
+
+		# If this pkg uses parametric paths use cpio for compression.
+		# Zip can't handle pkgadd's installation determination of
+		# which files will be extracted from the archive. If the file
+		# passed to zip doesn't match what is in the archive, zip will
+		# fail.
+
+		Has_param_paths=""
+		Has_param_paths=`$NAWK '
+			$4 ~ /\\$/ { print "1"; exit } ' ${Map} `
+
+ 		# Also use cpio for file names that contain special characters.
+ 		# Here's a list of some that may be needed to be screened later
+ 		# /\\@|\\#|\\$|\\%|\\^|\\*|\\(|\\)|\\[|\\]|\\{|\\}|\\+/
+ 
+ 		Has_special_chars=""
+ 		Has_special_chars=`$NAWK '
+			$4 ~ /\\[|\\]/ { print "1"; exit } ' ${Map} `
+
+	    # Now scan for files in scriptless classes and list them by class
+	    Has_x=`$NAWK '
+		NR == 1 {			# Set up
+		    if (Class != "") {
+			NClass=split(Class,Classes)
+			for (i=1; i <= NClass; i++)
+			    AClass[Classes[i]] = 1
+		    }
+		    has_x=0
+		}
+		$4 ~ /\\$/ {			# this messes up cpio
+		    next
+		}
+		$2 ~ /[fv]/ {	# Files (no variables, relative, in AClass)
+
+		    if ( $4 !~ /\\$/ && substr($4,1,1) !~ /\// && $3 in AClass ) {
+			print $4 |("sort > " FilePref "." $3)
+			if ( $4 == "usr/lib/libintl.so.1" || $4 == "usr/lib/libmapmalloc.so.1" || $4 == "usr/lib/libc.so.1" || $4 == "usr/lib/libw.so.1" || $4 == "usr/lib/libdl.so.1" || $4 == "usr/bin/cpio" || $4 == "usr/bin/rm" || $4 == "usr/bin/ln" || $4 == "usr/sbin/static/mv" || $4 == "usr/bin/nawk" || $4 == "usr/bin/zcat" ) {
+			    has_x=1
+			}
+		    }
+		    if (match($4, /.*\//) && RLENGTH > 1)
+			DirLst[substr($4,RSTART,(RLENGTH-1))]++
+		    next
+		}
+		END { 			# Sort the list of directories
+		    for (i in DirLst) {
+			FinalDirLst[i]++
+			k=i
+			while (match(k, /.*\//) && RLENGTH > 1) {
+			    FinalDirLst[substr(k,RSTART,(RLENGTH-1))]++
+			    k=substr(k,RSTART,(RLENGTH-1))
+			}
+		    }
+		    for (i in FinalDirLst) {
+			print i | ("sort -r >" FilePref ".RD")
+		    }
+		    print has_x
+		} ' Class="${Class}" FilePref="${FilePref}" ${Map}`
+
+	    #
+	    # Now we have lists of items we need to act upon by class.
+	    # So we create each archive.
+	    #
+	    if [ ! -z "${Class}" ]; then
+	    	Dr_list=${FilePref}.RD
+		if [ -d ${PkgPath}/reloc ]; then
+		    cd ${PkgPath}/reloc
+		else
+		    msg_ind "Cannot find files to archive."
+		    cleanup 1
+		fi
+	    fi
+
+	    for class in $Class
+	    do
+		Ar_class=${FilePref}.${class}
+
+		if [ -f ${Ar_class} ]; then
+		    Large=`/usr/bin/cat $Ar_class | $WC -l`
+		    if [ $Large -gt $TOOBIG ]; then
+				Large=1
+		    else
+				Large=0
+		    fi
+
+		    # Create the archive directory if needed
+		    #if [ "$ARCH" = "zip" -o "$ARCH" = "bzip" ]; then
+				/usr/bin/mkdir ${PkgPath}/archive
+		    #fi
+
+		    Archive=${PkgPath}/archive/${class}
+		    if [ ! -f ${Archive} -a ! -f ${Archive}.Z ]; then
+				msg_ind "Creating Archive\c"
+				if [ "$ARCH" = "zip" \
+					-a "${Has_param_paths}" != "1" \
+					-a "${Has_special_paths}" != "1" ]; then
+					msg_ind "with zip..."
+					do_zip ${Ar_class} ${Archive} ${class}
+				elif [ "$ARCH" = "bzip" ]; then
+					msg_ind "with cpio and bzip2... \c"
+					do_bzip ${Ar_class} ${Archive} ${class}
+				else
+					msg_ind "with cpio and compress... \c"
+					do_cpio ${Ar_class} ${Archive} ${class}
+				fi
+				/usr/bin/rm -f ${Ar_class}
+				FnlClass="${FnlClass} ${class}"
+		    fi
+		fi
+	    done
+
+	    # Now remove whatever directories are empty
+	    if [ -f Dr_List ]; then
+		/usr/bin/cat ${Dr_list} | xargs -l5 /usr/bin/rmdir -s -p
+		/usr/bin/rm -f ${Dr_list}
+	    fi
+
+	    cd ${svd}
+
+	    /usr/bin/rmdir -s -p ${PkgPath}/reloc
+
+	    if [ $PkgIsStandard -eq 1 ]; then
+		msg_ind "No items appropriate for archive."
+	    elif [ ! -z "${FnlClass}" ]; then
+		DoInfo ${Info} ${Map} "$FnlClass"
+		DoMap
+	    fi
+	fi
+    else
+	msg_opt "Excluding package ${PkgPath}."
+    fi
+done
+cleanup 0

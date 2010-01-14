@@ -1,0 +1,250 @@
+#!/bin/bash
+#
+# $Id: AnalyzeCedars2 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+USAGE="$0 <stats_file>"
+
+if test $# != 1 ; then
+    echo $USAGE
+    exit 1
+fi
+
+total_files=0
+for i in `grep "total files:" $1 | awk '{print $NF}'` ; do
+        total_files=$(( $total_files + $i ))
+done
+echo total_files $total_files
+
+retrieve_failures=0
+for i in `grep "retrieve failures:" $1 | awk '{print $NF}'` ; do
+	retrieve_failures=$(( $retrieve_failures + $i ))
+done
+echo retrieve_failures $retrieve_failures
+
+md_retrieve_failures=0
+for i in `grep "metadata retrieve failures:" $1 | awk '{print $NF}'` ; do
+	md_retrieve_failures=$(( $md_retrieve_failures + $i ))
+done
+echo md_retrieve_failures $md_retrieve_failures
+
+bad_retrv=0
+for i in `grep "bad files retrieved:" $1 | awk '{print $NF}'` ; do
+        bad_retrv=$(( $bad_retrv + $i ))
+done
+echo bad_retrv $bad_retrv
+
+bad_md_retrv=0
+for i in `grep "bad metadata retrieved:" $1 | awk '{print $NF}'` ; do
+        bad_md_retrv=$(( $bad_md_retrv + $i ))
+done
+echo bad_md_retrv $bad_md_retrv
+
+nfs_missing=0
+for i in `grep "nfs missing:" $1 | awk '{print $NF}'` ; do
+	nfs_missing=$(( $nfs_missing + $i ))
+done
+echo nfs_missing $nfs_missing
+
+nfs_zero_size=0
+for i in `grep "nfs zero size:" $1 | awk '{print $NF}'` ; do
+	nfs_zero_size=$(( $nfs_zero_size + $i ))
+done
+echo nfs_zero_size $nfs_zero_size
+
+nfs_bad_size=0
+for i in `grep "nfs bad size: " $1 | awk '{print $NF}'` ; do
+	nfs_bad_size=$(( $nfs_bad_size + $i ))
+done
+echo nfs_bad_size $nfs_bad_size
+
+nfs_io_errors=0
+for i in `grep "nfs i/o errors: "  $1 | awk '{print $NF}'` ; do
+	nfs_io_errors=$(( $nfs_io_errors + $i ))
+done
+echo nfs_io_errors $nfs_io_errors
+
+nfs_access_errors=0
+for i in `grep "nfs access errors: " $1 | awk '{print $NF}'` ; do
+	nfs_access_errors=$(( $nfs_access_errors + $i ))
+done
+echo nfs_access_errors $nfs_access_errors
+
+nfs_bad_data=0
+for i in `grep "nfs bad data: " $1 | awk '{print $NF}'` ; do
+	nfs_bad_data=$(( $nfs_bad_data + $i ))
+done
+echo nfs_bad_data $nfs_bad_data
+
+nfs_mixed_view=0
+for i in `grep "nfs 'mixed view'" $1 | awk '{print $NF}'` ; do
+	nfs_mixed_view=$(( $nfs_mixed_view + $i ))
+done
+echo nfs_mixed_view $nfs_mixed_view
+
+flawed_test=0
+for i in `grep "flawed_test:" $1 | awk '{print $NF}'` ; do
+	flawed_test=$(( $flawed_test + $i ))
+done
+echo flawed_test $flawed_test
+
+nohost_ex=0
+min=9999999999
+max=0
+for i in `grep "#S Exceptions" $1 | awk '{print $5}'` ; do
+        nohost_ex=$(( $nohost_ex + $i ))
+        if test $i -lt $min ; then
+            min=$i
+        fi
+        if test $i -gt $max ; then
+            max=$i
+        fi
+done
+echo "nohost_ex $nohost_ex  min $min max $max"
+
+other_ex=0
+min=9999999999
+max=0
+for i in `grep "#S Exceptions" $1 | awk '{print $NF}'` ; do
+        other_ex=$(( $other_ex + $i ))
+        if test $i -lt $min ; then
+            min=$i
+        fi
+        if test $i -gt $max ; then
+            max=$i
+        fi
+done
+echo "other_ex $other_ex  min $min max $max"
+
+frag_ex=0
+min=9999999999
+max=0
+for i in `grep "#S 'Error fragmenting data' Exceptions:" $1 | awk '{print $NF}'` ; do
+        frag_ex=$(( $frag_ex + $i ))
+        if test $i -lt $min ; then
+            min=$i
+        fi
+        if test $i -gt $max ; then
+            max=$i
+        fi
+done
+echo "frag_ex $frag_ex  min $min max $max"
+
+store_retries=0
+for i in `grep "#S store retries:" $1 | awk '{print $NF}'` ; do
+        store_retries=$(( $store_retries + $i ))
+done
+echo store_retries $store_retries
+
+retrieve_retries=0
+for i in `grep "#S retrieve retries:" $1 | awk '{print $NF}'` ; do
+        retrieve_retries=$(( $retrieve_retries + $i ))
+done
+echo retrieve_retries $retrieve_retries
+
+md_retrieve_retries=0
+for i in `grep "#S md retrieve retries:" $1 | awk '{print $NF}'` ; do
+        md_retrieve_retries=$(( $md_retrieve_retries + $i ))
+done
+echo md_retrieve_retries $md_retrieve_retries
+
+check_thruput_md=0
+min=9999999999
+max=0
+ct=0
+for i in `grep "#S md retrieve rate" $1 | awk '{print $NF}'` ; do
+        check_thruput_md=$(( $check_thruput_md + $i ))
+        ct=$(( $ct + 1 ))
+        if test $i -lt $min ; then
+            min=$i
+        fi
+        if test $i -gt $max ; then
+            max=$i
+        fi
+done
+if test $ct != 0 ; then
+	check_thruput_md=$(( $check_thruput_md / $ct ))
+fi
+echo "check_thruput_md (ms/record) $check_thruput_md  min $min max $max"
+
+total_store_rate=0
+min=9999999999
+max=0
+ct=0
+avg=0
+for i in `grep "#S total store rate" $1 | awk '{print $NF}'` ; do
+        total_store_rate=$(( $total_store_rate + $i ))
+        ct=$(( $ct + 1 ))
+        if test $i -lt $min ; then
+            min=$i
+        fi
+        if test $i -gt $max ; then
+            max=$i
+        fi
+done
+if test $ct != 0 ; then
+	avg=$(( $total_store_rate / $ct ))
+fi
+echo "total_store_rate $total_store_rate  avg $avg min $min max $max"
+
+total_retrieve_rate=0
+min=9999999999
+max=0
+ct=0
+avg=0
+for i in `grep "#S total retrieve rate" $1 | awk '{print $NF}'` ; do
+        total_retrieve_rate=$(( $total_retrieve_rate + $i ))
+        ct=$(( $ct + 1 ))
+        if test $i -lt $min ; then
+            min=$i
+        fi
+        if test $i -gt $max ; then
+            max=$i
+        fi
+done
+if test $ct != 0 ; then
+	avg=$(( $total_retrieve_rate / $ct ))
+fi
+echo "total_retrieve_rate $total_retrieve_rate  avg $avg min $min max $max"
+
+# analyze success or failure
+result="PASS"
+for i in `grep RESULT $1 | awk '{print $NF}'` ; do
+	if test "$i" == "FAIL" ; then
+    		result="FAIL"
+		break
+	fi
+done
+echo $result

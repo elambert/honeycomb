@@ -1,0 +1,253 @@
+#!/bin/bash
+#
+# $Id: AnalyzeFillCheck 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+#
+# uses *.fill and *.check as input, prints to stdout
+#
+##### FillData
+
+FILL_TOT=`ls *.fill | wc -w`
+
+fill_files=0
+for i in `grep "#S FillData total files:" *.fill | awk '{print $NF}'` ; do
+        fill_files=$(( $fill_files + $i ))
+done
+echo fill_files $fill_files
+
+fill_bytes=0
+for i in `grep "#S FillData total bytes:" *.fill | awk '{print $NF}'` ; do
+        fill_bytes=$(( $fill_bytes + $i ))
+done
+echo fill_bytes $fill_bytes
+
+fill_nohost_ex=0
+min=999999
+max=0
+for i in `grep "#S FillData Exceptions" *.fill | awk '{print $6}'` ; do
+        fill_nohost_ex=$(( $fill_nohost_ex + $i ))
+        if test $i -lt $min ; then
+            min=$i
+        fi
+        if test $i -gt $max ; then
+            max=$i
+        fi
+done
+echo "fill_nohost_ex $fill_nohost_ex  min $min max $max"
+
+fill_other_ex=0
+min=999999
+max=0
+for i in `grep "#S FillData Exceptions" *.fill | awk '{print $NF}'` ; do
+        fill_other_ex=$(( $fill_other_ex + $i ))
+        if test $i -lt $min ; then
+            min=$i
+        fi
+        if test $i -gt $max ; then
+            max=$i
+        fi
+done
+echo "fill_other_ex  $fill_other_ex  min $min max $max"
+
+fill_data_rate=0
+min=99999999999
+max=0
+ct=0
+for i in `grep "#S FillData API thruput" *.fill | awk '{print $NF}'` ; do
+        fill_data_rate=$(( $fill_data_rate + $i ))
+        ct=$(( $ct + 1 ))
+        if test $i -lt $min ; then
+            min=$i
+        fi
+        if test $i -gt $max ; then
+            max=$i
+        fi
+done
+avg=$(( $fill_data_rate / $ct ))
+echo "fill_data_rate (bytes/sec) total $fill_data_rate  avg $avg min $min max $max"
+
+#### CheckData
+
+CHECK_TOT=`ls *.check | wc -w`
+
+check_files=0
+for i in `grep "#S CheckData Records:" *.check | awk '{print $NF}'` ; do
+        check_files=$(( $check_files + $i ))
+done
+echo "check_files    $check_files"
+
+check_ok_files=0
+for i in `grep "#S CheckData ok files:" *.check | awk '{print $NF}'` ; do
+        check_ok_files=$(( $check_ok_files + $i ))
+done
+echo check_ok_files $check_ok_files
+
+check_md_retrieve_failures=0
+for i in `grep "#S CheckData md retrieve failures:" *.check | awk '{print $NF}'` ; do
+	check_md_retrieve_failures=$(( $check_md_retrieve_failures + $i ))
+done
+echo check_md_retrieve_failures $check_md_retrieve_failures
+
+check_retrieve_failures=0
+for i in `grep "#S CheckData retrieve failures:" *.check | awk '{print $NF}'` ; do
+	check_retrieve_failures=$(( $check_retrieve_failures + $i ))
+done
+echo check_retrieve_failures $check_retrieve_failures
+
+check_uniqueness_failures=0
+for i in `grep "#S CheckData uniqueness-check failures:" *.check |  awk '{print $NF}'` ; do
+	check_uniqueness_failures=$(( $check_uniqueness_failures + $i ))
+done
+echo check_uniqueness_failures $check_uniqueness_failures
+
+check_corruption_errors=0
+for i in `grep "#S CheckData Total corruption errors:" *.check | awk '{print $NF}'` ; do
+        check_corruption_errors=$(( $check_corruption_errors + $i ))
+done
+echo check_corruption_errors $check_corruption_errors
+
+check_nohost_ex=0
+min=9999999999
+max=0
+for i in `grep "#S CheckData Exceptions" *.check | awk '{print $6}'` ; do
+        check_nohost_ex=$(( $check_nohost_ex + $i ))
+        if test $i -lt $min ; then
+            min=$i
+        fi
+        if test $i -gt $max ; then
+            max=$i
+        fi
+done
+echo "check_nohost_ex $check_nohost_ex  min $min max $max"
+                                                                                
+check_other_ex=0
+min=999999999
+max=0
+for i in `grep "#S CheckData Exceptions" *.check | awk '{print $NF}'` ; do
+        check_other_ex=$(( $check_other_ex + $i ))
+        if test $i -lt $min ; then
+            min=$i
+        fi
+        if test $i -gt $max ; then
+            max=$i
+        fi
+done
+echo "check_other_ex  $check_other_ex min $min max $max"
+
+check_thruput_md=0
+min=999999
+max=0
+ct=0
+for i in `grep "#S CheckData API thruput" *.check | awk '{print $NF}'` ; do
+        check_thruput_md=$(( $check_thruput_md + $i ))
+        ct=$(( $ct + 1 ))
+        if test $i -lt $min ; then
+            min=$i
+        fi
+        if test $i -gt $max ; then
+            max=$i
+        fi
+done
+check_thruput_md=$(( $check_thruput_md / $CHECK_TOT ))
+echo "check_thruput_md (ms/record) $check_thruput_md  min $min max $max"
+
+check_bytes=0
+for i in `grep "#S CheckData Total bytes retrieved:" *.check | awk '{print $NF}'` ; do
+        check_bytes=$(( $check_bytes + $i ))
+done
+echo check_bytes $check_bytes
+
+check_data_rate=0
+min=999999999
+max=0
+ct=0
+for i in `grep "#S CheckData Data rate:" *.check | awk '{print $5}'` ; do
+        check_data_rate=$(( $check_data_rate + $i ))
+        ct=$(( $ct + 1 ))
+        if test $i -lt $min ; then
+            min=$i
+        fi
+        if test $i -gt $max ; then
+            max=$i
+        fi
+done
+avg=$(( $check_data_rate / $ct ))
+echo "check_data_rate (bytes/sec) total $check_data_rate  avg $avg min $min max $max"
+
+# got stats.. compile warning-level stuff
+TOTAL_NOHOST_EX=$(( $fill_nohost_ex + $check_nohost_ex ))
+TOTAL_OTHER_EX=$(( $fill_other_ex + $check_other_ex ))
+if test $TOTAL_NOHOST_EX != 0 ; then
+    echo TOTAL_NOHOST_EXCEPTIONS $TOTAL_NOHOST_EX
+fi
+if test $TOTAL_OTHER_EX != 0 ; then
+    echo TOTAL_NON-NOHOST_EXCEPTIONS $TOTAL_OTHER_EX
+fi
+
+# determine pass/fail
+pass=1
+error=""
+if test $fill_bytes -eq 0 ; then
+    pass=0
+    echo "FAIL: fill_bytes = 0"
+fi
+if test $fill_bytes != $check_bytes ; then
+    pass=0
+    echo "FAIL: fill_bytes != check_bytes"
+fi
+if test $check_corruption_errors != 0 ; then
+    pass=0
+    echo "FAIL: check_corruption_errors=$check_corruption_errors"
+fi
+if test $check_files != $check_ok_files ; then
+    pass=0
+    echo "FAIL: check_files != check_ok_files"
+fi
+if test $check_md_retrieve_failures != 0 ;then
+    pass=0
+    echo "FAIL: check_md_retrieve_failures = $check_md_retrieve_failures"
+fi
+if test $check_retrieve_failures != 0 ;then
+    pass=0
+    echo "FAIL: check_retrieve_failures = $check_retrieve_failures"
+fi
+if test $check_uniqueness_failures != 0 ;then
+    pass=0
+    echo "FAIL: check_uniqueness_failures = $check_uniqueness_failures"
+fi
+
+if test $pass != 0 ; then
+    echo PASS
+fi

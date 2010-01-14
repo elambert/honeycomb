@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="df">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>Simple test to validate that the df tag does what we are 
+                     expecting it to do.</description>
+    </info>
+
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input" />
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+        <createstorage id="FRAGOUTPUT" path="${dtf.xml.path}/output/frags-${dtf.timestamp}" />
+        <createstorage id="TINPUT" path="${dtf.xml.path}" />
+
+        <loadproperties uri="storage://INPUT/hc.properties" />
+    </local>
+
+    <local>
+        <lockcomponent id="CLUSTER" timeout="${hc.lockcomponent.timeout}">
+            <attrib name="hc.cluster.type" value="${hc.cluster.type}" />
+        </lockcomponent>
+    </local>
+
+    <record type="object" uri="property://df">
+        <component id="CLUSTER">
+            <cli>
+                <df/> 
+            </cli>
+        </component>
+    </record>
+    
+    <log tag="DF">DF Output</log>
+    <log tag="DF">---------</log>
+    <log tag="DF">Total Space(KB):     ${df.total.kbytes}</log>
+    <log tag="DF">Available Space(KB): ${df.available.kbytes}</log>
+    <log tag="DF">Used Space(KB):      ${df.available.kbytes}</log>
+    <log tag="DF">Usage(%):            ${df.usage.percentage}</log>
+    
+</script>

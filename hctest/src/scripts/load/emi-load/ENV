@@ -1,0 +1,130 @@
+#
+# $Id: ENV 11906 2008-03-05 22:56:50Z wr152514 $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+#
+# common vars for the EMI stress test
+#
+
+# Cluster Data VIP -- CHANGE TO MATCH CLUSTER!
+#
+# The value must be resolvable via "host $DATAVIP" from
+# the client machine or the test will fail to start. 
+DATAVIP=dev3XX-data
+
+
+################# If running from standard client ####################
+################# no need to change anything below. ###################
+
+
+# client config
+CLASSPATH="/opt/test/lib/honeycomb-client.jar:/opt/test/lib/honeycomb-test.jar:\
+/opt/test/lib/honeycomb-hctest.jar"
+LOGDIR=/mnt/test/emi-stresslogs/
+mkdir -p $LOGDIR
+# when using nohup, PATH needs to be specified or things like java can't be
+# found
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/lib/java/bin:/opt/test/bin:/usr/local/bin:/opt/bin:/usr/i686-pc-linux-gnu/gcc-bin/3.2:/usr/local/pgsql/bin/
+
+# test config
+#
+# SOCKET_TIMEOUT_SEC will cause ops to error out if socket is idle
+# for the given number of seconds. 0 means no timeout.
+SOCKET_TIMEOUT_SEC=60
+#
+# Currently all sizes run the same number of threads,
+# but this could be changed by adding diff vars (ie,
+# NUMSMALLTHREADS, etc)
+NUMTHREADS=1
+# how long to wait for oids when file is empty before
+# checking again
+SLEEPTIME=15
+# avoid too many threads by disabling the "Once" tests,
+# which are launched in parallel to the looping tests,
+# and try to retrieve/query for the oids as soon as they
+# are stored.  Set to 0 to skip, set to non-0 to run them.
+RUNONCETESTS=0
+# Start stores.  Set to 0 to skip.
+STARTSTORES=1
+# Start retrieves.  Set to 0 to skip.
+STARTRETRIEVES=1
+# Start queries.  Set to 0 to skip.
+STARTQUERIES=1
+# Start deletes.  Set to 1 to launch deletes.
+STARTDELETES=0
+# Number of seconds to sleep between deletes.
+# Typically, you don't want to overwhelm the
+# system with lots of deletes.  This parameter
+# is only relevant if STARTDELETES=1
+SECONDS_BETWEEN_DELETES=60
+# Define the type of pattern to use for data.
+# "binary" or "beef"
+PATTERN=binary
+# store metadata into system.test namespace only.
+# Set to 1 to store metadata into both system.test & perf namespace.
+EXTENDED_METADATA=0
+# do content verification on retrieves.
+# set to 0 won't do content verification & won't detect data corruption
+CONTENT_VERIFICATION=1
+# on stores, check SystemRecord.isIndexed() and if not indexed, loop
+# calling NameValueObjectArchive.checkIndexed() until it shows indexed.
+# logging is in stdout w/ '#' lines and for exceptions as usual in stderr.
+# stdout example:
+# Not Indexed: 02001517411917de95765311dc9ec000e081596dff0000183b0200000000
+# index time: 5154578 [msec until indexing achieved]
+STORE_CHECK_INDEXED=0
+
+# do a bit of error checking on these vars
+if [ -z "$LOGDIR" -o -z "$DATAVIP" ]; then
+    echo "ERROR: LOGDIR and DATAVIP cannot be null" 1>&2
+    exit 1
+fi
+
+getent hosts $DATAVIP > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+    echo "ERROR: Could not resolve IP for DATAVIP $DATAVIP" 1>&2
+    exit 1
+fi
+
+if [ ! -d $LOGDIR ]; then 
+    echo "ERROR: LOGDIR $LOGDIR does not exist" 1>&2
+    exit 1
+fi
+
+which java > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+    echo "ERROR: Could not find java in PATH $PATH" 1>&2
+    exit 1
+fi  

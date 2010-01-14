@@ -1,0 +1,85 @@
+#!/usr/bin/perl -w
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+# Make sure version is 1.4 or greater.
+my $ok = 1;
+my $min_version = "1.4";
+my ($current_version) = (`java -version 2>&1` =~ /^java version "([^"]+)"/);
+my @min = split(/\./, $min_version);
+my @current = split(/\./, $current_version);
+my $done = 0;
+my $token = 0;
+while ($ok == 1 && $done == 0)
+{
+  my $tmin = $min[$token];
+  my $tcurrent = $current[$token];
+
+  if (defined($tmin) && defined($tcurrent))
+  {
+    if ($tcurrent < $tmin)
+    {
+      $ok = 0;
+      $done = 1;
+    }
+  }
+  elsif (defined($tmin) && !defined($tcurrent))
+  {
+    $ok = 0;
+    $done = 1;
+  }
+  elsif (!defined($tmin) && defined($tcurrent))
+  {
+    $ok = 1;
+    $done = 1;
+  }
+  else
+  {
+    $ok = 1;
+    $done = 1;
+  }
+  $token++;
+}
+
+if ($ok == 0)
+{
+  print(STDERR "\nThe version of the java binary in your PATH is ${current_version}.\n");
+  print(STDERR "This application requires version 1.4 or greater.\n\n");
+  exit(1);
+}
+
+my $whereami = `dirname $0`; chomp($whereami);
+my $hc_lib = "${whereami}/../lib";
+
+exec("java", "-jar", "${hc_lib}/Archive.jar", @ARGV);

@@ -1,0 +1,9 @@
+$Id: README 10848 2007-05-19 02:42:23Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+
+Cross-Platform Honeycomb C Client Library
+
+Initial build scheme described in [ http://www.geocities.com/foetsch/mfgraph/automake.htm ].

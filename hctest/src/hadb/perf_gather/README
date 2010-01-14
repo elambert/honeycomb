@@ -1,0 +1,47 @@
+$Id: README 10858 2007-05-19 03:03:41Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+step 1 (optional):
+  #edit MdLoad.java to taste, and rebuild via 'make' in that directory.
+  cp mdLoad/mdLoad.jar .
+
+step 2 (optional):
+  #if you did the above, or changed anything else.
+tar cvf perf_gather.tar cheat_perf.pl node_perf.sh start_test.sh deploy_test.sh mdLoad.jar stop_test.sh collect_data.sh
+
+step 3:
+  #deploy the test suite
+  scp perf_gather.tar root@devXXX-cheat:/tmp
+
+step 4 (ON CHEAT, please cd /tmp):
+  cd /tmp
+  tar xvf perf_gather.tar
+  ./deploy_test.sh
+  ./start_test.sh
+
+step 5 (optional:
+  #gather results midstream
+  ./collect_data.sh
+  tail -f /tmp/ops_data
+  #only prints out megs of DB data now (not total rows)
+
+step 6:
+  #stop the test
+  ./stop_test.sh
+
+step 7:
+  #gather results
+  ./collect_data.sh
+
+step 8 (back on hc-dev / wherever):
+  scp root@devXXX-cheat:/tmp/perf_gather_dataset.tar .
+  tar xvf perf_gather_dataset.tar
+  #SKIP THIS: CONVERT TABS TO SPACES IN perf_gather_dataset/ops_data
+  #skip THIS: open in xemacs, select all, M-x untabify
+  ./processdir.sh perf_gather_dataset
+  ./makeplot.sh 108 #102, 101, 110, whatever.  master == more cpu load
+  gnuplot
+  load "myplot"
+  #load "gnuplotter" will give you 101, and you can skip makeplot.

@@ -1,0 +1,372 @@
+#!/bin/sh
+#
+# $Id: update_bootmenu.in 10996 2007-06-07 23:39:29Z tt107269 $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+#
+# Create menu.list for a Honeycomb cell node
+#
+
+usage() {
+  echo
+  echo "Usage:   update_bootmenu -f <menu.lst full pathname>"
+  echo
+  echo "                         -R <ramdisk image name>"
+  echo "                         -D <dos image name>"
+  echo "                         -M <memdisk image name>"
+  echo
+  echo "                         [-h <hostname>]"
+  echo
+  echo "                         [-r <last ramdisk image name>]"
+  echo "                         [-d <last dos image name>]"
+  echo "                         [-m <last memdisk image name>]"
+  echo
+  echo "                         [-u <boot slice number>]"
+  echo "                         [-k]"
+  echo
+  echo "Install: update_bootmenu -f /boot/images/0/boot/grub/menu.lst"
+  echo "                         -R honeycomb-node-aquarius-6587.ramdisk"
+  echo "                         -D honeycomb-node-dos-1.ramdisk"
+  echo "                         -M memdisk-3.09"
+  echo "                         -h hcb101"
+  echo
+  echo "Upgrade: update_bootmenu -f /boot/images/0/boot/grub/menu.lst"
+  echo "                         -R honeycomb-node-aquarius-6590.ramdisk"
+  echo "                         -D honeycomb-node-dos-2.ramdisk"
+  echo "                         -M memdisk-3.12"
+  echo "                         -r honeycomb-node-aquarius-6587.ramdisk"
+  echo "                         -d honeycomb-node-dos-1.ramdisk"
+  echo "                         -m memdisk-3.09"
+  echo
+  echo "Disk Replacement:"
+  echo
+  echo "         update_bootmenu -f /boot/images/0/boot/grub/menu.lst"
+  echo
+  echo "Note: -h <hostname> configuration option is needed"
+  echo "      only at install time."
+  echo
+  echo "      -r, -d, and -m last image options are only used"
+  echo "      during an upgrade."
+  echo
+  echo "      -u is only used during upgrade or install to set the "
+  echo "      default boot item to DOS firmware update.  The argument "
+  echo "      should be the boot slice number (0-3) of the slice whose"
+  echo "      default we are setting."
+  echo
+  echo "      -k is used to enable the kernel debugger. (disabled "
+  echo "      by default)."
+  echo
+  echo "      Invocation of update_bootmenu during disk replacement"
+  echo "      only requires the menu.lst full pathname as an argument."
+  echo
+  echo "      Target boot slices such as /boot/images/0"
+  echo "      must be mounted before running this script."
+  echo
+}
+
+# Check for the required number of options
+if [ $# != 2 ] && [ $# -lt 8 ]; then
+  usage
+  exit 1
+fi
+
+# Get the options
+set -- `getopt f:R:D:M:r:d:m:h:u:k $*`
+if [ $? != 0 ]
+then
+    usage
+    exit 1
+fi
+
+for i in $*
+do
+    case $i in
+        -f) FILE=$2; shift 2;;
+        -R) OPT_RAMDISK=$2; shift 2;;
+        -D) OPT_DOSDISK=$2; shift 2;;
+        -M) OPT_MEMDISK=$2; shift 2;;
+        -r) OPT_LASTRAMDISK=$2; shift 2;;
+        -d) OPT_LASTDOSDISK=$2; shift 2;;
+        -m) OPT_LASTMEMDISK=$2; shift 2;;
+        -h) HOSTNAME=$2; shift 2;;
+	-u) BOOT_SLICE=$2; DOS_UPDATE="true"; shift 2;;
+	-k) KDB="-k"; shift;;
+        --) shift; break;;
+    esac
+done
+
+# Read menu.conf if it exists
+TARGETDIR=`dirname $FILE`
+MENUCONF=$TARGETDIR/menu.conf
+if [ -f "$MENUCONF" ]; then
+    . $MENUCONF
+fi
+
+# Use given parameters
+[ -n "$OPT_RAMDISK" ] && RAMDISK=$OPT_RAMDISK
+[ -n "$OPT_DOSDISK" ] && DOSDISK=$OPT_DOSDISK
+[ -n "$OPT_MEMDISK" ] && MEMDISK=$OPT_MEMDISK
+[ -n "$OPT_LASTRAMDISK" ] && LASTRAMDISK=$OPT_LASTRAMDISK
+[ -n "$OPT_LASTDOSDISK" ] && LASTDOSDISK=$OPT_LASTDOSDISK
+[ -n "$OPT_LASTMEMDISK" ] && LASTMEMDISK=$OPT_LASTMEMDISK
+
+# Set network information
+NIC0=bge0
+
+# Set DOS Firmware Update menu option for each disk
+DOS_FW_UPDATE=9
+
+if [ -z "$HOSTNAME" ]; then
+    HOSTNAME=`prtconf -v /devices | sed -n '/nodename/{;n;p;}' | cut -f2 -d \'`
+fi
+
+# This not needed anymore. Maintain for compatibility with old
+# rollback ramdisk images
+GROUPNAME="$HOSTNAME+group+internal"
+
+# Set the default fallback
+FALLBACK="fallback 0 1 2 3"
+
+# Set rollback image information. If any arguments were passed
+# specifying rollback images, then create rollback menu entries. If
+# all three rollback entries are not specified, then fill in missing
+# values with with current entries since that means one or more
+# ramdisk images have not changed.
+if [ -n "$LASTRAMDISK" ]; then
+    ROLLBACKRAMDISK=1
+    FALLBACK="$FALLBACK 13 14 15 16"
+    if [ -z "$LASTRAMDISK" ]; then
+        LASTRAMDISK=$RAMDISK
+    fi
+fi
+
+if [ -n "$LASTDOSDISK" ]; then
+    ROLLBACKDOSDISK=1
+    if [ -z "$LASTDOSDISK" ]; then
+        LASTDOSDISK=$DOSDISK
+    fi
+
+    if [ -z "$LASTMEMDISK" ]; then
+        LASTMEMDISK=$MEMDISK
+    fi
+fi
+
+echo "Creating $MENUCONF..."
+rm -f $MENUCONF
+cat >$MENUCONF <<EOF
+# Generated by update_bootmenu - do not edit! 
+RAMDISK=$RAMDISK
+DOSDISK=$DOSDISK
+MEMDISK=$MEMDISK
+LASTRAMDISK=$LASTRAMDISK
+LASTDOSDISK=$LASTDOSDISK
+LASTMEMDISK=$LASTMEMDISK
+EOF
+
+# Create GRUB menu.lst
+echo "Creating $FILE..."
+rm -f $FILE
+cat >$FILE <<EOF
+#----------------------Defaults----------------------
+default saved
+timeout 5
+$FALLBACK
+#------------------Honeycomb Disk 0------------------
+title Honeycomb Node Disk 0
+  root (hd0,0,a)
+  kernel /multiboot $KDB -B nodename=$HOSTNAME
+  module /$RAMDISK
+#------------------Honeycomb Disk 1------------------
+title Honeycomb Node Disk 1
+  root (hd1,0,a)
+  kernel /multiboot $KDB -B nodename=$HOSTNAME
+  module /$RAMDISK
+#------------------Honeycomb Disk 2------------------
+title Honeycomb Node Disk 2
+  root (hd2,0,a)
+  kernel /multiboot $KDB -B nodename=$HOSTNAME
+  module /$RAMDISK
+#------------------Honeycomb Disk 3------------------
+title Honeycomb Node Disk 3
+  root (hd3,0,a)
+  kernel /multiboot $KDB -B nodename=$HOSTNAME
+  module /$RAMDISK
+#------------------Honeycomb Installation-------------
+title Honeycomb Installation
+  dhcp
+  root (nd)
+  kernel /I86PC.Solaris_10-1/multiboot kernel/unix -B console=ttya,ttya-mode="19200,8,n,1,-",install_config=10.123.45.100:/export/jumpstart/profiles/node,sysid_config=10.123.45.100:/export/jumpstart/profiles/node,install_media=10.123.45.100:/export/jumpstart/honeycomb
+  module /I86PC.Solaris_10-1/x86.miniroot
+#------------------Failsafe Disk 0-------------------
+title Solaris Failsafe Disk 0
+  root (hd0,0,a)
+  kernel /multiboot kernel/unix -s -B console=ttya,ttya-mode="19200,8,n,1,-"
+  module /x86.miniroot-safe
+#------------------Failsafe Disk 1-------------------
+title Solaris Failsafe Disk 1
+  root (hd1,0,a)
+  kernel /multiboot kernel/unix -s -B console=ttya,ttya-mode="19200,8,n,1,-"
+  module /x86.miniroot-safe
+#------------------Failsafe Disk 2-------------------
+title Solaris Failsafe Disk 2
+  root (hd2,0,a)
+  kernel /multiboot kernel/unix -s -B console=ttya,ttya-mode="19200,8,n,1,-"
+  module /x86.miniroot-safe
+#------------------Failsafe Disk 3-------------------
+title Solaris Failsafe Disk 3
+  root (hd3,0,a)
+  kernel /multiboot kernel/unix -s -B console=ttya,ttya-mode="19200,8,n,1,-"
+  module /x86.miniroot-safe
+#--------------------DOS Disk 0----------------------
+title DOS Firmware Update Disk 0
+  root (hd0,0,a)
+  kernel /$MEMDISK floppy c=8 s=32 h=64
+  initrd /$DOSDISK
+  savedefault 0
+#--------------------DOS Disk 1----------------------
+title DOS Firmware Update Disk 1
+  root (hd1,0,a)
+  kernel /$MEMDISK floppy c=8 s=32 h=64
+  initrd /$DOSDISK
+  savedefault 0
+#--------------------DOS Disk 2----------------------
+title DOS Firmware Update Disk 2
+  root (hd2,0,a)
+  kernel /$MEMDISK floppy c=8 s=32 h=64
+  initrd /$DOSDISK
+  savedefault 0
+#--------------------DOS Disk 3----------------------
+title DOS Firmware Update Disk 3
+  root (hd3,0,a)
+  kernel /$MEMDISK floppy c=8 s=32 h=64
+  initrd /$DOSDISK
+  savedefault 0
+EOF
+
+# Add rollback menu entries for the ramdisk
+# Do not output Rollback options until this is fixed or removed
+ROLLBACKRAMDISK=0
+if [ "$ROLLBACKRAMDISK" = "1" ]; then
+  cat >>$FILE <<EOF
+#------------------Honeycomb Rollback Disk 0------------------
+title Honeycomb Node Rollback Disk 0
+  root (hd0,0,a)
+  kernel /multiboot -B nodename=$HOSTNAME,hostname.$NIC0="$GROUPNAME"
+  module /$LASTRAMDISK
+#------------------Honeycomb Rollback Disk 1------------------
+title Honeycomb Node Rollback Disk 1
+  root (hd1,0,a)
+  kernel /multiboot -B nodename=$HOSTNAME,hostname.$NIC0="$GROUPNAME"
+  module /$LASTRAMDISK
+#------------------Honeycomb Rollback Disk 2------------------
+title Honeycomb Node Rollback Disk 2
+  root (hd2,0,a)
+  kernel /multiboot -B nodename=$HOSTNAME,hostname.$NIC0="$GROUPNAME"
+  module /$LASTRAMDISK
+#------------------Honeycomb Rollback Disk 3------------------
+title Honeycomb Node Rollback Disk 3
+  root (hd3,0,a)
+  kernel /multiboot -B nodename=$HOSTNAME,hostname.$NIC0="$GROUPNAME"
+  module /$LASTRAMDISK
+EOF
+fi
+
+# Add rollback menu entries for the dos ramdisk
+# Do not output Rollback options until this is fixed or removed
+ROLLBACKDOSDISK=0
+if [ "$ROLLBACKDOSDISK" = "1" ]; then
+  cat >>$FILE <<EOF
+#--------------------DOS Rollback Disk 0----------------------
+title DOS Firmware Rollback Disk 0
+  root (hd0,0,a)
+  kernel /$LASTMEMDISK floppy c=8 s=32 h=64
+  initrd /$LASTDOSDISK
+  savedefault 0
+#--------------------DOS Rollback Disk 1----------------------
+title DOS Firmware Rollback Disk 1
+  root (hd1,0,a)
+  kernel /$LASTMEMDISK floppy c=8 s=32 h=64
+  initrd /$LASTDOSDISK
+  savedefault 0
+#--------------------DOS Rollback Disk 2----------------------
+title DOS Firmware Rollback Disk 2
+  root (hd2,0,a)
+  kernel /$LASTMEMDISK floppy c=8 s=32 h=64
+  initrd /$LASTDOSDISK
+  savedefault 0
+#--------------------DOS Rollback Disk 3----------------------
+title DOS Firmware Rollback Disk 3
+  root (hd3,0,a)
+  kernel /$LASTMEMDISK floppy c=8 s=32 h=64
+  initrd /$LASTDOSDISK
+  savedefault 0
+EOF
+fi
+cat >>$FILE <<EOF
+#------------------No Honeycomb Disk 0------------------
+title No Honeycomb Node Disk 0
+  root (hd0,0,a)
+  kernel /multiboot $KDB -B nodename=$HOSTNAME,hostname.$NIC0="$GROUPNAME",server-run=false
+  module /$RAMDISK
+#------------------No Honeycomb Disk 1------------------
+title No Honeycomb Node Disk 1
+  root (hd1,0,a)
+  kernel /multiboot $KDB -B nodename=$HOSTNAME,hostname.$NIC0="$GROUPNAME",server-run=false
+  module /$RAMDISK
+#------------------No Honeycomb Disk 2------------------
+title No Honeycomb Node Disk 2
+  root (hd2,0,a)
+  kernel /multiboot $KDB -B nodename=$HOSTNAME,hostname.$NIC0="$GROUPNAME",server-run=false
+  module /$RAMDISK
+#------------------No Honeycomb Disk 3------------------
+title No Honeycomb Node Disk 3
+  root (hd3,0,a)
+  kernel /multiboot $KDB -B nodename=$HOSTNAME,hostname.$NIC0="$GROUPNAME",server-run=false
+  module /$RAMDISK
+EOF
+
+if [ "$DOS_UPDATE" = "true" ]; then
+    UPDATE_OPTION=`expr $DOS_FW_UPDATE + $BOOT_SLICE`
+    echo "Setting node to boot once into firmware upgrade mode (${UPDATE_OPTION}) on $TARGETDIR"
+    TEMP=`echo $UPDATE_OPTION | wc -c`
+    
+    DIGITS=`expr $TEMP - 1`
+    if [ "$DIGITS" -eq "1" ]; then
+	echo "${UPDATE_OPTION}        " > $TARGETDIR/default
+    else
+	echo "${UPDATE_OPTION}       " > $TARGETDIR/default
+    fi
+fi
+

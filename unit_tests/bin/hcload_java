@@ -1,0 +1,11 @@
+#!/bin/bash
+#
+# $Id: hcload_java 10854 2007-05-19 02:52:12Z bberndt $
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+LIBDIR=/opt/honeycomb/lib
+CLASSPATH="$LIBDIR/honeycomb-server.jar:$LIBDIR/honeycomb-utests.jar:$LIBDIR/honeycomb-common.jar:/opt/honeycomb/share"
+
+java -Djava.library.path=${LIBDIR} -Djava.util.logging.config.file=/opt/honeycomb/share/logging.properties -classpath ${CLASSPATH} com.sun.honeycomb.util.HCLoad $*

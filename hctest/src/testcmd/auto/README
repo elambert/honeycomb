@@ -1,0 +1,101 @@
+# $Id: README 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+FILES:
+
+    README 		this file, honeycomb test auto-run config
+    mkinst_image	builds images, installs, wipes disk, reboots clusters
+    run_tests		calls mkinst_image then runs the configged tests
+    finish_tests	runs any test-generated scripts for ending tests
+    qareport		generates email summarizing test results from dbase
+
+    clusters/	created by person setting up
+    build/	created by mkinst_image for putting hc & config in initrd
+    run/	created by run_tests for running the tests
+
+To set up auto-run tests:
+
+1.  Mkdir /test
+
+2.  Copy the contents of the honeycomb/test/src/cmd/auto/ directory
+    to /test
+
+3.  Make the honeycomb/test/dist/testcmd tree by running ant (no args)
+    in honeycomb/test/src/cmd/ and copy honeycomb/test/dist/testcmd to 
+    /test on the target machine.
+
+4.  Copy the contents of the honeycomb/test/src/cmd/lib/ directory
+    to the equivalent of /usr/lib/perl5/site_perl/5.8.0/
+
+5.  Make sure the database named in honeycomb/test/src/cmd/lib/qadb.pm
+    is up (my $dbhost = "dbname"), e.g. by '/test/testcmd/bin/qa results'
+
+6.  See mkinst_image to see where the auto-build takes place and
+    either make sure the build is set up or adjust the script
+    accordingly. Note that mkinst_image allows one to override 
+    any of the files created by the auto-build by putting a copy
+    in the /test/ directory.
+
+7.  Mkdir /test/clusters and add an executable script file for
+    each cluster in the auto-test. See run_tests for details.
+
+8.  If the test for a given cluster involves log analysis, turn
+    off log rotation on that cluster's cheat/service node.
+
+9.  Test the setup by executing run_tests.
+
+10.  Configure qareport and test it.
+
+11. Schedule run_tests after the build using 'crontab -e'.
+
+12. Schedule finish_tests if appropriate; see below.
+
+13. Schedule qareport.
+
+NOTES
+
+Any tests can be used; the testcmd/bin/Launch* ones have been tested.
+Many of the Launch* scripts create a 'FinishRun' script and run 
+indefinitely, so to end them automatically one must run the finish_tests
+script that will execute all the /test/run/<cluster>/FinishRun scripts.
+Note that the FinishRun scripts can take a while to end client processes
+and copy/analyze output and logs. Thus if any tests require FinishRun,
+the qareport script should be run 10-30 minutes after finish_tests.
+
+The testcmb/bin/Launch* tests typically copy and analyze the logs from
+the cluster cheat/service node and analyze them. The log is rolled over
+at the beginning of each run. Automatic log rolling (logrotate) should 
+be turned off on clusters that are being tested in this way.
+

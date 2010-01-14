@@ -1,0 +1,112 @@
+#!/bin/sh
+
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# $Id: postinstall 10855 2007-05-19 02:54:08Z bberndt $
+#
+
+
+if [ "$PKG_INSTALL_ROOT" = "/" ] || [ "$PKG_INSTALL_ROOT" = "" ]; then
+  svccfg import /var/svc/manifest/application/honeycomb-verification.xml
+  svccfg import /var/svc/manifest/application/honeycomb-configuration.xml
+  svccfg import /var/svc/manifest/application/honeycomb-server.xml
+  svccfg import /var/svc/manifest/application/honeycomb-network.xml
+  svccfg import /var/svc/manifest/application/honeycomb-config-dns.xml
+fi
+
+echo "/opt/honeycomb/bin/hcsh" >> $PKG_INSTALL_ROOT/etc/shells
+
+# Create the named pipe (FIFO) for kernel errors
+if [ ! -p "$PKG_INSTALL_ROOT/var/adm/kernel" ]; then
+   if [ -f "$PKG_INSTALL_ROOT/var/adm/kernel" ]; then
+       rm "$PKG_INSTALL_ROOT/var/adm/kernel"
+   fi
+   mkfifo "$PKG_INSTALL_ROOT/var/adm/kernel"
+fi
+
+# Set up Internal NTP configuration
+echo "driftfile /etc/inet/ntp.drift" >"$PKG_INSTALL_ROOT/etc/inet/ntp.conf"
+# NTP server is Honeycomb Master Node
+echo "server 10.123.45.200" >>"$PKG_INSTALL_ROOT/etc/inet/ntp.conf"
+
+# Set up External NTP configuration
+# This Configuration is used only by Honeycomb Master Node
+echo "driftfile /etc/inet/ntp.drift" >"$PKG_INSTALL_ROOT/etc/inet/external_ntp.conf"
+# Default External NTP Servers 
+echo "server 129.146.17.39" >>"$PKG_INSTALL_ROOT/etc/inet/external_ntp.conf"
+echo "server 129.144.29.141" >>"$PKG_INSTALL_ROOT/etc/inet/external_ntp.conf"
+echo "server 127.127.1.0" >>"$PKG_INSTALL_ROOT/etc/inet/external_ntp.conf"
+echo "fudge 127.127.1.0 stratum 14" >>"$PKG_INSTALL_ROOT/etc/inet/external_ntp.conf"
+
+if [ ! -f "$PKG_INSTALL_ROOT/etc/inet/ntp.drift" ]; then
+    echo "-100.0" >"$PKG_INSTALL_ROOT/etc/inet/ntp.drift"
+fi
+
+# Set up system tuning
+echo "set ufs_ninode=141108" >> "$PKG_INSTALL_ROOT/etc/system"
+echo "set ip:do_tcp_fusion=0x0" >> "$PKG_INSTALL_ROOT/etc/system"
+
+# UDP recv high water mark is way too low - we are dropping most 
+# of the udp packets.
+echo "/usr/sbin/ndd -set /dev/udp udp_recv_hiwat 5242288" \
+>> "$PKG_INSTALL_ROOT/etc/rc2.d/S20sysetup"
+
+# Lower the time_wait timeout for a tcp connection. We are creating more 
+# connections than we can recycle - system is running out of resources.
+echo "/usr/sbin/ndd -set /dev/tcp tcp_time_wait_interval 2000" \
+>> "$PKG_INSTALL_ROOT/etc/rc2.d/S20sysetup" 
+
+# Lower keep alive interval from 2h to 1mn
+# Threads can get stuck in RMI calls trying to talk to a solaris node that
+# is dead.
+echo "/usr/sbin/ndd -set /dev/tcp tcp_keepalive_interval 60000" \
+>> "$PKG_INSTALL_ROOT/etc/rc2.d/S20sysetup"
+
+# Set up NFS tuning
+cp "$PKG_INSTALL_ROOT/etc/default/nfs" "$PKG_INSTALL_ROOT/etc/default/nfs.tmp"
+sed "s/^NFSD_SERVERS=.*/NFSD_SERVERS=32/g" \
+"$PKG_INSTALL_ROOT/etc/default/nfs.tmp" > "$PKG_INSTALL_ROOT/etc/default/nfs"
+rm -f "$PKG_INSTALL_ROOT/etc/default/nfs.tmp"
+
+cp "$PKG_INSTALL_ROOT/etc/default/nfs" "$PKG_INSTALL_ROOT/etc/default/nfs.tmp"
+sed "s/^#NFS_SERVER_DELEGATION=.*/NFS_SERVER_DELEGATION=off/g" \
+"$PKG_INSTALL_ROOT/etc/default/nfs.tmp" > "$PKG_INSTALL_ROOT/etc/default/nfs"
+rm -f "$PKG_INSTALL_ROOT/etc/default/nfs.tmp"
+
+# Removing nfsfind from crontab
+cat "$PKG_INSTALL_ROOT/var/spool/cron/crontabs/root"  | grep -v nfsfind > "$PKG_INSTALL_ROOT/var/spool/cron/crontabs/root.tmp"
+mv -f "$PKG_INSTALL_ROOT/var/spool/cron/crontabs/root.tmp" "$PKG_INSTALL_ROOT/var/spool/cron/crontabs/root"
+
+logger -p local0.info "SUNWhcserver postinstall completed successfully."
+
+exit 0

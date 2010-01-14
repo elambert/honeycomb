@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="testsuite">
+	<info>
+		<author>
+			<name>Rodney Gomes</name>
+			<email>rodney.gomes@sun.com</email>
+		</author>
+		<description>Unit test for the testsuite tag.</description>
+	</info>
+	
+	<local>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+        <createstorage id="INPUT" path="${dtf.xml.path}"/>
+	</local>
+
+	<result uri="storage://OUTPUT/testsuite_results.xml"
+	        type="xml">
+    	<testsuite name="testsuite1" continueOnFailure="true">
+    		<property name="testcase.name" value="testcase1"/>
+    		<testscript uri="storage://INPUT/testcase.xml"/>		
+            
+    		<property name="testcase.name" value="testcase2"/>
+    		<testscript uri="storage://INPUT/testcase.xml"/>		
+            		
+    		<property name="testcase.name" value="testcase3"/>
+    		<testscript uri="storage://INPUT/testcase.xml"/>
+    				
+    		<testscript uri="storage://INPUT/testsuite-sub.xml"/>
+    	</testsuite>
+    </result>
+    
+</script>

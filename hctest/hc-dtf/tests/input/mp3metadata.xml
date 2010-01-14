@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="metadata">
+    <info>
+        <author> 
+        	<name>Rodney Gomes</name>
+        	<email>rodney.gomes@sun.com</email>
+        </author>
+        <description>
+        	Metadata reference file.
+        </description>
+    </info>
+    
+    <local>
+        <metadata id="MDREF">
+             <element value="${hc.mp3.title.regexp}"  type="string" name="mp3.title"/> 
+             <element value="${hc.mp3.artist.regexp}" type="string" name="mp3.artist"/> 
+             <element value="${hc.mp3.album.regexp}"  type="string" name="mp3.album"/> 
+             <element value="${hc.mp3.date.regexp}"   type="long"   name="mp3.date"/> 
+             <element value="${hc.mp3.type.regexp}"   type="string" name="mp3.type"/>
+        </metadata>
+        
+        <metadata id="MDCMP">
+             <element value="${object.mp3.title}"  type="string" name="mp3.title"/> 
+             <element value="${object.mp3.artist}" type="string" name="mp3.artist"/> 
+             <element value="${object.mp3.album}"  type="string" name="mp3.album"/> 
+             <element value="${object.mp3.date}"   type="long"   name="mp3.date"/> 
+             <element value="${object.mp3.type}"   type="string" name="mp3.type"/>
+        </metadata>
+    </local>
+</script>

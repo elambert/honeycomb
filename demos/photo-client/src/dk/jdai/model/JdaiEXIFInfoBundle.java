@@ -1,0 +1,101 @@
+// JdaiEXIFInfoBundle.java Strings for JdaiEXIFInfo
+// $Id: JdaiEXIFInfoBundle.java 3456 2005-02-05 00:43:33Z rw151951 $
+
+package dk.jdai.model;
+
+import java.util.ListResourceBundle;
+
+
+public class JdaiEXIFInfoBundle extends ListResourceBundle {
+
+    public Object[][] getContents() {
+        return contents;
+    }
+    private Object[][] contents = {
+        {"HeaderNotCorrect","EXIF header not correct"},
+        {"WrongByteAlign","EXIF TIFF header byte align not specified"},
+        {"PrefName","EXIF information"},
+        {"NotSelected","Available fields"},
+        {"Selected","Selected fields"},
+        {"Up","Up"},
+        {"Down","Down"},
+        {"Center","Center"},
+        {"Top","Top"},
+        {"Bottom","Bottom"},
+        {"Left","Left"},
+        {"Right","Right"},
+        {"Manual","Manual"},
+        {"Normal","Normal"},
+        {"Aperature priority","Aperature priority"},
+        {"Shutter priority","Shutter priority"},
+        {"Creative","Creative"},
+        {"Action","Action"},
+        {"Portrait","Portrait"},
+        {"Landscape","Landscape"},
+        {"YCbCr","YCbCr"},
+        {"RGB","RGB"},
+        {"Unknown","Unknown"},
+        {"Average","Average"},
+        {"Center weigthed average","Center weigthed average"},
+        {"Spot","Spot"},
+        {"Multi-spot","Multi-spot"},
+        {"Multi-segment","Multi-segment"},
+        {"Partial","Partial"},
+        {"Other","Other"},
+        {"Auto","Auto"},
+        {"Daylight","Daylight"},
+        {"Flourescent","Flourescent"},
+        {"Tungsten","Tungsten"},
+        {"Flash","Flash"},
+        {"Standard light A","Standard light A"},
+        {"Standard light B","Standard light B"},
+        {"Standard light C","Standard light C"},
+        {"D55","D55"},
+        {"D65","D65"},
+        {"D75","D75"},
+        {"No","No"},
+        {"Yes","Yes"},
+        {"Yes, not detected","Yes, not detected"},
+        {"Yes, detected","Yes, detected"},
+        {"sRGB","sRGB"},
+        {"Uncalibrated","Uncalibrated"},
+        {"No unit","No unit"},
+        {"Inch","Inch"},
+        {"Centimeter","Centimeter"},
+        {"None","None"},
+        {"Jpeg","Jpeg"},
+        {"Monochrome","Monochrome"},
+
+        //List of Fields
+        {"Id","Id"},
+        {"DateTime","Time"},
+        {"ExifImageWidth","Width"},
+        {"ExifImageHeight","Height"},
+        {"ISOSpeedRatings","ISO"},
+        {"LightSource","White balance"},
+        {"FNumber","Aperture"},
+        {"ApertureValue","Aperture"},
+        {"ExposureTime","Shutter"},
+        {"ShutterSpeedValue","Shutter"},
+        {"FocalLength","Focal length"},
+        {"ExposureProgram","Program"},
+        {"MeteringMode","Metering mode"},
+        {"Flash","Flash?"},
+        {"Make","Camera make"},
+        {"Model","Camera model"},
+        {"Software","Camera software"},
+        {"MN_ISOSetting","ISO setting"},
+        {"MN_ColorMode","Color mode"},
+        {"MN_Quality","Quality"},
+        {"MN_WhiteBalance","White balance"},
+        {"MN_ImageSharpening","Image sharpening"},
+        {"MN_FocusMode","Focus mode"},
+        {"MN_FlashSetting","Flash setting"},
+        {"MN_ISOSelection","ISO selection"},
+        {"MN_ImageAdjustment","Image adjustment"},
+        {"MN_Adapter","Adapter"},
+        {"MN_ManualFocusDistance","Manual Focus Distance"},
+        {"MN_DigitalZoom","Digital zoom"},
+        {"MN_AFFocusPosition","AF focus position"}
+    };
+}

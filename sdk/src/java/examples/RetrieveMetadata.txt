@@ -1,0 +1,16 @@
+NAME
+       RetrieveMetadata - retrieve data (and metadata)
+
+SYNOPSIS
+       java RetrieveMetadata <IP | HOST> <OID> [OPTIONS]
+
+DESCRIPTION
+       Retrieve a metadata record data from the @HoneycombProductName@ server.
+       The metadata record identified by the supplied OID is printed to stdout. 
+OPTIONS
+       -h
+              print this message
+
+EXAMPLES
+       java RetrieveMetadata server @SampleOID@ log.1
+       java RetrieveMetadata 10.152.0.12  @SampleOID@

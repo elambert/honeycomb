@@ -1,0 +1,6 @@
+$Id: README 10856 2007-05-19 02:58:52Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+The files in this directory contain OS specific information for building the examples (with make).

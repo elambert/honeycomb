@@ -1,0 +1,1598 @@
+#LyX 1.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 221
+\textclass article
+\language english
+\inputencoding auto
+\fontscheme times
+\graphics default
+\paperfontsize default
+\spacing single 
+\papersize Default
+\paperpackage a4
+\use_geometry 0
+\use_amsmath 0
+\use_natbib 0
+\use_numerical_citations 0
+\paperorientation portrait
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\defskip medskip
+\quotes_language english
+\quotes_times 2
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+
+\layout Title
+
+Honeycomb Cluster Management
+\layout Author
+
+Ludovic Fernandez
+\layout Date
+
+Charter version
+\layout Standard
+
+
+\begin_inset LatexCommand \tableofcontents{}
+
+\end_inset 
+
+
+\layout Section
+\pagebreak_top 
+Introduction
+\layout Standard
+
+This document describes the cluster management of Honeycomb.
+ The first part of the document presents the management API.
+ The second part details the generic architecture.
+ The last part focuses on the specific implementation done in the context
+ of Honeycomb.
+\layout Standard
+
+The cluster management layer is responsible for:
+\layout Enumerate
+
+managing the state of the cluster.
+ This includes starting, monitoring and stopping the system to ensure data
+ availability and reliability by providing a framework for detecting and
+ reporting failure with automatic error escalation and recovery.
+\layout Enumerate
+
+providing a single entry point giving an abstraction of a single appliance
+ rather than a collection of clustered nodes for cluster administration
+ and maintenance operations.
+\layout Section
+
+Terminology
+\layout Standard
+
+This section gives a list of concepts used through the document.
+\layout Enumerate
+
+
+\series bold 
+Managed service
+\series default 
+: a managed service is a software component that implements the cluster
+ management interface.
+ It is the basic entity managed in the cell.
+ This can be a software service like a NFS server or the representation
+ of a physical resource like a disk drive (or a FRU generally speaking).
+ A managed service has a dynamic state, a public api and is transparently
+ accessible cluster-wide.
+ 
+\layout Enumerate
+
+
+\series bold 
+Service proxy object
+\series default 
+: a managed service can export a specific object in the cell that contains
+ embedded state information and defines an API accessible remotely.
+ Every managed service has a default proxy object defined by cluster management.
+ This default object can be extended by a managed service to include any
+ state information or API that the service wants to export in the cell.
+\layout Section
+
+Management API
+\layout Standard
+
+This section presents the API exported by cluster management as a set of
+ java classes and interfaces that need to be used to implement the concept
+ of a managed service and proxy object in Honeycomb.
+ A great deal of effort has been put to make the API as straightforward
+ to use as possible while keeping it efficient and flexible.
+ However the API is not fixed and can be modified or extended during the
+ review phase of the cluster management document.
+\layout Subsection
+
+Managed Service
+\layout Standard
+
+A managed service is defined by the following interface:
+\layout LyX-Code
+
+interface ManagedService extends Runnable {
+\layout LyX-Code
+
+ 
+\layout LyX-Code
+
+    void destroy();
+\layout LyX-Code
+
+ 
+\layout LyX-Code
+
+    ProxyService getProxy();
+\layout LyX-Code
+
+}
+\layout Standard
+
+An object implementing this interface is controlled and monitored by cluster
+ management.
+ The managed service is created by calling the default constructor of the
+ class implementing the interface.
+ The constructor is implementation dependent but should be used to initialize
+ the service (including resources allocation, like threads).
+ Cluster management assumes that a service is 
+\emph on 
+ready
+\emph default 
+ to run when the constructor returns successfully.
+ The ManagedService interface extends Runnable and therefore defines a 
+\emph on 
+run()
+\emph default 
+ method that is called by cluster management to effectively start the service.
+ 
+\layout Standard
+
+The 
+\series bold 
+destroy() 
+\series default 
+method is called to gracefully destroy the managed service and should be
+ used to properly shutdown the service including any cleanup of resources
+ allocated at run-time.
+ It is important to note that this method is time bounded and need to finish
+ in a reasonable amount of time (1mn in the current design).
+ Failure to do so may result in an error escalation (the node manager will
+ have to restart all services running in the same JVM).
+\layout Standard
+
+The 
+\series bold 
+getProxy()
+\series default 
+ method returns the proxy object of a managed service (see below).
+ This is an optional operation and a service that does not need to export
+ a specific proxy object can return a null value.
+ In which case cluster management will export a default proxy object to
+ access the service.
+ This method is called periodically or indirectly by the managed service
+ to propagate an up-to-date version of the service proxy object.
+\layout Subsubsection
+
+Managed service dependencies
+\layout Standard
+
+A managed service can define the list of services it directly depends on
+ by implementing the specific constant 
+\series bold 
+relyOn
+\series default 
+ in its service class.
+ Cluster management uses java reflection to build a dependency graph for
+ all services on a node and starts them in a compatible order.
+ If an error is detected in the dependency graph, the corresponding services
+ are not started.
+ The constant relyOn is an array of classes implementing a 
+\emph on 
+ManagedService
+\emph default 
+ like in the following example:
+\layout LyX-Code
+
+static final Class[] relyOn = { OA.class, MD.class };
+\layout Subsection
+
+Proxy Service
+\begin_inset LatexCommand \label{sub:Proxy-Service}
+
+\end_inset 
+
+
+\layout Standard
+
+A managed service can export a specific object in the cell.
+ This proxy object contains embedded state information and define an API
+ accessible remotely.
+ Every managed service has a default proxy object defined by cluster management.
+ This class can be extended by the service to include any state information
+ or API that the service wants to export.
+ The specific service proxy object is returned by the
+\series bold 
+ getProxy() 
+\series default 
+method of the ManagedService interface.
+ The default ProxyService class is defined as an inner class of the ManagedServi
+ce interface.
+\layout LyX-Code
+
+class ProxyService implements java.io.Serializable {
+\begin_deeper 
+\layout LyX-Code
+
+volatile protected int state; 
+\layout LyX-Code
+
+volatile protected int load;
+\end_deeper 
+\layout LyX-Code
+
+\begin_deeper 
+\layout LyX-Code
+
+/**
+\layout LyX-Code
+
+ * return true if the service is enabled.
+ 
+\layout LyX-Code
+
+ * can be override by super class to control the 
+\layout LyX-Code
+
+ * state of the managed service.
+ 
+\layout LyX-Code
+
+ */ 
+\layout LyX-Code
+
+boolean isEnabled() { 
+\layout LyX-Code
+
+    return (state == RUNNING); 
+\layout LyX-Code
+
+}
+\end_deeper 
+\layout LyX-Code
+
+\begin_deeper 
+\layout LyX-Code
+
+/** 
+\layout LyX-Code
+
+ * return the current load average of the service.
+\layout LyX-Code
+
+ * the load average is defined as an average of the number 
+\layout LyX-Code
+
+ * of threads ready to run and waiting in the service, 
+\layout LyX-Code
+
+ * as sampled over the previous 30-seconds interval of 
+\layout LyX-Code
+
+ * service operation.
+ The load average is given as a percentage 
+\layout LyX-Code
+
+ * with 100% meaning the service is over-loaded and 0% the 
+\layout LyX-Code
+
+ * service is idle.
+ 
+\layout LyX-Code
+
+ */ 
+\layout LyX-Code
+
+final int getLoadAverage() { 
+\layout LyX-Code
+
+    return load; 
+\layout LyX-Code
+
+}
+\end_deeper 
+\layout LyX-Code
+
+}
+\layout Subsubsection
+
+Publishing a service proxy object
+\layout Standard
+
+Proxy objects are propagated periodically in the cell by calling the getProxy()
+ method of the interface.
+ A managed service can explicitly request to publish a new proxy by calling
+ the following method of the
+\emph on 
+ ServiceManager
+\emph default 
+ class:
+\layout LyX-Code
+
+static void publish(ManagedService service)
+\layout Standard
+
+As a side note this interface is open to discussion and can be extended
+ to make the method call synchronous.
+ The caller is blocked until the new proxy object is actually propagated
+ on every node of the cell.
+\layout LyX-Code
+
+\layout Subsubsection
+
+Proxy object serialization/deserialization
+\layout Standard
+
+Objects are serialized/deserialized using the default mechanism provided
+ by the java platform with the following restrictions; The limit of a serialized
+ proxy object is 64KB.
+ A proxy object cannot hold any resources from the operating system.
+ The 
+\emph on 
+ProxyService
+\emph default 
+ includes two methods that can be override to implement a specific serialization
+ protocol:
+\layout LyX-Code
+
+/** 
+\layout LyX-Code
+
+ * (de)serialize the ProxService object from/in the given stream.
+ 
+\layout LyX-Code
+
+ * By default a ProxyService object is automatically serialized 
+\layout LyX-Code
+
+ * using the java.io.Serialization interface (with the defined 
+\layout LyX-Code
+
+ * restrictions).
+ This method can be overridden to change the 
+\layout LyX-Code
+
+ * default mechanism.
+ 
+\layout LyX-Code
+
+ * @param out the <code>OutputStream</code> to serialize this object.
+\layout LyX-Code
+
+ * @param in the <code>InputStream</code> to deserialize this object.
+\layout LyX-Code
+
+ * @return a new ProxyService object build from the input stream or 
+\layout LyX-Code
+
+ * null if the object cannot be reconstructed.
+\layout LyX-Code
+
+ */ 
+\layout LyX-Code
+
+void serialize(OutputStream out) throws IOException;
+\layout LyX-Code
+
+ProxyService deserialize(InputStream in) throws IOException;
+\layout LyX-Code
+
+\layout Subsubsection
+
+remote procedure call
+\layout Standard
+
+A managed service exports a public API by making its service proxy object
+ implements java interfaces (see 
+\begin_inset LatexCommand \ref{par:inter-service-procedure-calls}
+
+\end_inset 
+
+).
+ All the calls to a method defined in a ProxyService interface are trapped
+ by the management agent and redirected to the JVM of the node running the
+ corresponding managed service.
+ The remote invocation is done in the context of the current proxy object
+ of the service.
+ A managed service can override the following method of its ProxyService
+ class to trap all remote invocations.
+\layout LyX-Code
+
+Object invoke(Object proxy, Method method, Object[] args) throws Throwable
+\layout LyX-Code
+
+\layout Subsection
+
+Accessing proxy service in the cell
+\layout Standard
+
+All service proxy objects are accessible in the cell through the 
+\emph on 
+ServiceManager
+\emph default 
+ class.
+ This class has two methods for getting the proxy object of a given service:
+\layout LyX-Code
+
+/**
+\layout LyX-Code
+
+ * return a proxy object for the managed service running
+\layout LyX-Code
+
+ * on the given node.
+\layout LyX-Code
+
+ * @param node is the node identifier
+\layout LyX-Code
+
+ * @param managedService is the the class of the managed service.
+\layout LyX-Code
+
+ * @return the proxy object for this service or null if the service
+\layout LyX-Code
+
+ * does not exist.
+\layout LyX-Code
+
+ */
+\layout LyX-Code
+
+    static ManagedService.ProxyService 
+\layout LyX-Code
+
+
+\series bold 
+proxyFor
+\series default 
+(int node, Class managedService)
+\layout LyX-Code
+
+ 
+\layout LyX-Code
+
+/**
+\layout LyX-Code
+
+ * return all the proxy objects for the given managed service.
+\layout LyX-Code
+
+ */     
+\layout LyX-Code
+
+    static ManagedService.ProxyService[] 
+\layout LyX-Code
+
+
+\series bold 
+proxyFor
+\series default 
+(Class managedService)
+\layout LyX-Code
+
+\layout Standard
+
+As a side note.
+ In the proposed version of cluster management, the 
+\emph on 
+managedService
+\emph default 
+ class gives the object implementing the service.
+ A more generic model will be to force every managed services to defined
+ an interface that decouples the service functionality from its implementation
+ and ask for a java interface describing the service.
+ Except if decided otherwise during the review process this feature is postponed
+ for after Charter (for example interface = STORE -> specific implementation
+ = OA).
+\layout Subsubsection
+
+update notification
+\layout Standard
+
+A software component can request to be notified when the proxy object of
+ a service is updated.
+ The ProxyService class includes a 
+\emph on 
+register()
+\emph default 
+ method that can be used to register a user callback.
+ This callback is called by cluster management when the content of a proxy
+ object changes in the cell (for example a managed service changes its state).
+ The method is defined as follow:
+\layout LyX-Code
+
+final void register(Observer observer)
+\layout Standard
+
+The 
+\emph on 
+Observer
+\emph default 
+ class is defined by the java plaform as an interface that includes only
+ one method:
+\layout LyX-Code
+
+void update(Observable proxy, Object arg)
+\layout Standard
+
+The 
+\emph on 
+proxy
+\emph default 
+ parameter is the new proxy object for the service.
+ The arg parameter is not used in the current version of cluster management.
+\layout Subsection
+
+Example
+\layout Standard
+
+This is an example of a complete managed service:
+\layout LyX-Code
+
+// simple managed service that periodically  
+\layout LyX-Code
+
+// publishes its proxy object in the cell.
+ 
+\layout LyX-Code
+
+//
+\layout LyX-Code
+
+class 
+\series bold 
+ExampleService
+\series default 
+ implements ManagedService {
+\layout LyX-Code
+
+\layout LyX-Code
+
+    Random generator;
+\layout LyX-Code
+
+    volatile boolean keeprunning;
+\layout LyX-Code
+
+    
+\layout LyX-Code
+
+    // default constructor called by CM
+\layout LyX-Code
+
+    ExampleService() {
+\layout LyX-Code
+
+        generator = new Random();
+\layout LyX-Code
+
+        keeprunning = true;
+\layout LyX-Code
+
+    }
+\layout LyX-Code
+
+ 
+\layout LyX-Code
+
+    // return the current proxy for this service
+\layout LyX-Code
+
+    public ProxyService getProxy() {
+\layout LyX-Code
+
+        return new ExampleProxy(generator.nextInt());
+\layout LyX-Code
+
+    }
+\layout LyX-Code
+
+ 
+\layout LyX-Code
+
+    // shutdown gracefully the service
+\layout LyX-Code
+
+    public void destroy() {
+\layout LyX-Code
+
+        keeprunning = false;
+\layout LyX-Code
+
+    }
+\layout LyX-Code
+
+ 
+\layout LyX-Code
+
+    // start the service
+\layout LyX-Code
+
+    public void run() {
+\layout LyX-Code
+
+        while (keeprunning) {
+\layout LyX-Code
+
+            ServiceManager.publish(this);
+\layout LyX-Code
+
+            try {
+\layout LyX-Code
+
+                Thread.sleep(5000);
+\layout LyX-Code
+
+            } catch (InterruptedException e) {
+\layout LyX-Code
+
+                // end of this service.
+\layout LyX-Code
+
+                break;
+\layout LyX-Code
+
+            }
+\layout LyX-Code
+
+        }
+\layout LyX-Code
+
+    }
+\layout LyX-Code
+
+}
+\layout LyX-Code
+
+ 
+\layout LyX-Code
+
+// the example managed service exports the following public API.
+\layout LyX-Code
+
+interface 
+\series bold 
+ExampleApi
+\series default 
+ {
+\layout LyX-Code
+
+    void voidCall();
+\layout LyX-Code
+
+    boolean checkedCall(ExampleProxy proxy);
+\layout LyX-Code
+
+}
+\layout LyX-Code
+
+ 
+\layout LyX-Code
+
+// here is the implementation of the service proxy object
+\layout LyX-Code
+
+class 
+\series bold 
+ExampleProxy
+\series default 
+ extends ManagedService.ProxyService
+\layout LyX-Code
+
+                  implements ExampleApi {
+\layout LyX-Code
+
+    public int value;
+\layout LyX-Code
+
+    
+\layout LyX-Code
+
+    ExampleProxy(int val) {
+\layout LyX-Code
+
+        value = val;
+\layout LyX-Code
+
+    }
+\layout LyX-Code
+
+ 
+\layout LyX-Code
+
+    int getValue() {
+\layout LyX-Code
+
+        return value;
+\layout LyX-Code
+
+    }
+\layout LyX-Code
+
+   
+\layout LyX-Code
+
+    // remote API
+\layout LyX-Code
+
+ 
+\layout LyX-Code
+
+    public void voidCall() {
+\layout LyX-Code
+
+        // change the log level of the service for example
+\layout LyX-Code
+
+        System.out.println("remote method invocation");
+\layout LyX-Code
+
+    }
+\layout LyX-Code
+
+ 
+\layout LyX-Code
+
+    // this method forces the caller to pass the
+\layout LyX-Code
+
+    // proxy object used to make the remote call
+\layout LyX-Code
+
+    // and return true if the remote proxy is up-to-date
+\layout LyX-Code
+
+    public boolean checkedCall(ExampleProxy proxy) {
+\layout LyX-Code
+
+        if (proxy.value != value) {
+\layout LyX-Code
+
+            return false;
+\layout LyX-Code
+
+        }
+\layout LyX-Code
+
+        return true;
+\layout LyX-Code
+
+    }
+\layout LyX-Code
+
+} 
+\layout LyX-Code
+
+ 
+\layout LyX-Code
+
+// here is how to access the Example service remotely
+\layout LyX-Code
+
+Object obj = ServiceManager.proxyFor(1, ExampleService.class);
+\layout LyX-Code
+
+if (obj instanceof ExampleProxy) {
+\layout LyX-Code
+
+    ExampleProxy proxy = (ExampleProxy) obj;
+\layout LyX-Code
+
+    if (proxy.isEnabled()) {
+\layout LyX-Code
+
+        int value = proxy.getValue();
+\layout LyX-Code
+
+        proxy.voidCall();
+\layout LyX-Code
+
+        boolean uptodate = proxy.checkedCall(this);
+\layout LyX-Code
+
+\layout Subsection
+
+Refining service management
+\layout Standard
+
+Cluster management relies extensively on the interface model and methods
+ overriding mechanism of the java platform to define or refine the management
+ policy of a given service.
+ The following list gives a set of marker interfaces that a managed service
+ can implement to interact with the management layer.
+\layout Subsubsection
+
+Master service interface
+\layout Standard
+
+
+\emph on 
+MasterService
+\emph default 
+ is an interface to specify that the service needs to run only on the master
+ node.
+ Cluster management is responsible to start and stop this service when the
+ node is promoted or demoted master node (see CMM interface).
+\layout Subsubsection
+
+Run-level service interfaces
+\layout Standard
+
+Cluster management exports the notion of run-level for services similar
+ to the init model of unix.
+ A set of predefined interfaces map to specific run-levels and determine
+ a global order between services that enables the correct initialization
+ of a node.
+ Cluster management guarantees that all services of a given run-level are
+ enabled (see 
+\begin_inset LatexCommand \ref{sub:Proxy-Service}
+
+\end_inset 
+
+) before any other services belonging to an upper run-level get initialized.
+ It is important to note that run-levels mechanism does not take care of
+ services dependencies.
+ A run-level means reaching a defined level of functionality in the system
+ but it does not keep track of the possible dependency between services.
+ Trying to map services dependency into run-levels is generally a bad idea
+ 
+\begin_inset Foot
+collapsed false
+
+\layout Standard
+
+This is similar to the problem one faces when trying to set the priority
+ of a thread.
+ You usually give relative priority.
+ To be accurate, you need to know the priority of all other threads in the
+ system.
+ 
+\end_inset 
+
+.
+ Cluster management defines 3 run-levels in the system:
+\layout Enumerate
+
+
+\emph on 
+CoreService
+\emph default 
+ interface.
+ All managed services implementing this interface are started as soon as
+ possible during the node initialization.
+ This can be considered as the run-level 1.
+ Services at this level takes care of the platform initialization.
+\layout Enumerate
+
+
+\emph on 
+CellService
+\emph default 
+ interface can be seen as the run-level 2.
+ Every managed services from this level are started after core services
+ are enabled but before any others 
+\begin_inset Quotes eld
+\end_inset 
+
+user
+\begin_inset Quotes erd
+\end_inset 
+
+ services.
+ Services at this level should take care of the cell initialization (for
+ example decide if there is enough resources to start Honeycomb).
+\layout Enumerate
+
+All other services that don't implement either the 
+\emph on 
+CoreService
+\emph default 
+ or 
+\emph on 
+CellService
+\emph default 
+ interfaces are started at run-level 3 (or user level).
+\layout Subsubsection
+
+Managed logger interface
+\layout Standard
+
+The 
+\emph on 
+ManagedLogger
+\emph default 
+ is an interface that tries to resolve the issue of detecting failures in
+ a java service by monitoring its logging habit (see 
+\begin_inset LatexCommand \ref{par:java-service-failure}
+
+\end_inset 
+
+).
+ A managed service implementing this interface has all its log traces filtered
+ by the management agent and can be disabled and restarted based on its
+ frequency of logging SEVERE errors and its current load average.
+ 
+\layout Subsection
+
+Cluster Management Proxy Service
+\layout Standard
+
+Cluster management is itself a managed service and exports a proxy object
+ that defines the API and current state of a node.
+ The following highlights the functionality found in the 
+\emph on 
+ClusterManagement
+\emph default 
+ proxy object.
+\layout Itemize
+
+list the current states and names of the services on the node.
+\layout Itemize
+
+start and stop services remotely.
+\layout Itemize
+
+set the eligibility state of the node (a non-eligible node cannot be the
+ master node)
+\layout Itemize
+
+list the current state of the nodes in the cell:
+\begin_deeper 
+\layout Itemize
+
+the node is alive and part of the cell
+\layout Itemize
+
+the node is the current master node
+\layout Itemize
+
+the node is the current vice master node
+\layout Itemize
+
+the node is not powered on
+\end_deeper 
+\layout Section
+
+Architecture overview
+\layout Standard
+
+Cluster Management is a distributed HA framework in java that manages services
+ among nodes in a cell.
+ It is implemented by 3 building block components:
+\layout Itemize
+
+a cell membership monitor that provides a view of the nodes in the cell
+ and elects dynamically a master node.
+\layout Itemize
+
+a node manager coupled with a management agent that provides a java framework
+ for controlling services and for detecting failure including automatic
+ error escalation and recovery.
+\layout Itemize
+
+a global communication bus designed for the java runtime environment and
+ based on a distributed IPC mechanism.
+\layout Standard
+
+
+\begin_inset Float figure
+placement H
+wide false
+collapsed false
+
+\layout Standard
+\align center 
+
+\begin_inset Graphics
+	filename architecture.epsi
+	clip
+	rotateOrigin center
+
+\end_inset 
+
+
+\layout Caption
+
+cluster management overall design
+\end_inset 
+
+
+\layout Section
+
+Cluster Management Architecture
+\layout Subsection
+
+Distributed IPC
+\layout Standard
+
+The distributed IPC mechanism is used to share service information across
+ different address spaces in the cluster.
+ The design is similar to a distributed object model.
+ A managed service exports a proxy object that includes the state of the
+ service and defines its public interface accessible remotely.
+\layout Standard
+
+All service proxy object are accessible cluster wide enabling a component
+ to have an access on any service regardless of its location.
+ The global view of the service proxies is not guarantee to be consistent
+ across the cluster (a proxy object can be different on different nodes),
+ but the cluster management guarantees that the distributed view converges
+ over time and that a proxy object cannot contain inconsistent information.
+ Proxy objects are propagated in the cluster periodically or on the service
+ request to propagate a state change.
+\layout Subsubsection
+
+IPC Model - shared memory segment
+\layout Standard
+
+A managed service has a shared memory segment attached to it that records
+ the necessary information to manage and access the service and is used
+ as a backing store for the service proxy object.
+ The shared memory segment is protected by a locking mechanism that guarantees
+ data consistency during update (and hence the consistency of the proxy
+ object).
+ The shared memory mechanism is at the heart of the IPC model used in cluster
+ management.
+ It enables to control asynchronously the behavior of the attached service
+ and isolates critical management information from accidental corruption.
+ A specific section of the shared memory runs a state machine that decides
+ the current runtime state of the service in the system.
+ The rest of the shared memory is used to store the proxy object of the
+ service using the java serialization mechanism.
+\layout Standard
+
+
+\begin_inset Float figure
+placement H
+wide false
+collapsed false
+
+\layout Standard
+\align center 
+
+\begin_inset Graphics
+	filename shared_memory.epsi
+
+\end_inset 
+
+
+\layout Caption
+
+shared memory mechanism
+\end_inset 
+
+
+\layout Subsubsection
+
+Internal state machine of a service
+\layout Standard
+
+This section describes in more details the internal service state machine
+ contained in the shared memory segment.
+\layout Standard
+
+Each service has a current state that is exported to the applications and
+ accessible cluster-wide.
+ The value of this state is decided by the cluster management and is the
+ result of direct or indirect actions triggered in the cluster.
+ It is important to note that the state of a service is not decided by one
+ centralized component.
+ Some states are spontaneous and decided by the service.
+ Others are triggered by the cluster management to change or reflect the
+ current behavior of the service.
+ As an example, a service can be put in a 
+\emph on 
+disabled
+\emph default 
+ state for the following reasons:
+\layout Itemize
+
+an unrecoverable error is encountered in the service code
+\layout Itemize
+
+as an effect of an error escalation (a healthy service relies on a 
+\emph on 
+disabled
+\emph default 
+ service)
+\layout Itemize
+
+in response of a failure propagation (a node detected down has all its services
+ automatically disabled in the rest of the system)
+\layout Standard
+
+A service can have the followings states:
+\layout Description
+
+Disabled The service has crashed, does not exist or is known to fail.
+\layout Description
+
+Init The service is initializing.
+\layout Description
+
+Ready The service initialization is complete but the service has not yet
+ been started by the cluster management.
+\layout Description
+
+Running The service is running and currently processes requests.
+\layout Standard
+
+The following drawing shows the transition states of a service and highlights
+ the ones triggered by the cluster management.
+\layout Standard
+
+
+\begin_inset Float figure
+placement H
+wide false
+collapsed false
+
+\layout Standard
+\align center 
+
+\begin_inset Graphics
+	filename service_states.eps
+	lyxscale 50
+	height 5cm
+	keepAspectRatio
+	clip
+
+\end_inset 
+
+
+\layout Paragraph
+
+service state machine
+\end_inset 
+
+
+\layout Subsubsection
+
+Services distribution and naming 
+\layout Standard
+
+A specific server of the cluster management framework is responsible for
+ propagating the proxy objects in the cluster and for providing a distributed
+ name service to access them.
+ The 
+\emph on 
+mboxd
+\emph default 
+ server relies on the functionalities of CMM and the node manager to build
+ such a distributed view of the service proxy objects.
+ The shared memory of a proxy object is mapped in the file system of the
+ underlying platform (with filemap) using a hierarchic namespace of the
+ form [
+\series bold 
+node id
+\series default 
+]/[
+\series bold 
+service tag
+\series default 
+].
+ Where 
+\series bold 
+node id
+\series default 
+ is the unique node identifier given by CMM and 
+\series bold 
+service tag
+\series default 
+ is the java class name of the service.
+ The mboxd server builds this way a local file system describing all the
+ accessible services in the cluster.
+ It discovers the list of services on a remote node by accessing the proxy
+ object of the remote node manager (cluster management is itself a managed
+ service) and gets the list of active nodes detected from CMM.
+ The distributed file system is first synchronized locally during initialization
+ and is automatically updated at run-time to reflect the current view of
+ available services.
+ The current implementation of the mboxd server propagates periodically
+ the local proxy objects (more precisely the corresponding shared memory
+ segment) in the cluster using a reliable transport protocol.
+ A managed service can request to synchronize its proxy object in the cluster
+ by calling the 
+\emph on 
+ServiceInfo::publish()
+\emph default 
+ API.
+ 
+\layout Subsubsection
+
+Java management agent
+\layout Standard
+
+Each JVM running at least one managed service includes a java management
+ agent that implements the java management API and controls the services
+ running inside the JVM.
+ This management agent can be seen as the run-time executive of the process.
+ It starts stops and monitors the managed services.
+ It uses the functionality of the services distribution and naming to implement
+ the java proxy object and remote procedure call mechanisms.
+ It relies on the node manager to control the state on the services running
+ inside the JVM.
+\layout Standard
+
+An important role of the management agent is to monitor the resources allocated
+ by each managed service and detects any failure condition.
+ On the other hand, it has a limited scope and relies mainly on the node
+ manager to decide the current state of the service.
+ The java ManagedService interface is implemented this way:
+\layout Standard
+
+When node manager triggers the 
+\series bold 
+Init
+\series default 
+ state in the shared memory, the java object implementing the ManagedService
+ interface is allocated and its default constructor is called.
+ When the constructor returns, the state of the service is changed to 
+\series bold 
+Ready
+\series default 
+ by the management agent.
+ In turns the node manager can request the service to be 
+\series bold 
+Running
+\series default 
+ which request the management agent to trigger the call to the 
+\emph on 
+run()
+\emph default 
+ method of the ManagedService.
+ From this point one the service is in the state 
+\series bold 
+Running
+\series default 
+.
+ When the state of the service is set to 
+\series bold 
+Disabled
+\series default 
+, the 
+\emph on 
+destroy()
+\emph default 
+ method of the interface is called to gracefully shutdown the service.
+\layout Paragraph
+
+java resource monitoring
+\layout Standard
+
+The management agent controls the threads created by a service (using the
+ 
+\emph on 
+ThreadGroup
+\emph default 
+ mechanism of the java language) and computes the load average of a service.
+ The load average is defined as an average of the number of threads ready
+ to run and sleeping in the service, as sampled over the previous 30-seconds
+ interval of service operation.
+ The load average is given as a percentage with 100% meaning the service
+ is over-loaded and 0% the service is idle.
+ A software component can retrieve the current load average of a service
+ by calling the 
+\emph on 
+getLoadAverage() 
+\emph default 
+method of the service proxy object.
+\layout Standard
+
+The management agent also monitors and controls the java heap of the running
+ JVM and triggers the garbage collector when appropriate.
+ In the future the management agent can be extended when new resource management
+ mechanisms are added to the java platform.
+\layout Paragraph
+
+
+\begin_inset LatexCommand \label{par:java-service-failure}
+
+\end_inset 
+
+java service failure detection
+\layout Standard
+
+The management agent catches all unchecked java exceptions thrown by any
+ threads created by the service.
+ When such an exception occurs, it calls the 
+\emph on 
+destroy()
+\emph default 
+ method of the service and changes the service state to 
+\series bold 
+Disabled
+\series default 
+ in the shared memory segment.
+ Exceptions handling is the pre-defined mechanism to detect error and failure
+ conditions in the java language.
+ However this mechanism does not work well in a High Availability system
+ like Honeycomb where services have to deal and recover from transient error
+ conditions and hence have to catch java exceptions themselves.
+ It is complex to detect a transient recoverable error condition from a
+ failure situation and usually Honeycomb services log an error and try to
+ recover a failing operation.
+ This creates loops in the system where services keep failing and recovering.
+ The cluster management implements a novel mechanism to detect such situations.
+ The management agent monitors the logging habit of a service and can decide
+ to disable a service based on its frequency of logging SEVERE errors and
+ its current load average; In other words, a service over-loaded and logging
+ SEVERE error is disabled.
+ The developer of a managed service can decide to use this mechanism to
+ detect failure situations in its service code by inheriting the 
+\emph on 
+ManagedLogger
+\emph default 
+ java interface.
+\layout Paragraph
+
+
+\begin_inset LatexCommand \label{par:inter-service-procedure-calls}
+
+\end_inset 
+
+inter-service procedure calls
+\layout Standard
+
+The management agent implements a framework for remote procedure calls similar
+ to the RMI mechanism of the java language.
+ The java proxy object of a managed service can implement multiple java
+ interfaces that defines the public API of a service.
+ The methods defined in this API are accessible remotely.
+ The inter-service procedure calls implementation is based on the functionality
+ of the 
+\series bold 
+\emph on 
+InvocationHandler
+\series default 
+\emph default 
+ interface of the java language which enables to trap java object interface
+ calls.
+ The management agent traps all calls to the interface methods of a service
+ proxy object and routes them appropriately; Directly if the target service
+ is running in the same JVM, remotely otherwise.
+ 
+\layout Standard
+
+The management agent is responsible for creating and caching the invocation
+ threads and network connections used to implement the service proxy objects.
+ 
+\begin_inset Foot
+collapsed false
+
+\layout Standard
+
+As a side note inter-service procedure calls even inside a JVM is an important
+ feature that provides fault isolation.
+ It allows to keep track of the context of a running thread (and hence the
+ service in which it is running).
+\end_inset 
+
+
+\layout Subsection
+
+Node Manager
+\layout Standard
+
+The node manager monitors processes and controls the java services running
+ inside a JVM.
+ It is a requirement to support multiple address spaces to control efficiently
+ resources allocation and guarantee fault isolation.
+ The node manager is responsible for the correct initialization and shutdown
+ sequence of the node and provides a policy for error escalation and recovery.
+ 
+\layout Standard
+
+
+\begin_inset Float figure
+placement H
+wide false
+collapsed false
+
+\layout Standard
+\align center 
+
+\begin_inset Graphics
+	filename node_manager.epsi
+	clip
+
+\end_inset 
+
+
+\layout Caption
+
+node manager design
+\end_inset 
+
+
+\layout Subsubsection
+
+Starting/stopping managed services.
+\layout Subsubsection
+
+Services dependency graph and error correlation
+\layout Subsubsection
+
+process resources monitoring
+\layout Subsubsection
+
+failure detection
+\layout Subsubsection
+
+failure escalation and recovery
+\layout Subsection
+
+Cell Membership Monitor
+\layout Standard
+
+The cell membership monitor (CMM) is responsible for monitoring the nodes
+ within a cell at the TCP/IP level.
+ Its purpose is to detect and report as fast as possible any node failure
+ in the cell and guarantee that one and only one master node is always available.
+ The design relies on a ring transport layer similar to a token ring architectur
+e; All CMM agents are organized in a ring.
+ Each CMM has a next and a previous element.
+ By nature, the cluster membership provides a strong consistent view of
+ the cluster and relies on a connection oriented protocol with short and
+ finely tuned timeouts.
+ It also requires to have a ordered map of potential nodes in the cell in
+ order to establish the ring.
+\layout Standard
+
+
+\begin_inset Float figure
+placement H
+wide false
+collapsed false
+
+\layout Standard
+\align center 
+
+\begin_inset Graphics
+	filename cmm.epsi
+	clip
+
+\end_inset 
+
+
+\layout Caption
+
+Cluster Membership Monitor architecture
+\end_inset 
+
+
+\layout Subsubsection
+
+heartbeat model
+\layout Subsubsection
+
+reliable network protocol
+\layout Subsubsection
+
+master node election
+\layout Subsection
+
+Implementation metrics
+\layout Standard
+
+number of nodes supported: 16
+\newline 
+node fault detection: 20s
+\newline 
+service fault detection: 60s
+\newline 
+proxy object propagation latency: 30s
+\layout Section
+
+Honeycomb implementation
+\layout Subsection
+
+Web server
+\layout Standard
+
+The web server is a 
+\emph on 
+MasterService
+\emph default 
+ accessible on port 8090 of the public management IP and provides a global
+ view of the cluster.
+ In particular, it shows:
+\layout Itemize
+
+the cell configuration
+\layout Itemize
+
+the list of nodes in the cell with their current status
+\layout Itemize
+
+for one given node, the list of services running on that node with a detailed
+ view of their current state (base on their proxy object).
+\layout Itemize
+
+the list of all the disks available in the cluster.
+\layout Subsection
+
+CLI interface
+\layout Standard
+
+The CLI interface relies on the remote method invocation mechanism to build
+ macro-operations that control the cluster.
+ In theory all managed service interfaces are accessible by the CLI.
+ The set of operations that need to be supported is not yet defined.
+ The implementation will probably be in java with a client running on the
+ external node.
+\layout Subsection
+
+Cell master
+\layout Standard
+
+The cell master is a 
+\emph on 
+MasterService
+\emph default 
+ that monitors the state of every node in the cell and is responsible for
+ detecting dead nodes.
+ The cell master implementation is stateless.
+ Its state is either volatile or can be rebuild from the distributed view
+ of the cell.
+\layout Subsection
+
+Platform service
+\layout Standard
+
+The platform service is a HA version of the unix init process.
+ It manages and monitors the unix services needed by Honeycomb and exports
+ a public api to control each of them individually.
+ It publishes a proxy object that includes the current load and performance
+ metrics of the node and manages in particular:
+\layout Itemize
+
+ntp
+\newline 
+The ntp server is automatically updated during a master node fail-over or
+ a cell configuration update.
+ The master node ntp is configured to point to the external ntp server provided
+ by the configuration.
+ All other nodes are configured to use the master node as the ntp server.
+\layout Itemize
+
+power management
+\newline 
+the platform service exports an api to command the hardware remote power
+ control.
+ Only the master node can access this interface.
+ The proxy object of the platform service includes the power status for
+ every node in the cell.
+\layout Itemize
+
+vip configuration
+\newline 
+The management virtual IP is configured during a master node fail-over.
+\layout Itemize
+
+mysql
+\newline 
+The mysql server is monitored.
+ Errors are reported in the platform proxy object.
+\layout Itemize
+
+dhcp/ftp
+\layout Section
+
+List of issues
+\the_end

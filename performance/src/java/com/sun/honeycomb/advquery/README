@@ -1,0 +1,261 @@
+$Id: README 11701 2007-12-13 15:43:18Z dr129993 $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+Advanced Query Tests (using the Java API)
+
+
+Many of the class files and scripts are based on the performance smoke test 
+infrastrucure.
+
+These tests exercise querying HADB using more complicated select statements.
+This includes tests using several metadata fields and queries involving 
+AND, OR, NOT, >, <, !=, <=, etc.
+
+Several key concepts:
+=====================
+1. These test scripts are installed along with and in the same directory as
+   the performance smoke tests. See the section below on how to configure and
+   run the tests.
+
+2. The metadata pattern file used to randomly generate the test metadata is
+   the most important element of the tests. It contains both the metadata field
+   names (with namespace) and the pattern for generating the values.
+
+3. The field names of the metadata are NOT hardcoded in the JAVA files. Rather
+   the metadata pattern file is read and the field names used for the queries
+   are based on their position in the file. To change the tables/schema used for
+   testing you simply load the new schema in the database and specify a metadata
+   pattern file that references the new schema's fields for store and query
+   test runs.
+
+4. Unlike most other tests the query tests do not parse the store log file to
+   determine the query. Instead the metadata is randomly generated both for the 
+   store and the query operations based on a SEED value and the metadata pattern
+   file specified. This means that in order for the query tests to work 
+   correctly the following MUST be true:
+    a) The EXACT SAME metadata pattern file must be specified for store and 
+       query operations.
+    b) The same SEED value must be used also.
+    c) The query test runs can not use more threads than specified for the store
+       test run. This is because each thread derives it's own SEED value based 
+       on the initial SEED specified. 
+    d) If queries are run for a long time compared with the store test run
+       it is possible to generate metadata values that were never stored. The
+       query tests will reset the SEED value after 1/2 hr to avoid generating
+       invalid metadata.
+
+Overview of Running the Tests:
+=============================
+1. Load the metdata schema file desired. There are several available. The base
+   schema has a single table and no indexes. Make sure you select the matching
+   metadata pattern generation file.
+
+   performance/src/config/metadata_config_advquery_onetable.xml
+   performance/src/config/metadata_config_advquery_onetable_idx.xml
+   performance/src/config/metadata_config_advquery_three_tables.xml
+
+2. Install the client performance software on the client machine.
+   cd build
+   make client=clxx install_perf
+
+3. Run the store operation. There is a convenience script provided:
+   advquery_mdstore_run.sh
+
+4. Run the various query tests using the same metadata pattern file used for
+   the store opertions: There is a convenience script provided to run a series
+   of queries:
+   advquery_advquery_run.sh  - advanced query testing
+   advquery_stress_run.sh    - advanced query stress testing (larger record sets)
+
+5. You can also run individual queries. See the adv_query_test.sh file fore more
+   information.
+
+Note:
+The main test execution scripts are adv_query_test.sh and adv_query_test_base.sh.
+
+All the convenience scripts have the name format of:
+advquery_<operation-description>_run.sh
+
+If you run the script without arguments a usage help message is displayed.
+
+Creating Data and Metadata:
+==========================
+In order to test these features a set of tables in different schemas is provided 
+along with a AdvQueryMDStore program which loads the database. 
+The advquery_md_randgen_idx.txt file contains the patterns used by default to generate 
+the metadata. It uses the table advquery_onetable_idx defined in the
+metadata_config_advquery_onetable_idx.xml schema file.
+
+To run the default data and metadata store program:
+
+First install the performance suite on your client:
+1. From your build directory :
+
+% make client=clXXX install_perf
+
+2. Make sure the advquery schema is loaded on the test cluster
+From your development machine to the following:
+
+% cd <trunk>/performance/src/config
+% cat metadata_config_advquery_onetable_idx.xml | ssh admin@devXXX-admin mdconfig -a
+
+Running the store:
+=================
+1. Log into client and cd to /opt/performance
+2. The adv_query_test.sh script is the main advanced query test script.
+Run this script directly if you need to specify options not available from
+the convenience test scripts (advquery_mdstore_run.sh, advquery_store_query_run.sh).
+By default the store/load test will run 20 threads for 2 hours. 
+Use the -e commmand line switch to specify a different elapased time value in minutes. 
+
+See the adv_query_test.sh script for information on more command line switches.
+
+clYY# ./adv_query_test.sh -c devXXX -t clXXX -e <elapsed-time-minutes> -o STORE -l <logdir>
+
+For example
+
+clYY# ./adv_query_test.sh -c dev919 -t cl444 -e 60 -o STORE -l /mnt/test/advquery_mdstore
+ >/mnt/test/advquery_mdstore.log 2>&1 </dev/null &
+
+The STORE should ONLY be run from one client at a time. The store runs using 20 threads.
+
+Running Queries:
+===============
+To run queries you MUST specify the same SEED and pattern file used to run the STORE.
+To run a set of queries that use complicated select statements specify either 
+STRESS or ADVQUERY for the -q option. These run a set of queries for 10 minutes each.
+The results (number of items returned) can be verified for a few queries. If you want the results
+to be verified you must specify the output file from the STORE operation. It is also possible
+to run an individual query. Most notably MAX_ROW_LIMIT option tests returning many rows
+when the row group size is not set. (Currently this query fails and has bug logged.)
+
+Note: Because the queries use many fields errors may occur when running with a large number
+of threads per client.  (There is a OutOfTableMemory bug that has been filed along with
+one or two others.)
+
+To run a query:
+
+1. Log into client and cd to /opt/performance
+2. The adv_query_test.sh script is the main advanced query test script. Run this 
+script directly if you need to specify options not available from the 
+convenience test scripts (advquery_*_run.sh). By default each query selected 
+runs for 10 minutes. Use the -e commmand line switch to specify a different
+elapased time value in minutes.
+
+See the adv_query_test.sh script for information on more command line switches.
+
+clYY# ./adv_query_test.sh -c devXXX -t clXXX -e <elapsed-time-minutes> -q STRESS -l <logdir>
+-v <store-output-file>
+
+For example
+
+clYY# ./adv_query_test.sh -c dev919 -t cl444 -e 60 -q ADVQUERY -l /mnt/test/advquery_stress
+-v /mnt/test/advquery_mdstore/1/1.cl444.AdvQueryMDStore.dev919.1x20.1024
+ >/mnt/test/advquery_stress.log 2>&1 </dev/null &
+
+Note: It is expected that there should be no errors when running a single client with
+a single thread. However for multithreaded clients a limited number of errors
+is not totally unexpected.
+
+Metadata Pattern Generation File:
+================================
+
+The format of the metadata generated during the store and query is determined by
+the metadata pattern generation file used. By default the 
+advquery_md_randgen_idx.txt file is used which generates metadata based on the 
+attributes defined in the metadata_config_advquery_onetable_idx.xml file.
+
+The metadata patterns are similar to those used in the multiload tests. 
+Each line in the file specifies a metadata attribute and it's random data generation pattern. Each metadata field/pattern is must be separated by a '/'.
+
+See the ADV_QUERY_RAND_GEN_README in the scripts subdirectory for more information.
+
+
+Output Files from testing:
+=========================
+
+In the output log directory there are a number of .err and .stats files.
+There will be one for each query run and one for the store operation. 
+The .err file contains a log of any error messages hit during testing and also debug output.
+The .stats file contains the performance statistics for the query or store operation.
+The statistics are displayed at fixed intervals which can be overridden when starting the test.
+There is also a .rawstats file which prints out a line for each query run.
+
+The performance test framework is setup to run aggregate tests and multiple 
+iterations. The advanced query tests don't make use of these advanced features. 
+Regardless there is a subdirectory generated for each iteration. Normally you 
+see just a <output-log-dir>/1 subdirectory. In the iteration subdirectory there 
+are important output files for each test. The output file named something like 
+1.cl90.AdvQuery.dev324.1x1.COMPLEX contains an example of the query generated 
+which is useful for debugging purposes. It also holds the summary statistics 
+for the query test run for this iteration.
+
+Important Files used for testing:
+=================================
+
+In the development directory under performance:
+
+=======================
+src/config - contains schema files for advquery tests. Each schema resides in
+it's own namespace.
+
+metadata_config_advquery_onetable.xml - default schema used for testing. no index
+metadata_config_advquery_onetable_idx.xml - same schema with indexes
+
+metadata_config_advquery_three_tables.xml - fields split between three tables
+
+metadata_config_advquery_multitables_noidx.xml - each field in separate table
+no index, don't use this one
+
+metadata_config_advquery_onelargetable.xml - one very large table with 50 fields. 
+Used to test metadata field query limits.
+
+=======================
+src/scripts - contains scripts. These are copied to /opt/performance on the client
+adv_query_test.sh              - overall test launch script executes adv_query_test_base.sh
+
+adv_query_test_base.sh         - runs test iterations
+
+run_advquery_test.sh           - runs the test
+
+advquery_md_randgen_idx.txt        - contains metadata pattern generation strings
+(like those in multiload). Default file. Uses namespace and schema defined in 
+metadata_config_advquery_onetable_idx.xml. 
+
+advquery_md_randgen.txt        - contains metadata pattern generation strings
+(like those in multiload). Uses namespace and schema defined in 
+metadata_config_advquery_onetable.xml. 
+
+advquery_md_randgen_three_tables.txt - metadata pattern generation strings for
+namespace and schema defined in metadata_config_advquery_three_tables.xml
+
+ADV_QUERY_EXPECTED_PERF        - expected performance numbers. These numbers are just
+guideline figures.
+
+ADV_QUERY_RAND_GEN_README      - explanation of metadata pattern generation file format
+
+ADV_QUERY_QUICKSTART_README    - shorter version of this same kind of information contained in this file
+
+Convenience scripts: Easy way to launch tests using many of the default settings
+                     These scripts are named: advquery_*_run.sh
+advquery_mdstore_run.sh      - Runs the store test.
+advquery_store_query_run.sh  - Runs the default store test and then runs the
+                               ADVQUERY queries test
+advquery_advquery_run.sh     - Runs the ADVQUERY queries test.
+advquery_stress_run.sh       - Runs the STRESS queries test. 
+advquery_query_run.sh        - Runs an individual query test. You must specify
+                               the type of query to run. Can also specify the
+                               desired elapsed time. The default is 60 minutes.
+
+=======================
+src/java/com/sun/honeycomb/advquery - contains classes for tests.
+These files heavily resemble the performance classes.
+
+AdvQueryMDStore.java     - Data creation and store test application.
+AdvQueryStress.java      - Query test application
+AdvQueryThread.java      - Query thread. Contains query expression definition
+and explanation along with result set size estimate and result verification code.
+
+

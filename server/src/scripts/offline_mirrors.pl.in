@@ -1,0 +1,180 @@
+#!/usr/bin/perl
+#
+# $Id: offline_mirrors.pl.in 11265 2007-07-25 03:23:00Z sc1444 $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+#
+#
+# Offline any zpool mirrors associated with the device
+#
+# arguments: /dev/dsk/c?t?d?s?
+#
+# Returns 0 if mirrors were taken offline successfully (or were already
+# offline), non-zero otherwise.
+#
+
+use warnings;
+
+# make sure we have /usr/sbin in our path for zpool
+$path = $ENV{'PATH'};
+$ENV{'PATH'} = "/usr/sbin:$path";
+
+#
+# log messages
+# usage: &log(level_string, message)
+#
+sub log {
+  my $level = shift @_;
+  my $logger_string = shift @_;
+  my $pid = open(LOGGER, "|logger -f - -t offline_mirrors -p local0.$level") or
+        die "coudn't open logger";
+  print LOGGER "$logger_string";
+  close LOGGER;
+}
+
+# log at "info" level
+sub log_info { &log("info", shift @_); }
+
+# log at "warning" level
+sub log_warn { &log("warning", shift @_); }
+
+# log stuff for debugging
+sub dbg { &log("info", shift @_); }
+
+#
+# Take any zpool mirrors corresponding to the device offline.
+# There may not be any such mirrors, in which case this subroutine
+# should return success.
+#
+sub offline_mirrors {
+  my $dev_name = shift @_;
+  my $zpool_detach_output = "";
+  my $retval = 0;
+  my $detach_status = 0;
+
+  &log_info("offline_mirrors $dev_name");
+
+  my $pid = open(ZPOOL, "zpool status tank |grep $dev_name|");
+
+  my ($zp_dev_name, $zp_state, $zp_rd, $zp_wr, $wp_chksum);
+
+  # detach any ONLINE or UNAVAIL mirrors
+  while (<ZPOOL>) {
+    &dbg("line: $_");
+
+    # silence warnings
+    $zp_dev_name = $zp_state = $zp_rd = $zp_wr = $zp_chksum = "";
+
+    ($zp_dev_name, $zp_state, $zp_rd, $zp_wr, $zp_chksum) = split;
+    &dbg("zp: dev_name $zp_dev_name state $zp_state rd $zp_rd wr $zp_wr chksum $zp_chksum");
+
+    if (($zp_state eq "ONLINE") || ($zp_state eq "UNAVAIL")) {
+      $zpool_detach_output = `zpool detach tank $zp_dev_name 2>&1`;
+      $detach_status = $?;
+
+      if ($detach_status != 0) {
+	&log_warn(
+	  "zpool detach tank $zp_dev_name failed errno $detach_status: output $zpool_detach_output\n");
+
+	# In the face of inability to remove the mirror, we continue
+	# on regardless.  zfs must be able to handle the failure of such
+	# a disk in any case.
+	# However, we record the fact that we got an error
+
+	$retval += $detach_status;
+      }
+    }
+  }
+  close ZPOOL;
+
+  return $detach_status if ($detach_status);
+
+  # paranoia: double-check to see that they are really offline
+  # XXX we could probably refactor this to us a common loop over
+  # zpool output
+
+  $pid = open(ZPOOL, "zpool status tank |grep $dev_name|");
+
+  &dbg("sanity check");
+
+  # check that all mirrors are OFFLINE or not found
+  while (<ZPOOL>) {
+    my ($zpool_status_out) = $_;
+    &dbg("line: $zpool_status_out");
+
+    if (! ($zpool_status_out =~ /OFFLINE/)) {
+      &log_warn(
+	"zpool device $dev_name should be OFFLINE, is $zpool_status_out\n");
+      return 1;
+    }
+  }
+  close ZPOOL;
+
+  &dbg("end of offline_mirrors");
+  
+  return 0;
+}
+
+###### main #######
+
+my ($dev_name) = "";
+
+$_ = $ARGV[0];
+
+# extract devname from argument;
+# use m|...| so that we do not need to use a lot of "\/" 
+($dev_name) = m|.*(c\dt\dd\d).*|;
+
+die "usage: $0: devicename" unless ($dev_name ne "");
+
+&log_info("$0: $dev_name");
+
+# log cfgadm & zpool status output for debugging purposes
+my $cfgadm_output=`cfgadm |egrep sata`;
+&log_info("cfgadm_output: $cfgadm_output");
+my $zpool_status=`zpool status`;
+&log_info("zpool_status: $zpool_status");
+
+my $retval = &offline_mirrors($dev_name);
+
+# log output afterwards for debug purposes
+&log_info("after offline_mirrors");
+$cfgadm_output=`cfgadm |egrep sata`;
+&log_info("cfgadm_output: $cfgadm_output");
+$zpool_status=`zpool status`;
+&log_info("zpool_status: $zpool_status");
+
+
+exit($retval);

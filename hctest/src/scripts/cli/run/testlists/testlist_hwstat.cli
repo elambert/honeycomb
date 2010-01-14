@@ -1,0 +1,110 @@
+#
+# $Id: testlist_hwstat.cli 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+test.case.name=hwstat-good-arg-test
+TEST_ARGS='cmddef: hwstat | \
+           -re,\".*Motherboard*.*\" => sub { \&reportPass(); }| \
+           -re, \"invalid .*\" => sub { &reportFail(); }| \
+           cmddef: hwstat --fru=HCID-002-104| \
+           -re,\"cluster .*\" => sub { &reportPass(); } | \
+           -re, \"unknown option .*\" => sub { &reportFail(); }| \
+           cmddef: hwstat -F HCID-002-104| \
+           -re,\"cluster .*\" => sub { &reportPass(); } | \
+           -re, \"unknown option .*\" => sub { &reportFail(); }'
+cli_tests/test		dtonga
+
+test.case.name=hwstat-bad-arg-test
+TEST_ARGS='cmddef: hwstat +fru=HCID-002-104| \
+           -re,\".*Motherboard*.*\" => sub { \&reportFail(); }| \
+           -re, \"unknown option .*\" => sub { &reportPass(); }| \
+           -re, \"invalid .*\" => sub { &reportFail(); }| \
+          cmddef: hwstat -f HCID-002-104| \
+           -re,\".*Motherboard*.*\" => sub { &reportFail(); } | \
+           -re, \"unknown option .*\" => sub { &reportPass(); }| \
+           -re, \"invalid .*\" => sub { &reportFail(); }| \
+          cmddef: hwstat -F -fru=HCID-002-104| \
+           -re,\".*Motherboard*.*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }| \
+          cmddef: hwstat THIS_FRU HCID-002-105| \
+           -re,\".*Motherboard*.*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }| \
+          cmddef: hwstat -D HCID-001-103-1| \
+           -re,\"unknown .*\" => sub { &reportPass(); } | \
+           -re, \".*Motherboard*.*\" => sub { &reportFail(); }| \
+          cmddef: hwstat --fru=000000| \
+           -re,\".*Motherboard*.*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }| \
+           cmddef: hwstat --fru=abcd-002-102| \
+           -re,\"Node: .*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }| \
+           cmddef: hwstat -FHCID-001-103-0| \
+           -re,\"Disk: .*\" => sub { &reportFail(); } | \
+           -re, \"unknown .*\" => sub { &reportPass(); }| \
+           cmddef: hwstat HCID-001-103-0 -F| \
+           -re,\"Disk: .*\" => sub { &reportFail(); } | \
+           -re, \"illegal .*\" => sub { &reportPass(); }| \
+           cmddef: hwstat HCID-001-103-0=fru| \
+           -re,\".*Motherboard*.*\" => sub { &reportFail(); } | \
+           -re, \"illegal .*\" => sub { &reportPass(); }| \
+           cmddef: hwstat --fru=HCID-001-00XXXXXXXX| \
+           -re,\".*Motherboard*.*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }| \
+           cmddef: hwstat --fru= HCID-002-116| \
+           -re,\"cluster .*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }| \
+           cmddef: hwstat -fru= HCID-002-116| \
+           -re,\"cluster .*\" => sub { &reportFail(); } | \
+           -re, \"unknown .*\" => sub { &reportPass(); }| \
+           cmddef: hwstat -F HCID-002-116 +++ fru HCID-002-116| \
+           -re,\"cluster .*\" => sub { &reportFail(); } | \
+           -re, \"unknown .*\" => sub { &reportPass(); }| \
+           cmddef: hwstat --fru=+HCID-002-116| \
+           -re,\"cluster .*\" => sub { &reportFail(); } | \
+           -re, \"unknown .*\" => sub { &reportPass(); }| \
+           cmddef: hwstat -F =HCID-002-116 HCID-001-103-1\*\*\*\*\*\*\*\*\*\*\?\?\?\?\$\$| \
+           -re,\"cluster .*\" => sub { &reportFail(); } | \
+           -re, \"unknown .*\" => sub { &reportPass(); }| \
+           cmddef: hwstat ??? help| \
+           -re,\".*Motherboard*.*\" => sub { &reportFail(); } | \
+           -re, \"unknown .*\" => sub { &reportPass(); }| \
+           cmddef: hwstat -F HCID-002-115=Motherboard| \
+           -re,\"cluster .*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }| \
+           cmddef: hwstat -F =HCID-002-115 Motherboard| \
+           -re,\"cluster .*\" => sub { &reportFail(); } | \
+           -re, \"invalid .*\" => sub { &reportPass(); }'
+cli_tests/test		dtonga
+

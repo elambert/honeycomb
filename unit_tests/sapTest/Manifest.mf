@@ -1,0 +1,2 @@
+Main-Class: com.sun.honeycomb.cm.jvm_agent.Test
+Class-Path: ../../../build/server/dist/lib/honeycomb-server.jar ./honeycomb-server.jar

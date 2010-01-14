@@ -1,0 +1,184 @@
+/*
+ * Copyright © 2008, Sun Microsystems, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+
+package com.sun.honeycomb.layout;
+
+import java.util.Random;
+
+class MapGenerator48 implements MapGenInterface 
+{
+
+    // these 12 4x4 matrices form the basis for the nodes used in
+    // the layout maps.  they are carefully constructed so that
+    // each node transitions to each of the other nodes in the 
+    // other three node groups exactly once.   all 192 elements
+    // are selected uniformly when determining the (0,0) coordinate
+    // for a map.
+    private static final int [][][] node_perms = new int [][][] {
+        {{  0,  1,  2,  3 },
+         {  4,  5,  6,  7 },
+         {  8,  9, 10, 11 },
+         { 12, 13, 14, 15 }},
+        
+        {{  0,  1,  2,  3 },
+         {  5,  6,  7,  4 },
+         { 10, 11,  8,  9 },
+         { 15, 12, 13, 14 }},
+        
+        {{  0,  1,  2,  3 },
+         {  6,  7,  4,  5 },
+         { 14, 15, 12, 13 },
+         {  8,  9, 10, 11 }},
+        
+        {{  0,  1,  2,  3 },
+         {  7,  4,  5,  6 },
+         { 12, 13, 14, 15 },
+         { 11,  8,  9, 10 }},
+        
+        {{  0,  1,  2,  3 },
+         {  8,  9, 10, 11 },
+         {  4,  5,  6,  7 },
+         { 14, 15, 12, 13 }},
+        
+        {{  0,  1,  2,  3 },
+         {  9, 10, 11,  8 },
+         {  6,  7,  4,  5 },
+         { 13, 14, 15, 12 }},
+        
+        {{  0,  1,  2,  3 },
+         { 10, 11,  8,  9 },
+         { 12, 13, 14, 15 },
+         {  4,  5,  6,  7 }},
+        
+        {{  0,  1,  2,  3 },
+         { 11,  8,  9, 10 },
+         { 14, 15, 12, 13 },
+         {  7,  4,  5,  6 }},
+        
+        {{  0,  1,  2,  3 },
+         { 12, 13, 14, 15 },
+         {  7,  4,  5,  6 },
+         { 10, 11,  8,  9 }},
+        
+        {{  0,  1,  2,  3 },
+         { 13, 14, 15, 12 },
+         {  7,  4,  5,  6 },
+         {  9, 10, 11,  8 }},
+        
+        {{  0,  1,  2,  3 },
+         { 14, 15, 12, 13 },
+         { 11,  8,  9, 10 },
+         {  6,  7,  4,  5 }},
+        
+        {{  0,  1,  2,  3 },
+         { 15, 12, 13, 14 },
+         { 11,  8,  9, 10 },
+         {  5,  6,  7,  4 }}
+    };
+    
+    static int [][] disk_perms = new int [256][4];
+    static {
+        int perm = 0;
+        for (int i = 0; i < 4; i++) {
+            for (int j = 0; j < 4; j++) {
+                for (int k = 0; k < 4; k++) {
+                    for (int l = 0; l < 4; l++) {
+                        disk_perms[perm][0] = i;
+                        disk_perms[perm][1] = j;
+                        disk_perms[perm][2] = k;
+                        disk_perms[perm][3] = l;
+                        
+                        perm++;
+                    }
+                }
+            }
+        }
+    }
+    
+    // (node_perms * 4 * 4) * num disk perms
+    static int N_TOTAL_MAPS = 12*4*4*256;
+    
+    public MapGenerator48() 
+    {
+        int n = LayoutConfig.NODES_PER_CELL;
+        int d = LayoutConfig.DISKS_PER_NODE;
+        int f = LayoutConfig.FRAGS_PER_OBJ;
+
+        if (n != 16 || d != 4 || f != 7) {
+            throw new IllegalArgumentException(
+            "This map generator designed for NODES=16 DISKS=4 FRAGS=7, "+
+            " but LayoutConfig shows NODES="+n+" DISKS="+d+" FRAGS="+f);
+        }
+    }
+    
+    public int[] getMapEntry(int map, int backup, int fragment)
+    {
+        // Map the given map ids (currently 10000) across the entire space of maps 
+        // generated by this map generator.
+        //     MAP_ID = ((P1 * map_id + P2) % P3) % N_TOTAL_MAPS
+        // , where Px is a prime near N_TOTAL_MAPS (courtesy of Shamim).
+        int _map = (int) (((long) 49139 * (long) map + (long) 49157) % (long) (49169)) % N_TOTAL_MAPS;
+
+        // pick off the values for each dimension
+        int node_perm = _map % 12; _map /= 12;
+        int frag_0 = _map % 4; _map /= 4;
+        int backup_0 = _map % 4; _map /= 4;
+        int disk_perm = _map % 256; _map /= 256;
+
+        // backups 7 through 15 are derived from the "spare" 8th fragment.
+        if (backup > 7) {
+            fragment = 7;
+            backup -= 8;
+        }
+
+        // node:disk backups are inverted for frags 4 through 7.
+        int backup_i = backup % 4;
+        if (fragment >= 4) {
+            backup_i = 3 - backup_i;
+        }
+
+        // calculate the disk
+        int disk_i = backup_i;
+        int disk = disk_perms[disk_perm][disk_i];
+        int disk_offset = 2 * (fragment / 4) + (backup / 4);
+        disk += disk_offset;
+        disk %= 4;
+
+        // calculate the node
+        int frag_i = (frag_0 + fragment) % 4;
+        backup_i = (backup_0 + backup_i) % 4;
+        int node = node_perms[node_perm][backup_i][frag_i];
+
+        return new int [] {node, disk};
+    }
+}

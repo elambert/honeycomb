@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="perfmonitor">
+	<info>
+		<author>
+			<name>Rodney Gomes</name>
+			<email>rodney.gomes@sun.com</email>
+		</author>
+		<description>Analyze the results of Honeycomb performance tests.</description>
+	</info>
+
+	<local>
+		<createstorage id="INPUT" path="${dtf.xml.path}/input" />
+		<createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+
+	    <loadproperties uri="storage://INPUT/hc.properties"/> 
+	</local>
+
+    <function name="graphME">
+        <param name="operation.name" type="required"/>
+        <param name="operation.event" type="required"/>
+        
+        <param name="filesize" type="required"/>
+        
+        <param name="client.stats.uri" type="required"/>
+        <param name="server.stats.uri" type="required"/>
+       
+        <query uri="${server.stats.uri}"
+               type="txt"
+               event="hc.stat.cpu" 
+               cursor="sscursor"/>
+        
+        <query uri="${client.stats.uri}"
+               type="txt"
+               event="${operation.event}"
+               cursor="cscursor2"/>
+            
+        <graph uri="storage://OUTPUT/cpu_usage_${operation.name}_${filesize}.svg"
+               type="svg"
+               title="CPU Usage With ${operation.name} Operations of ${filesize} byte objects.">
+                   
+            <series name="${operation.name} per second"
+                    cursor="cscursor2" 
+                    mode="histogram"
+                    sampleunit="1s"/> 
+                    
+            <series name="Avg CPU Cluster (%)" 
+                    cursor="sscursor"
+                    aggregateby="node"
+                    sampleunit="5s"/>
+        </graph>
+
+        <query uri="${server.stats.uri}"
+               type="txt"
+               event="hc.stat.cpu" 
+               cursor="sscursor2">
+               <select>
+                    <field name="API-SERVERS"/>
+                    <field name="node"/>
+               </select>
+        </query>
+    
+        <graph uri="storage://OUTPUT/api_cpu_usage_${operation.name}_${filesize}.${hc.graph.type}"
+               type="${hc.graph.type}"
+               title="API-SERVERS CPU during ${operation.name} of ${filesize} byte objects.">
+            <series name="CPU Usage (%)" 
+                    cursor="sscursor2"
+                    separateby="node"/>
+        </graph>
+        
+        <query uri="${server.stats.uri}"
+               type="txt"
+               event="hc.stat.cpu" 
+               cursor="sscursor2">
+               <select>
+                    <field name="hadb"/>
+                    <field name="node"/>
+               </select>
+        </query>
+    
+        <graph uri="storage://OUTPUT/hadb_cpu_usage_${operation.name}_${filesize}.${hc.graph.type}"
+               type="${hc.graph.type}"
+               title="HADB CPU during ${operation.name} of ${filesize} byte objects.">
+            <series name="CPU Usage (%)" 
+                    cursor="sscursor2"
+                    separateby="node"/>
+        </graph> 
+
+    </function>
+
+    <for property="hc.filesize" range="${hc.perf.filesizes}">
+        <call function="graphME">
+            <property name="operation.name"   value="store"/>
+            <property name="operation.event"  value="hc.store"/>
+            <property name="filesize"         value="${hc.filesize}"/>
+            <property name="client.stats.uri" value="storage://OUTPUT/store_perf_${hc.filesize}.txt"/>
+            <property name="server.stats.uri" value="storage://OUTPUT/server_store_stats_${hc.filesize}.log"/>
+        </call>
+    
+        <call function="graphME">
+            <property name="operation.name"   value="retrieve"/>
+            <property name="operation.event"  value="hc.retrieve"/>
+            <property name="filesize"         value="${hc.filesize}"/>
+            <property name="client.stats.uri" value="storage://OUTPUT/retrieve_perf_${hc.filesize}.txt"/>
+            <property name="server.stats.uri" value="storage://OUTPUT/server_retrieve_stats_${hc.filesize}.log"/>
+        </call>
+        
+        <call function="graphME">
+            <property name="operation.name"   value="retrievemd"/>
+            <property name="operation.event"  value="hc.retrievemd"/>
+            <property name="filesize"         value="${hc.filesize}"/>
+            <property name="client.stats.uri" value="storage://OUTPUT/retrievemd_perf_${hc.filesize}.txt"/>
+            <property name="server.stats.uri" value="storage://OUTPUT/server_retrievemd_stats_${hc.filesize}.log"/>
+        </call>
+        
+        <call function="graphME">
+            <property name="operation.name"   value="delete"/>
+            <property name="operation.event"  value="hc.delete"/>
+            <property name="filesize"         value="${hc.filesize}"/>
+            <property name="client.stats.uri" value="storage://OUTPUT/delete_perf_${hc.filesize}.txt"/>
+            <property name="server.stats.uri" value="storage://OUTPUT/server_delete_stats_${hc.filesize}.log"/>
+        </call>
+        
+        <call function="graphME">
+            <property name="operation.name"   value="addmd"/>
+            <property name="operation.event"  value="hc.addmd"/>
+            <property name="filesize"         value="${hc.filesize}"/>
+            <property name="client.stats.uri" value="storage://OUTPUT/addmd_perf_${hc.filesize}.txt"/>
+            <property name="server.stats.uri" value="storage://OUTPUT/server_addmd_stats_${hc.filesize}.log"/>
+        </call>
+    </for>
+    
+     <call function="graphME">
+        <property name="operation.name"   value="query"/>
+        <property name="operation.event"  value="hc.query"/>
+        <property name="filesize"         value="anyfilesize"/>
+        <property name="client.stats.uri" value="storage://OUTPUT/hcquery_simple_perf.txt"/>
+        <property name="server.stats.uri" value="storage://OUTPUT/server_hcquery_stats.log"/>
+    </call>
+
+    <!-- commit latency and first byte latency graphs -->
+    <for property="filesize" range="${hc.perf.filesizes}">
+        <query uri="storage://OUTPUT/store_perf_${filesize}.txt"
+               type="txt"
+               event="hc.store"
+               cursor="scursor">
+               <select> 
+                    <field name="node"/>
+                    <field name="commitlatency"/>
+               </select>
+        </query>
+    
+        <graph uri="storage://OUTPUT/store_commit_latency_${filesize}.${hc.graph.type}"
+               type="${hc.graph.type}"
+               title="Commit latency for objects ${filesize} bytes">
+            <series name="Commit latency (ms)"
+                    cursor="scursor"
+                    aggregateby="node"/>
+        </graph> 
+
+        <query uri="storage://OUTPUT/retrieve_perf_${filesize}.txt"
+               type="txt"
+               event="hc.retrieve"
+               cursor="rcursor">
+               <select>
+                    <field name="firstbytelatency"/>
+               </select>
+        </query>
+    
+        <graph uri="storage://OUTPUT/retrieve_firstbyte_latency_${filesize}.${hc.graph.type}"
+               type="${hc.graph.type}"
+               title="First Byte latency for objects ${filesize} bytes">
+            <series name="First Byte Latency (ms)"
+                    cursor="rcursor"/>
+        </graph> 
+    </for>
+    
+</script>

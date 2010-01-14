@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Created-By: Rodney Gomes
+DTD-File: hc.dtd
+Init-Class: com.sun.dtf.dtfhook.HCInit

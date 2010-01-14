@@ -1,0 +1,100 @@
+#!/bin/bash
+#
+# $Id: mkinst_image 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+#
+# make image, install it on cheat nodes of clusters, 
+# dd & cli wipe them, & reboot
+#
+USAGE="USAGE: $0 devXXX devYYY ..."
+
+LATEST=/build/nightly/latest/
+TEST=/test
+
+if test $# -lt 1 ; then
+    echo $USAGE
+    exit 1
+fi
+
+DIR=$TEST/build
+/bin/rm -rf $DIR	|| exit 1
+mkdir -p $DIR		|| exit 1
+mkdir -p $DIR/config	|| exit 1
+mkdir -p $DIR/mnt	|| exit 1
+
+echo copying images/scripts to $DIR
+cp $LATEST/images/* $DIR/		|| exit 1
+cp update_honeycomb.sh $DIR/		|| exit 1
+
+if test -f honeycomb-bin.tar.gz ; then
+    echo OVERRIDING hc bits..
+    cp honeycomb-bin.tar.gz $DIR/	|| exit 1
+fi
+if test -f initrd.gz ; then
+    echo OVERRIDING initrd.gz
+    cp initrd.gz $DIR/			|| exit 1
+fi
+if test -f node_config.xml ; then
+    echo OVERRIDING node_config.xml
+    cp node_config.xml $DIR/
+fi
+
+cd $DIR		|| exit 1
+
+for i in $* ; do
+	echo =========== $i
+        if test -f $TEST/cluster_config.properties.$i ; then
+            echo OVERRIDING CONFIG WITH $TEST/cluster_config.properties.$i
+            /bin/cp $TEST/cluster_config.properties.$i config/cluster_config.properties
+        else
+	    /bin/cp $LATEST/src/honeycomb/cluster/cluster_config.properties.$i config/cluster_config.properties		|| exit 1
+        fi
+	./update_honeycomb.sh		|| exit 1
+	echo scp bzImage initrd.gz root@${i}-cheat:/tftpboot/
+	scp bzImage initrd.gz root@${i}-cheat:/tftpboot/		|| exit 1
+	echo $TEST/wipe-dd root@${i}-cheat:/tmp
+	scp $TEST/wipe-dd root@${i}-cheat:/tmp		|| exit 1
+	echo ssh root@${i}-cheat chmod +x /tmp/wipe-dd
+	ssh root@${i}-cheat "chmod +x /tmp/wipe-dd"
+	ssh root@${i}-cheat /tmp/wipe-dd	|| exit 1
+	echo ssh admin@${i}-admin "wipe --force"
+	ssh admin@${i}-admin "wipe --force"		|| exit 1
+	echo ssh admin@${i}-admin "reboot"
+	ssh admin@${i}-admin "reboot"		|| exit 1
+done
+
+echo $0 done
+
+cd $TEST

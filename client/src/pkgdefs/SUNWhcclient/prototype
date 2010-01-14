@@ -1,0 +1,91 @@
+#
+# $Id: prototype 3625 2005-02-22 06:44:08Z mgoff $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# This required package information file contains a list of package contents.
+# The 'pkgmk' command uses this file to identify the contents of a package
+# and their location on the development machine when building the package.
+# Can be created via a text editor or through use of the 'pkgproto' command.
+ 
+#!search <pathname pathname ...>        # where to find pkg objects
+#!include <filename>                    # include another 'prototype' file
+#!default <mode> <owner> <group>        # default used if not specified on entry
+#!<param>=<value>                       # puts parameter in pkg environment
+
+i pkginfo
+i depend
+
+d none /opt 0755 bin bin
+d none /opt/honeycomb 755 bin bin
+d none /opt/honeycomb/bin 755 bin bin
+d none /opt/honeycomb/doc 755 bin bin
+d none /opt/honeycomb/doc/htdocs 755 bin bin
+d none /opt/honeycomb/doc/htdocs/com 755 bin bin
+d none /opt/honeycomb/doc/htdocs/com/sun 755 bin bin
+d none /opt/honeycomb/doc/htdocs/com/sun/honeycomb 755 bin bin
+d none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/client 755 bin bin
+f none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/client/ObjectIdentifier.html=doc/htdocs/com/sun/honeycomb/client/ObjectIdentifier.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/client/QueryResultSet.html=doc/htdocs/com/sun/honeycomb/client/QueryResultSet.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/client/NameValueRecord.html=doc/htdocs/com/sun/honeycomb/client/NameValueRecord.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/client/NameValueSchema.html=doc/htdocs/com/sun/honeycomb/client/NameValueSchema.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/client/NameValueSchema.Attribute.html=doc/htdocs/com/sun/honeycomb/client/NameValueSchema.Attribute.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/SystemRecord.html=doc/htdocs/com/sun/honeycomb/client/SystemRecord.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/client/class-use/NameValueRecord.html=doc/htdocs/com/sun/honeycomb/client/class-use/NameValueRecord.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/client/class-use/SystemRecord.html=doc/htdocs/com/sun/honeycomb/client/class-use/SystemRecord.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/client/class-use/NameValueSchema.html=doc/htdocs/com/sun/honeycomb/client/class-use/NameValueSchema.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/client/class-use/NameValueSchema.Attribute.html=doc/htdocs/com/sun/honeycomb/client/class-use/NameValueSchema.Attribute.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/client/package-frame.html=doc/htdocs/com/sun/honeycomb/client/package-frame.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/client/package-summary.html=doc/htdocs/com/sun/honeycomb/client/package-summary.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/client/package-tree.html=doc/htdocs/com/sun/honeycomb/client/package-tree.html 0655 bin bin
+d none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/client/class-use 755 bin bin
+f none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/client/class-use/ObjectIdentifier.html=doc/htdocs/com/sun/honeycomb/client/class-use/ObjectIdentifier.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/client/class-use/QueryResultSet.html=doc/htdocs/com/sun/honeycomb/client/class-use/QueryResultSet.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/com/sun/honeycomb/client/package-use.html=doc/htdocs/com/sun/honeycomb/client/package-use.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/package-list=doc/htdocs/package-list 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/overview-frame.html=doc/htdocs/overview-frame.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/constant-values.html=doc/htdocs/constant-values.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/serialized-form.html=doc/htdocs/serialized-form.html 0655 bin bin
+d none /opt/honeycomb/doc/htdocs/resources 755 bin bin
+f none /opt/honeycomb/doc/htdocs/resources/inherit.gif=doc/htdocs/resources/inherit.gif 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/overview-tree.html=doc/htdocs/overview-tree.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/index-all.html=doc/htdocs/index-all.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/deprecated-list.html=doc/htdocs/deprecated-list.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/allclasses-frame.html=doc/htdocs/allclasses-frame.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/allclasses-noframe.html=doc/htdocs/allclasses-noframe.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/index.html=doc/htdocs/index.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/overview-summary.html=doc/htdocs/overview-summary.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/help-doc.html=doc/htdocs/help-doc.html 0655 bin bin
+f none /opt/honeycomb/doc/htdocs/stylesheet.css=doc/htdocs/stylesheet.css 0655 bin bin
+d none /opt/honeycomb/lib 755 bin bin
+f none /opt/honeycomb/lib/honeycomb-client.jar=lib/honeycomb-client.jar 0655 bin bin

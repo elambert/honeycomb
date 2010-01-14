@@ -1,0 +1,233 @@
+<!--
+ $Id: build.xml 3416 2005-01-31 21:59:58Z rw151951 $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for honeycomb client component.
+--> 
+<project name="client" default="client_jar">
+  <description>
+    Honeycomb client component. Building this project results in a 
+    Solaris package named SUNWhcclient.
+  </description>
+
+  <!-- first, local, user specified .ant.properties files take precedence -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <!-- second, use the build.properties for this package -->
+  <property file="build.properties"/>
+
+  <!-- lastly, use the top-level builds properties file -->
+  <property file="../build/build.properties"/>
+
+  <!-- reference environment variables as env.X -->
+  <!-- ie. ${env.USER} -->
+  <property environment="env"/>
+
+  <!-- INIT *************************************************************** -->
+  <target name="client_init">
+    <!-- turn emma on if EMMA=1 -->
+    <condition property="emma.enabled" value="true">
+      <and>
+        <isset property="env.EMMA"/>
+        <equals arg1="${env.EMMA}" arg2="1"/>
+      </and>
+    </condition>
+
+    <path id="client.build.classpath">
+      <pathelement location="${common.dist.libdir}/${jarname.common}"/>
+    </path>
+  </target>
+
+  <!-- PREPARE ************************************************************ -->
+
+  <target name="client_prepare" depends="client_init">
+    <mkdir dir="${client.build.basedir}"/>
+    <mkdir dir="${client.build.classdir}"/>
+    <mkdir dir="${client.build.pkgdir}"/>
+    <mkdir dir="${client.dist.basedir}"/>
+    <mkdir dir="${client.dist.bindir}"/>
+    <mkdir dir="${client.dist.libdir}"/>
+    <mkdir dir="${client.dist.docdir}"/>
+  </target>
+
+  <!-- COMPILE_JAVA ******************************************************* -->
+
+  <target name="client_compile_java" depends="client_prepare">
+    <javac classpathref="client.build.classpath"
+           srcdir="${client.java.srcdir}"
+           destdir="${client.build.classdir}"
+           debug="${javac.debug}"
+           deprecation="${javac.deprecation}"
+           source="${javac.source}"
+           optimize="${javac.optimize}"/>
+
+    <antcall target="emma_instrument">
+      <param name="instrpath" value="${client.build.classdir}"/>
+      <param name="metadatafile" value="${client.build.classdir}/client.em"/>
+    </antcall>
+  </target>
+
+  <!-- EMMA *************************************************************** -->
+  <target name="emma_instrument" if="emma.enabled">
+    <path id="emma.ant.classpath">
+      <pathelement location="${emma.antjar}"/>
+      <pathelement location="${emma.jar}"/>
+    </path>
+    <taskdef resource="emma_ant.properties" classpathref="emma.ant.classpath"/>
+    <emma enabled="${emma.enabled}">
+        <instr mode="overwrite" 
+               instrpath="${instrpath}"
+               metadatafile="${metadatafile}"/>
+    </emma>
+  </target>
+
+  <!-- JAR *************************************************************** -->
+  <target name="client_jar" depends="client_compile_java"
+          description="Build the java client only">
+    <jar jarfile="${client.dist.libdir}/${jarname.client}">
+      <fileset dir="${client.build.classdir}"/>
+      <zipfileset src="${common.dist.libdir}/${jarname.common}"/>
+    </jar>
+  </target>
+
+  <!-- JAVADOC ************************************************************* -->
+  <target name="javadoc" depends="check_javadoc,client_jar" 
+          unless="javadoc.alreadydone"
+          description="build the honeycomb client javadoc">
+
+
+    <javadoc defaultexcludes="no"
+             source="${javac.source}"
+             classpath="${client.dist.libdir}/${jarname.client}"
+             destdir="${client.dist.apidocdir}"
+             overview="${client.java.srcdir}/com/sun/honeycomb/client/overview.html"
+             version="true"
+             use="true"
+             access="public">
+
+      <fileset dir="${client.java.srcdir}">
+         <include name="**/*java"/>
+         <exclude name="**/MultiCell.java"/>
+         <exclude name="**/Connection.java"/>
+         <exclude name="**/ObjectArchive.java"/>
+         <exclude name="**/MetadataCache.java"/>
+         <exclude name="**/MetadataRecord.java"/>
+         <exclude name="**/CacheConfiguration.java"/>
+         <exclude name="**/MetadataObjectArchive.java"/>
+         <exclude name="**/NameValueSchema.ValueType.java"/>
+         <exclude name="**/Cell.java"/>
+         <exclude name="**/UniqueValuesResultSet.java"/>
+         <exclude name="**/XMLConfigHandler.java"/>
+         <exclude name="**/NVOAX.java"/>
+      </fileset>
+      <fileset dir="${common.java.srcdir}">
+         <include name="**/*java"/>
+         <exclude name="**/CacheConfiguration.java"/>
+         <exclude name="**/CanonicalEncoding.java"/>
+         <exclude name="**/Encoding.java"/>
+         <exclude name="**/ExternalObjectIdentifier.java"/>
+         <exclude name="**/LogEscapeFormatter.java"/>
+         <exclude name="**/StringUtil.java"/>
+         <exclude name="**/XMLEncoder.java"/>
+         <exclude name="**/StringTerminatedInputStream.java"/>
+         <exclude name="**/ThreadPropertyContainer.java"/>
+         <exclude name="**/ProtocolConstants.java"/>
+         <exclude name="**/NameValueXML.java"/>
+         <exclude name="**/XMLException.java"/>
+         <exclude name="**/ByteArrays.java"/>
+         <exclude name="**/Getopt.java"/>
+         <exclude name="**/ProtocolConstants.java"/>
+         <exclude name="**/OIDFormat.java"/>
+         <exclude name="**/CliConstants.java"/>
+         <exclude name="**/ConfigPropertyNames.java"/>
+         <exclude name="**/MD5.java"/>
+         <exclude name="**/MD5Check.java"/>
+         <exclude name="**/MD5Crypt.java"/>
+         <exclude name="**/MD5InputStream.java"/>
+         <exclude name="**/MD5OutputStream.java"/>
+      </fileset>
+    </javadoc>
+  </target>
+
+  <target name="developer-javadoc" depends="check_javadoc,client_jar" unless="javadoc.alreadydone"
+          description="build the honeycomb client javadoc">
+
+
+    <javadoc defaultexcludes="no"
+             source="${javac.source}"
+             classpath="${client.dist.libdir}/${jarname.client}"
+             destdir="${client.dist.apidocdir}"
+             overview="${client.java.srcdir}/com/sun/honeycomb/client/overview.html"
+             version="true"
+             use="true"
+             access="public">
+
+      <fileset dir="${client.java.srcdir}"/>
+      <fileset dir="${common.java.srcdir}"/>
+    </javadoc>
+  </target>
+
+  <target name="check_javadoc">
+    <uptodate property="javadoc.alreadydone"
+        srcfile="${client.java.srcdir}/com/sun/honeycomb/client/overview.html"
+        targetfile="${client.dist.apidocdir}"/>
+  </target>
+
+  <!-- PKG **************************************************************** -->
+  <target name="pkg" depends="client_jar, javadoc"
+          description="build the solaris package">
+      <exec executable="${pkgmk.bin}" failonerror="yes">
+        <!-- arg value="" does not work here for some reason -->
+        <arg line="-o -d ${client.build.pkgdir} -f ${client.pkgdefs}/prototype -r ${client.dist.basedir}"/>
+      </exec>
+
+      <exec executable="${pkgtrans.bin}" failonerror="yes">
+        <arg line="-s ${client.build.pkgdir} ${sun.pkgname.client}.pkg ${sun.pkgname.client}"/>
+      </exec>
+  </target>
+
+  <!-- ************************************************************** -->
+  <target name="build_pkg" depends="pkg"
+    description="compile sources and create the solaris package" />
+
+  <!-- CLEAN ************************************************************** -->
+  <target name="clean" description="cleans workspace of all generated files">
+    <delete dir="${client.build.basedir}"/>
+  </target>
+
+</project>
+
+
+
+
+

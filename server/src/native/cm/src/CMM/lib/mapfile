@@ -1,0 +1,32 @@
+SUNW_CGHA_1.1 {
+         local:
+                 *;
+         global:
+	cmm_connect ;
+	cmm_disconnect ;
+	cmm_node_getid ;
+	cmm_member_getinfo ;
+	cmm_potential_getinfo ;
+	cmm_master_getinfo ;
+	cmm_vicemaster_getinfo ;
+	cmm_member_getcount ;
+	cmm_member_getall ;
+	cmm_mastership_release ;
+	cmm_membership_remove ;
+	cmm_member_setqualif ;
+	cmm_member_seizequalif ;
+	cmm_member_isfrozen ;
+	cmm_member_isexcluded ;
+	cmm_member_iseligible ;
+	cmm_member_ismaster ;
+	cmm_member_isvicemaster ;
+	cmm_member_isqualified ;
+	cmm_member_isoutofcluster ;
+	cmm_member_isdisqualified ;
+	cmm_member_isdesynchronized ;
+	cmm_cmc_unregister ;
+	cmm_cmc_register ;
+	cmm_cmc_filter ;
+	cmm_notify_getfd ;
+	cmm_notify_dispatch ;
+};

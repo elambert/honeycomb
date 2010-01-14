@@ -1,0 +1,181 @@
+<!-- HC DTD additions to the DTF DTD -->
+<!ENTITY % hc_commands "store|addmetadata|retrieve|retrievemd|delete|metadata|hcquery|getdate">
+<!ENTITY % cluster_commands "perfmonitor|setdevmode|unsetdevmode|cli|starthoneycomb|stophoneycomb|snapshot|waitforhadb|validateschema|rebootnode|checkfrags">
+
+<!ENTITY % local_commands "%hc_commands;">
+<!ENTITY % component_commands "%hc_commands;|%cluster_commands;">
+
+<!ENTITY % filetype "random|deadbeef">
+
+<!ENTITY % elementtype "int|long|string|double|date|timestamp|time|binary|char">
+
+<!-- Honeycomb tags -->
+
+<!ELEMENT file EMPTY>
+<!ATTLIST file 
+          type      CDATA "random"
+          length    CDATA #REQUIRED
+          offset    CDATA #IMPLIED>
+
+<!ELEMENT store (file,metadata?)>
+<!ATTLIST store 
+          datavip   		CDATA #REQUIRED
+          port      		CDATA #REQUIRED
+          node              CDATA #IMPLIED
+          continueOnFailure CDATA "false"
+          monitor           CDATA "false">
+
+<!ELEMENT retrieve (file?)>
+<!ATTLIST retrieve 
+          datavip 	CDATA #REQUIRED
+          port    	CDATA #REQUIRED
+          oid     	CDATA #REQUIRED
+          node      CDATA #IMPLIED
+          firstByte CDATA #IMPLIED
+          lastByte  CDATA #IMPLIED
+          verify  	CDATA "false"
+          monitor   CDATA "false"
+          corrupt   CDATA "false"
+          continueOnFailure CDATA "false">
+
+<!ELEMENT retrievemd (metadata?)>
+<!ATTLIST retrievemd
+          datavip   		CDATA #REQUIRED
+          port      		CDATA #REQUIRED
+          oid       		CDATA #REQUIRED
+          node              CDATA #IMPLIED
+          verify    		CDATA "false"
+          monitor   		CDATA "false"
+          continueOnFailure CDATA "false">
+
+<!ELEMENT delete EMPTY>
+<!ATTLIST delete
+          datavip   		CDATA #REQUIRED
+          port      		CDATA #REQUIRED
+          node              CDATA #IMPLIED
+          oid       		CDATA #REQUIRED
+          monitor   		CDATA "false"
+          continueOnFailure CDATA "false">
+
+<!ELEMENT addmetadata (metadata)>
+<!ATTLIST addmetadata
+          datavip   		CDATA #REQUIRED
+          port      		CDATA #REQUIRED
+          node              CDATA #IMPLIED
+          oid       		CDATA #REQUIRED
+          monitor   		CDATA "false"
+          continueOnFailure CDATA "false">
+
+<!ELEMENT hcquery (genmetadata)>
+<!ATTLIST hcquery 
+          datavip 		  	CDATA #REQUIRED
+          port            	CDATA #REQUIRED
+          node              CDATA #IMPLIED
+          resultsPerFetch 	CDATA #IMPLIED
+          monitor   	  	CDATA "false"
+          continueOnFailure CDATA "false">
+          
+<!ELEMENT metadata (element)*>
+<!ATTLIST metadata
+          id     CDATA #IMPLIED
+          refid  CDATA #IMPLIED>
+
+<!ELEMENT genmetadata (metadata)>
+<!ATTLIST genmetadata
+          type   CDATA #REQUIRED
+          oid    CDATA #REQUIRED
+          fields CDATA #REQUIRED>
+          
+<!ELEMENT element EMPTY>
+<!ATTLIST element
+          name   CDATA #REQUIRED
+          type   (%elementtype;) "string"
+          value  CDATA #REQUIRED
+          length CDATA #IMPLIED>
+          
+<!ELEMENT getdate EMPTY>
+<!ATTLIST getdate
+          datavip   CDATA #REQUIRED
+          port      CDATA #REQUIRED
+          node      CDATA #IMPLIED
+          property  CDATA #REQUIRED>
+          
+<!-- Cluster Node Control -->
+<!-- Cluster Monitoring Tags -->
+<!ELEMENT perfmonitor EMPTY>
+<!ATTLIST perfmonitor
+          command CDATA #REQUIRED
+          uri     CDATA #IMPLIED
+          sample  CDATA "5"
+          node    CDATA #IMPLIED>
+          
+<!ELEMENT rebootnode EMPTY>
+<!ATTLIST rebootnode
+          node CDATA #IMPLIED>
+
+<!ELEMENT setdevmode EMPTY>
+<!ATTLIST setdevmode
+          node CDATA #IMPLIED>
+
+<!ELEMENT unsetdevmode EMPTY>
+<!ATTLIST unsetdevmode
+          node CDATA #IMPLIED>
+
+<!ELEMENT starthoneycomb EMPTY>
+<!ATTLIST starthoneycomb 
+          mode CDATA "commandline"
+          node CDATA #IMPLIED>
+
+<!ELEMENT stophoneycomb EMPTY>
+<!ATTLIST stophoneycomb 
+          mode CDATA "pkill|reboot"
+          node CDATA #IMPLIED>
+
+<!-- CLI Control -->
+<!ELEMENT cli (reboot | df)*>
+
+<!ELEMENT df EMPTY>
+
+<!ELEMENT reboot EMPTY>
+<!ATTLIST reboot
+          force CDATA "false">
+          
+<!-- CLI helper tags -->
+<!ELEMENT waitforhadb EMPTY>
+
+<!ELEMENT validateschema EMPTY>
+<!ATTLIST validateschema
+          schema CDATA #REQUIRED>
+          
+<!ELEMENT checkfrags EMPTY>
+
+<!-- Snapshot tool -->
+
+<!ELEMENT snapshot EMPTY>
+<!ATTLIST snapshot
+          mode  CDATA #REQUIRED
+          name  CDATA #REQUIRED
+          type  CDATA #IMPLIED
+          disk  CDATA #IMPLIED
+          node  CDATA #IMPLIED>
+
+<!-- This results in pretty printing of these internal commands in the logs -->
+
+<!ELEMENT mkdir EMPTY>
+<!ATTLIST mkdir
+          dir CDATA #REQUIRED>
+
+<!ELEMENT rmdir EMPTY>
+<!ATTLIST rmdir
+          dir CDATA #REQUIRED>
+
+<!ELEMENT chmod EMPTY>
+<!ATTLIST chmod
+          options  CDATA #REQUIRED
+          location CDATA #REQUIRED>
+
+<!ELEMENT copy EMPTY>
+<!ATTLIST copy
+          to   CDATA #REQUIRED
+          from CDATA #REQUIRED>
+

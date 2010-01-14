@@ -1,0 +1,83 @@
+/*
+ * Copyright © 2008, Sun Microsystems, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+
+import com.sun.honeycomb.delete.Constants;
+
+NB_FILES = 100;
+
+ECHO("Complete test: Do multiple stores, addMD, delete, and verify");
+ECHO("Fails on bug 6187582: deleting an object twice yields: No oa ctx. (should be NoSuchObject and not mention oa ctx)");
+
+ECHO("Store " + NB_FILES);
+for (i=0; i<NB_FILES; i++) {
+    STORE(i);
+}
+
+ECHO("Add metadata to these " + NB_FILES + " files");
+for (i=0; i<NB_FILES; i++) {
+    ADDM(i, i+NB_FILES);
+}
+
+ECHO("Delete the first " + NB_FILES + " files (original ones)");
+for (i=0; i<NB_FILES; i++) {
+    DELETE(i, true);
+}
+
+ECHO("Add new metadata the remaining ones");
+for (i=0; i<NB_FILES; i++) {
+    ADDM(i+NB_FILES, i+2*NB_FILES);
+}
+
+ECHO("Delete the last batch");
+for (i=2*NB_FILES; i<3*NB_FILES; i++) {
+    DELETE(i, true);
+}
+
+ECHO("Delete the second batch");
+for (i=NB_FILES; i<2*NB_FILES; i++) {
+    DELETE(i, true);
+}
+
+ECHO("Verify deleted status of all files");
+for (i=0; i<3*NB_FILES; i++) {
+    FRAGISDELETED(i, Constants.ALL_FRAGS, true);
+}
+
+/** 
+ * Moving to separate test bug6187582_delete_twice
+ *
+ECHO("Try to redelete (already deleted)");
+for (i=2*NB_FILES; i<3*NB_FILES; i++) {
+    DELETE(i, false);
+}
+*/

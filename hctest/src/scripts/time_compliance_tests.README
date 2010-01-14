@@ -1,0 +1,68 @@
+$Id: time_compliance_tests.README 10213 2007-01-31 23:54:53Z sm193776 $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+
+Follow the steps involved in running time compliance test suite
+
+1. Verify that cheat, data and admin vip are accessible from your test client
+
+cl38# ping -c 1 devXXX-cheat 
+cl38# ping -c 1 devXXX-admin 
+cl38# ping -c 1 devXXX-data 
+
+2. From your cheat node, verify that all the nodes and the switch are ssh'able
+
+SP honeycomb-sp ~ $ for x in {101..116} do; ssh hcb$x hostname; done
+SP honeycomb-sp ~ $ ssh -p 2222 -l nopasswd -o StrictHostKeyChecking=no 10.123.45.1 hostname 
+SP honeycomb-sp ~ $ ssh -p 2222 -l nopasswd -o StrictHostKeyChecking=no 10.123.45.1 ssh -p 2222 -l nopasswd -o StrictHostKeyChecking=no 10.123.0.2 hostname
+
+   If the nodes and both the switches are up, basic network connectivity is verified.
+
+3. From your test client, run the following verifier script. Regardless of the results, verify that the script does not hang. 
+
+cl38# cd /opt/test/bin
+cl38# ./time_compliance_verifier.pl devXXX
+no of nodes .. 8
+
+master node .. hcb101
+host found : 129.146.17.39
+master node time offset: 1.116940
+host found : 10.123.45.200
+non master node time offset: 0.365888
+host found : 10.123.45.200
+non master node time offset: 0.318332
+host found : 10.123.45.200
+non master node time offset: -0.416269
+host found : 10.123.45.200
+non master node time offset: -0.494264
+host found : 10.123.45.200
+non master node time offset: -2.033804
+host found : 10.123.45.200
+non master node time offset: -1.424117
+host found : 10.123.45.200
+non master node time offset: -1.191432
+host found : 10.123.45.200
+non master node time offset: -0.855895
+node hcb100 .. time offset 0.261045 .. is node time compliant yes
+node hcb101 .. time offset 1.116940 .. is node time compliant yes
+node hcb102 .. time offset 1.482828 .. is node time compliant yes
+node hcb103 .. time offset 1.435272 .. is node time compliant yes
+node hcb104 .. time offset 0.700671 .. is node time compliant yes
+node hcb105 .. time offset 0.622676 .. is node time compliant yes
+node hcb106 .. time offset -0.916864 .. is node time compliant yes
+node hcb107 .. time offset -0.307177 .. is node time compliant yes
+node hcb108 .. time offset -0.074492 .. is node time compliant yes
+Master node Time Compliant .. Wed Jan 31 23:15:29 GMT+00:00 2007 [ compliant time ]
+cl39#     
+
+4. Finally, run 'time compliance tests'. note that the entire test suite
+   takes about 2.5-3 hours to run and prints out a test summary at the end. 
+   
+
+cl38# cd /opt/test/bin
+cl38# ./time_compliance_tests.sh devXXX > ~/time_compliance.out &
+
+To view test activity, 
+cl38# tail -f ~/time_compliance.out

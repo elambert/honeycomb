@@ -1,0 +1,323 @@
+<!ENTITY % aggregations "for|sequence|parallel|try|timer|distribute|parallelloop|result|if|fail|sleep|log">
+<!ENTITY % functions "function|call">
+<!ENTITY % events "record|event|query|nextresult|stats|graph">
+<!ENTITY % components "local|component">
+<!ENTITY % local_commands "loadproperties|createstorage|lockcomponent|unlockcomponent|property|import|createrange|cat">
+<!ENTITY % component_commands "sleep|echo|event|fail|getfile|stopcomponent|loop|fetchresult|attribute">
+<!ENTITY % test_commands "testsuite|testscript">
+
+<!ENTITY % conditions "and|eq|gt|lt|neq|or|within">
+
+<!ENTITY % dtf_tags "%aggregations;|%components;|%test_commands;|%events;|%functions;"> 
+
+<!ELEMENT script ( info, (%dtf_tags;)* )>
+<!ATTLIST script
+          name        CDATA #REQUIRED>
+
+<!ELEMENT info ( author,description ) >
+
+<!ELEMENT author ( name, email )>
+<!ELEMENT name (#PCDATA)>
+<!ELEMENT email (#PCDATA)>
+
+<!ELEMENT description (#PCDATA)>
+
+<!ELEMENT function (param*,(%dtf_tags;)*)>
+<!ATTLIST function
+          name CDATA #REQUIRED>
+
+<!ELEMENT param EMPTY>
+<!ATTLIST param 
+          name CDATA #REQUIRED
+          type (optional|required) "optional">
+
+<!ELEMENT call (property)*>
+<!ATTLIST call
+          function CDATA #REQUIRED>
+          
+<!ELEMENT import EMPTY>
+<!ATTLIST import
+          uri 		 CDATA #REQUIRED
+          loadFuncs  CDATA "true"
+          loadRefs   CDATA "true">
+  
+<!ELEMENT testsuite ANY>
+<!ATTLIST testsuite
+          name   			CDATA #REQUIRED
+          continueOnFailure CDATA #IMPLIED> 
+
+<!ELEMENT testscript (testproperty)*>
+<!ATTLIST testscript
+          uri  CDATA #REQUIRED>
+
+<!ELEMENT testproperty EMPTY>
+<!ATTLIST testproperty
+          name  CDATA #REQUIRED
+          value CDATA #REQUIRED>
+
+<!ELEMENT timer (%dtf_tags;|%component_commands;)*>
+<!ATTLIST timer
+          interval CDATA #REQUIRED
+          property CDATA #IMPLIED>
+
+<!ELEMENT sequence (%dtf_tags;)*>
+
+<!ELEMENT parallel (%dtf_tags;)*>
+
+<!ELEMENT local (%local_commands;|%component_commands; | attribute)*>
+
+<!ELEMENT component (%component_commands; | event | attribute)*>
+<!ATTLIST component
+          id        CDATA #REQUIRED>
+
+<!ELEMENT loadproperties EMPTY>
+<!ATTLIST loadproperties
+          uri          CDATA #REQUIRED
+          overwrite    CDATA #IMPLIED>
+
+<!ELEMENT cat (#PCDATA)>
+<!ATTLIST cat
+          uri     CDATA #REQUIRED
+          append  CDATA "true"
+          trim    CDATA "true">
+          
+<!ELEMENT log (#PCDATA)>
+<!ATTLIST log 
+          tag   CDATA "log"
+          level CDATA "info">
+          
+<!ELEMENT echo (#PCDATA)>
+<!ATTLIST echo
+          message CDATA #IMPLIED>
+
+<!ELEMENT lockcomponent (attrib)*>
+<!ATTLIST lockcomponent
+          id      CDATA #REQUIRED
+          name    CDATA #IMPLIED
+          timeout CDATA "60s">
+
+<!ELEMENT attrib EMPTY>
+<!ATTLIST attrib
+          name  CDATA #IMPLIED
+          value CDATA #IMPLIED>
+
+<!ELEMENT unlockcomponent EMPTY>
+<!ATTLIST unlockcomponent 
+          id CDATA #REQUIRED>
+
+<!ELEMENT stopcomponent EMPTY>
+
+<!ELEMENT createstorage EMPTY>
+<!ATTLIST createstorage
+          id   CDATA #REQUIRED
+          path CDATA #REQUIRED>
+          
+<!ELEMENT createrange EMPTY>
+<!ATTLIST createrange
+          name    CDATA #REQUIRED
+          value   CDATA #REQUIRED
+          recycle CDATA #IMPLIED>
+          
+<!-- moving files to/from components tags -->
+
+<!ELEMENT putfile EMPTY>
+<!ATTLIST putfile
+		  uri        CDATA #REQUIRED
+		  remotefile CDATA #REQUIRED>
+
+<!ELEMENT getfile EMPTY>
+<!ATTLIST getfile
+		  uri        CDATA #REQUIRED
+		  remotefile CDATA #REQUIRED>
+
+<!-- flow control tags -->
+          
+<!ELEMENT try ((%dtf_tags;),catch*,finally?)>
+<!ELEMENT catch (%dtf_tags;)>
+<!ATTLIST catch
+          exception CDATA #IMPLIED
+          property  CDATA #IMPLIED>
+<!ELEMENT finally (%dtf_tags;)>
+
+<!ELEMENT fail EMPTY>
+<!ATTLIST fail
+          message    CDATA #REQUIRED>
+
+<!ELEMENT for (%dtf_tags;)*>
+<!ATTLIST for 
+          property CDATA #REQUIRED
+          range    CDATA #REQUIRED>
+
+<!ELEMENT distribute (%dtf_tags;)>
+<!ATTLIST distribute
+          func 			CDATA #IMPLIED
+          duration 		CDATA #IMPLIED
+          iterations 	CDATA #IMPLIED
+          timer 		CDATA #IMPLIED
+          unit 			CDATA "1s"
+          property 		CDATA #IMPLIED
+          workers 		CDATA #REQUIRED
+          id            CDATA #IMPLIED>
+
+<!ELEMENT parallelloop (%dtf_tags;)>
+<!ATTLIST parallelloop
+          range CDATA #IMPLIED
+          property CDATA #IMPLIED>
+
+<!ELEMENT loop (loop|%component_commands;)*>
+<!ATTLIST loop
+          range 	CDATA #IMPLIED
+          property 	CDATA #IMPLIED
+          type		CDATA "sequence">
+
+<!ELEMENT fetchresult EMPTY>
+<!ATTLIST fetchresult
+          cursor    CDATA #REQUIRED
+          recycle   CDATA #IMPLIED
+          fetchsize CDATA #IMPLIED>
+          
+<!ELEMENT sleep EMPTY>
+<!ATTLIST sleep 
+          time CDATA #REQUIRED>
+
+<!ELEMENT result ANY>
+<!ATTLIST result
+          uri    CDATA	#IMPLIED
+          type   CDATA	"xml">
+
+<!ELEMENT record (attribute*,(%dtf_tags;)*)>
+<!ATTLIST record
+          uri    CDATA #IMPLIED
+          type   CDATA #REQUIRED
+          event  CDATA #IMPLIED
+          append CDATA #IMPLIED
+          refid  CDATA #IMPLIED>
+
+<!ELEMENT event ANY>
+<!ATTLIST event 
+          name  CDATA #IMPLIED
+          id    CDATA #IMPLIED
+          refid CDATA #IMPLIED>
+          
+<!ELEMENT stats  EMPTY>
+<!ATTLIST stats 
+          cursor CDATA #REQUIRED
+          event  CDATA #REQUIRED>
+
+<!ELEMENT property EMPTY>
+<!ATTLIST property
+          name      CDATA #REQUIRED
+          value     CDATA #REQUIRED
+          overwrite CDATA #IMPLIED>
+
+<!ELEMENT attribute EMPTY>
+<!ATTLIST attribute
+          name  CDATA #REQUIRED
+          value CDATA #REQUIRED
+          type  CDATA "string"
+          index CDATA #IMPLIED
+          length CDATA "64">
+
+<!ELEMENT nextresult EMPTY>
+<!ATTLIST nextresult
+          cursor  CDATA #REQUIRED
+          recycle CDATA #IMPLIED>
+
+<!ELEMENT query (select?,where?) >
+<!ATTLIST query 
+          uri    CDATA	#REQUIRED
+          type   CDATA  "database"
+          event  CDATA  #REQUIRED
+          cursor CDATA 	#REQUIRED> 
+
+<!ELEMENT select (field)*>
+
+<!ELEMENT field EMPTY>
+<!ATTLIST field 
+          name CDATA #REQUIRED
+          type CDATA #IMPLIED>
+
+<!ELEMENT where (%conditions;)>
+
+<!ELEMENT and (%conditions;)*>
+<!ELEMENT or (%conditions;)*>
+
+<!ELEMENT gt EMPTY>
+<!ATTLIST gt 
+          op1	    CDATA #REQUIRED
+          op2		CDATA #REQUIRED
+          type  	CDATA "string"
+          nullable  CDATA "false">
+
+<!ELEMENT lt EMPTY>
+<!ATTLIST lt 
+          op1      CDATA #REQUIRED
+          op2      CDATA #REQUIRED
+          type     CDATA "string"
+          nullable CDATA "false">
+
+<!ELEMENT eq EMPTY>
+<!ATTLIST eq 
+          op1      CDATA #REQUIRED
+          op2      CDATA #REQUIRED
+          type     CDATA "string"
+          nullable CDATA "false">
+
+<!ELEMENT neq EMPTY>
+<!ATTLIST neq 
+          op1      CDATA #REQUIRED
+          op2      CDATA #REQUIRED
+          type     CDATA "string"
+          nullable CDATA "false">
+          
+<!ELEMENT within EMPTY>
+<!ATTLIST within
+          op1       CDATA #REQUIRED
+          op2       CDATA #REQUIRED
+          tolerance CDATA #REQUIRED>
+
+<!ELEMENT if ((%conditions;),then,else?) >
+
+<!ELEMENT then (%dtf_tags;)* >
+<!ELEMENT else (%dtf_tags;)* >
+
+<!ELEMENT graph (series)*>
+<!ATTLIST graph
+          uri    CDATA #IMPLIED
+          type   CDATA #REQUIRED
+          title  CDATA #REQUIRED
+          width  CDATA #IMPLIED
+          height CDATA #IMPLIED>
+
+<!ELEMENT series EMPTY>
+<!ATTLIST series
+		  name        CDATA #REQUIRED
+          cursor      CDATA #REQUIRED
+          separateby  CDATA #IMPLIED
+          aggregateby CDATA #IMPLIED
+          aggfunc     CDATA "average"
+          lowerlimit  CDATA #IMPLIED
+          upperlimit  CDATA #IMPLIED
+          mode        CDATA #IMPLIED
+          sampleunit  CDATA "1s">
+<!-- Internal DTF Elements -->
+<!-- add elements as necessary to get more information out of the 
+     toString on the Action classes -->
+
+<!ELEMENT nodeinfo EMPTY>
+<!ATTLIST nodeinfo 
+          id   		CDATA #REQUIRED>
+
+<!ELEMENT lock EMPTY>
+<!ATTLIST lock 
+          id   		CDATA #REQUIRED>
+
+<!ELEMENT unlock EMPTY>
+<!ATTLIST unlock 
+          id    CDATA #REQUIRED
+          owner CDATA #IMPLIED>
+          
+<!ELEMENT connect EMPTY>
+<!ATTLIST connect
+          id    CDATA #REQUIRED>
+ 

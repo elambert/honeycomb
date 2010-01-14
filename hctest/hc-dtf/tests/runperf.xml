@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="hc_perf">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>
+        Honeycomb performance wrapper script that will lock the necessary 
+        cluster component so that the sub performance scripts can figure out 
+        which cluster to talk to.</description>
+    </info>
+
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input" />
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+        <createstorage id="TINPUT" path="${dtf.xml.path}" />
+
+        <loadproperties uri="storage://INPUT/hc.properties" />
+        
+        <property name="hc.continueonfailure" value="true" overwrite="true"/>
+    </local>
+
+    <local>
+        <lockcomponent id="CLUSTER" timeout="${hc.lockcomponent.timeout}">
+            <attrib name="hc.cluster.type" value="${hc.cluster.type}" />
+        </lockcomponent>
+    </local>
+    
+    <testscript uri="storage://TINPUT/${hc.perf.test}"/>
+
+</script>

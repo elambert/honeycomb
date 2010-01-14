@@ -1,0 +1,107 @@
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+1 Introduction
+--------------
+
+The ConvertOidBatch tool is made available to our 1.0 customers who
+keep ST5800 Object Identifiers (OIDs) in an external location such as
+a database or file on the client side, and access their data by
+retrieving these OIDs. These stored OIDs will need to be converted to
+1.1 format when the customer system is upgraded to 1.1.
+
+2 Installation
+--------------
+
+The ConvertOidBatch tool is installed during the upgrade process on
+the service node in /usr/local/st5800/bin and can be used directly by
+service personnel via the service node (see Usage below). This
+approach should be used by Sun Service only, using a list of OIDs
+provided by the customer; the customer should not log into the service
+node.
+
+The ConvertOidBatch tool can also be installed on a customer machine,
+if desired, for the customer to use. It is made available on the
+installation/upgrade DVD, and should be installed by Sun Service.
+
+On a Solaris machine:
+
+The SUNWhcsuitcase package can be installed directly from the DVD as
+follows:
+1. Mount the DVD on the desired machine.
+2. pkgadd -d /<dvdpath>/Honeycomb_1.0/Product SUNWhcsuitcase
+3. Unmount the DVD.
+
+ConvertOidBatch and its associated files will be installed into
+/usr/local/st5800 with subdirectories bin, lib, etc. A different
+destination path can be specified if this is not the desired location.
+
+
+On a Linux or Windows machine:
+
+The SUNWhcsuitcase directory can be copied from the DVD to the desired
+location on the client's machine as follows:
+1. Mount the DVD on the desired machine.
+2. cd <dvdpath>/Honeycomb_1.0/Product/SUNWhcsuitcase/root/usr/local
+3. cp -r st5800 <destination>
+4. Unmount the DVD
+
+The ConvertOidBatch tool will be located at <destination>/st5800/bin
+and can be run from that directory.
+
+
+3 Usage
+-------
+
+The ConvertOidBatch tool reads a list of OIDs (one OID per line of
+input) off of stdin, and outputs to stdout.  Usage is:
+
+cat <file of 1.0 OIDs> | ConvertOidBatch [cellid] [options] > <output file>
+
+cellid is 1 by default, and is how the cluster is automatically
+configured during a 1.0->1.1 upgrade. There is currently no way to
+assign a different cell ID for 1.0->1.1 upgrades. ConvertOidBatch
+takes in cellid as an argument in case support for changing the cell
+ID of an upgraded 1.0 cluster is implemented.
+
+Possible options:
+map : output OIDs in a mapping of 1.0 to 1.1 OIDs (default)
+list : output OIDs in a list of 1.1 OIDs
+help : print the usage message.
+
+The expected input is a list of 1.0 OIDs, for example:
+
+0100010000687d187111dcae2300e081719ca7000006a00200000000
+01000100014f48187811dc9c2100e081719c8f000012310200000000
+010001000255fa187711dcbbe300e0817198360000152c0200000000
+0100010004cafb187011dc930700e081719c57000002930200000000
+
+The default output is a mapping of 1.0 to 1.1 OIDs, so the customer
+can associate the new OIDs with their content in whatever manner they
+use:
+
+01000100000fcf18c511dcaf1b00e081719860000008b40200000000 02000147cb00000fcf18c511dcaf1b00e081719860000008b40200000000
+01000100000fcf190f11dc935100e081719c4b000014700200000000 02000135e900000fcf190f11dc935100e081719c4b000014700200000000
+01000100001a0e18c611dc88d400e0815f5e0e00001ca20200000000 02000114b300001a0e18c611dc88d400e0815f5e0e00001ca20200000000
+01000100001ac818e011dcae2300e081719ca7000002a90200000000 02000106a600001ac818e011dcae2300e081719ca7000002a90200000000
+
+If the customer wants a simple list of converted 1.1 OIDs as output,
+they can use the list command line option:
+cat <input file> | ConvertOidBatch [cellid] list > <output file>
+
+02000147cb00000fcf18c511dcaf1b00e081719860000008b40200000000
+02000135e900000fcf190f11dc935100e081719c4b000014700200000000
+02000114b300001a0e18c611dc88d400e0815f5e0e00001ca20200000000
+02000106a600001ac818e011dcae2300e081719ca7000002a90200000000
+
+
+4 Limitations
+-------------
+
+ConvertOidBatch does not support conversion from 1.1 back to 1.0 OIDs,
+only from 1.0 to 1.1. If service personnel needs to perform conversion
+from a 1.1 OID back to 1.0 OID for troubleshooting purposes, they may
+use the internal-only tool ConvertOid (which only converts one OID at
+a time) instead of ConvertOidBatch. ConvertOid is installed with
+ConvertOidBatch in the above installation procedures. For ConvertOid
+usage, type "ConvertOid help".

@@ -1,0 +1,243 @@
+/*
+ * Copyright © 2008, Sun Microsystems, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+
+// XXX This test used to pass because hidden fragment files were not
+// processed as missing (test bug). Now that hidden files are
+// considered missing, system metadata is not deleted and links do not
+// get updated.
+
+import com.sun.honeycomb.delete.Constants;
+import com.sun.honeycomb.oa.OAClient;
+
+ECHO("Tests how we handle non-deleted frags of deleted objects");
+
+storesize = 10;
+
+// XXX these tests fail because when the MD obj is missing,
+// we don't update the data frag "behind" it.
+// The bug is isolated in test deleteMDmissingFrag,
+// so disabling same tests here until bug is fixed.
+skipDiffFragTests = true;
+
+/// One frag missing, same per obj
+ECHO("--> Store object of size " + storesize);
+STORE(1, storesize);
+DEREF(1,0);
+
+ECHO("--> Remove one frag per obj, same per obj");
+FRAGREMOVE(0, 0, 0);
+FRAGREMOVE(1, 0, 0);
+
+ECHO("--> Delete the object while frag is missing...");
+DELETE(1, true);
+
+ECHO("--> Restore frags of each object");
+FRAGRESTORE(0, 0, 0);
+FRAGRESTORE(1, 0, 0);
+
+ECHO("--> Try retrieve to complete the delete");
+RETRIEVE(1, false);
+RETRIEVE(0, false);
+
+ECHO("--> Check deleted status and ref cnt");
+FRAGISDELETED(0, Constants.ALL_FRAGS, true);
+FRAGISDELETED(1, Constants.ALL_FRAGS, true);
+REFCNTCHECK(0, Constants.ALL_FRAGS, 0, 1);
+
+
+if (!skipDiffFragTests) {
+    /// One frag missing, diff per obj
+    ECHO("--> Store object of size " + storesize);
+    STORE(1, storesize);
+    DEREF(1,0);
+
+    ECHO("--> Remove one frag per obj, diff per obj");
+    FRAGREMOVE(0, 0, 0);
+    FRAGREMOVE(1, 1, 0);
+
+    ECHO("--> Delete the object while frag is missing...");
+    DELETE(1, true);
+
+    ECHO("--> Restore frags of each object");
+    FRAGRESTORE(0, 0, 0);
+    FRAGRESTORE(1, 1, 0);
+
+    ECHO("--> Try retrieve to complete the delete");
+    RETRIEVE(1, false);
+    RETRIEVE(0, false);
+
+    ECHO("--> Check deleted status and ref cnt");
+    FRAGISDELETED(0, Constants.ALL_FRAGS, true);
+    FRAGISDELETED(1, Constants.ALL_FRAGS, true);
+    REFCNTCHECK(0, Constants.ALL_FRAGS, 0, 1);
+}
+
+
+
+/// Two frags missing, same per obj
+ECHO("--> Store object of size " + storesize);
+STORE(1, storesize);
+DEREF(1,0);
+
+// use diff frag for one of the objects
+ECHO("--> Remove two frags of each object, same frags per obj");
+FRAGREMOVE(0, 0, 0);
+FRAGREMOVE(0, 1, 0);
+FRAGREMOVE(1, 0, 0);
+FRAGREMOVE(1, 1, 0);
+
+ECHO("--> Delete the object while two frags are missing");
+DELETE(1, true);
+
+ECHO("--> Restore frags of each object");
+FRAGRESTORE(0, 0, 0);
+FRAGRESTORE(0, 1, 0);
+FRAGRESTORE(1, 0, 0);
+FRAGRESTORE(1, 1, 0);
+
+ECHO("--> Try retrieve to complete the delete");
+RETRIEVE(1, false);
+RETRIEVE(0, false);
+
+ECHO("--> Check deleted status and ref cnt");
+FRAGISDELETED(0, Constants.ALL_FRAGS, true);
+FRAGISDELETED(1, Constants.ALL_FRAGS, true);
+REFCNTCHECK(0, Constants.ALL_FRAGS, 0, 1);
+
+
+if (!skipDiffFragTests) {
+    /// Two frags missing, diff per obj
+    ECHO("--> Store object of size " + storesize);
+    STORE(1, storesize);
+    DEREF(1,0);
+
+    // use diff frag for one of the objects
+    ECHO("--> Remove two frags of each object, diff frags per obj");
+    FRAGREMOVE(0, 0, 0);
+    FRAGREMOVE(0, 1, 0);
+    FRAGREMOVE(1, 2, 0);
+    FRAGREMOVE(1, 3, 0);
+
+    ECHO("--> Delete the object while two frags are missing");
+    DELETE(1, true);
+
+    ECHO("--> Restore frags of each object");
+    FRAGRESTORE(0, 0, 0);
+    FRAGRESTORE(0, 1, 0);
+    FRAGRESTORE(1, 2, 0);
+    FRAGRESTORE(1, 3, 0);
+
+    ECHO("--> Try retrieve to complete the delete");
+    RETRIEVE(1, false);
+    RETRIEVE(0, false);
+
+    ECHO("--> Check deleted status and ref cnt");
+    FRAGISDELETED(0, Constants.ALL_FRAGS, true);
+    FRAGISDELETED(1, Constants.ALL_FRAGS, true);
+    REFCNTCHECK(0, Constants.ALL_FRAGS, 0, 1);
+}
+
+
+
+/// Three frags missing, same per obj -- delete should fail
+ECHO("--> Store object of size " + storesize);
+STORE(1, storesize);
+DEREF(1,0);
+
+// use diff frag for one of the objects
+ECHO("--> Remove three frags of each object, same frags per obj");
+FRAGREMOVE(0, 0, 0);
+FRAGREMOVE(0, 1, 0);
+FRAGREMOVE(0, 2, 0);
+FRAGREMOVE(1, 0, 0);
+FRAGREMOVE(1, 1, 0);
+FRAGREMOVE(1, 2, 0);
+
+ECHO("--> Delete the object while three frags are missing -- should fail");
+DELETE(1, false);
+
+ECHO("--> Restore frags of each object");
+FRAGRESTORE(0, 0, 0);
+FRAGRESTORE(0, 1, 0);
+FRAGRESTORE(0, 2, 0);
+FRAGRESTORE(1, 0, 0);
+FRAGRESTORE(1, 1, 0);
+FRAGRESTORE(1, 2, 0);
+
+ECHO("--> Try retrieve ... should succeed");
+RETRIEVE(1, true);
+RETRIEVE(0, true);
+
+ECHO("--> Check deleted status and ref cnt");
+FRAGISDELETED(0, Constants.ALL_FRAGS, false);
+FRAGISDELETED(1, Constants.ALL_FRAGS, false);
+REFCNTCHECK(0, Constants.ALL_FRAGS, 1, 1);
+
+
+
+if (!skipDiffFragTests) {
+    /// Three frags missing, diff per obj -- delete should fail
+    ECHO("--> Store object of size " + storesize);
+    STORE(1, storesize);
+    DEREF(1,0);
+
+    // use diff frag for one of the objects
+    ECHO("--> Remove three frags of each object, diff frags per obj");
+    FRAGREMOVE(0, 0, 0);
+    FRAGREMOVE(0, 1, 0);
+    FRAGREMOVE(0, 2, 0);
+    FRAGREMOVE(1, 3, 0);
+    FRAGREMOVE(1, 4, 0);
+    FRAGREMOVE(1, 5, 0);
+
+    ECHO("--> Delete the object while three frags are missing -- should fail");
+    DELETE(1, false);
+
+    ECHO("--> Restore frags of each object");
+    FRAGRESTORE(0, 0, 0);
+    FRAGRESTORE(0, 1, 0);
+    FRAGRESTORE(0, 2, 0);
+    FRAGRESTORE(1, 3, 0);
+    FRAGRESTORE(1, 4, 0);
+    FRAGRESTORE(1, 5, 0);
+
+    ECHO("--> Try retrieve ... should succeed");
+    RETRIEVE(1, true);
+    RETRIEVE(0, true);
+
+    ECHO("--> Check deleted status and ref cnt");
+    FRAGISDELETED(0, Constants.ALL_FRAGS, false);
+    FRAGISDELETED(1, Constants.ALL_FRAGS, false);
+    REFCNTCHECK(0, Constants.ALL_FRAGS, 1, 1);
+}
+

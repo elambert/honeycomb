@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 
+
+  $Id: metadata_config_mp3demo.xml 10855 2007-05-19 02:54:08Z bberndt $
+
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+
+For the emulator: use /opt/honeycomb/bin/metadata_merge_config.sh 
+to add this config to the existing one -->
+
+<metadataConfig>
+  <schema>
+    
+    <namespace name="mp3" writable="true" extensible="true">
+      <field name="title" type="string" length="150" indexable="true"/>
+      <field name="artist" type="string" length="150" indexable="true"/>
+      <field name="album" type="string" length="150" indexable="true"/>
+      <field name="date" type="long" length="150" indexable="true"/>
+      <field name="type" type="string" length="150" indexable="true"/>
+    </namespace>
+    
+  </schema>
+  
+  <fsViews>
+    <fsView name="byArtist" filename="${title}.${type}" namespace="mp3"
+            fsattrs="true">
+      <attribute name="artist"/>
+      <attribute name="album"/>
+    </fsView>
+  </fsViews>
+
+  <tables>
+    <table name="mp3">
+      <column name="mp3.title" />
+      <column name="mp3.artist" />
+      <column name="mp3.album" />
+      <column name="mp3.date" />
+      <column name="mp3.type" />
+    </table>
+  </tables>
+
+</metadataConfig>

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="cat">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF unit test for cat tag.</description>
+    </info>
+
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input" />
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+
+        <loadproperties uri="storage://INPUT/ut.properties" />
+
+        <cat uri="storage://OUTPUT/testoutput">
+This output will be visible at storage://OUTPUT/testoutput
+
+Os: ${os.name}
+Arch: ${os.arch}        
+
+dtf.test.property1 = ${dtf.test.property1}
+dtf.test.property2 = ${dtf.test.property2}</cat>
+    </local>
+
+</script>

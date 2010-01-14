@@ -1,0 +1,212 @@
+/*
+ * Copyright © 2008, Sun Microsystems, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+
+import com.sun.honeycomb.delete.Constants;
+
+NB_FILES = 5;
+chunksize = Constants.MAX_CHUNK_SIZE;
+SECONDMDBASE = 20;
+THIRDMDBASE = 40;
+FOURTHMDBASE = 60;
+
+ECHO("store " + NB_FILES + " multichunk files +/- 1 and then addMD and delete them all");
+
+ECHO("This test verifies bug 6293141: addMetadata doesn't increment all chunks in the referee for multichunk files");
+ECHO("New bug it fails on is 6384514: can't add metadata to an object that is N*CHUNKSIZE (N>=1)");
+
+ECHO("chunksize=" + chunksize);
+
+void storeMultichunkAddMDTest(int numChunks) {
+    int expectedMax = 1;
+    int expectedCur = 1;
+
+    ECHO("--> store files n*chunksize, n*chunksize+1, n*chunksize-1, n=" + numChunks + ", n*chunksize=" + (numChunks*chunksize));
+
+    ECHO("store " + numChunks + " chunks");
+    STORE(1, chunksize * numChunks);
+    DEREF(1, 0);
+    REFCNTCHECK(0, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    ECHO("store " + numChunks + " chunks + 1");
+    STORE(3, chunksize * numChunks + 1);
+    DEREF(3, 2);
+    REFCNTCHECK(2, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    if (numChunks > 0) {
+        ECHO("store " + numChunks + " chunks - 1");
+        STORE(5, chunksize * numChunks - 1);
+        DEREF(5, 4);
+        REFCNTCHECK(4, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    }
+
+    expectedMax++;
+    expectedCur++;
+    ECHO("add second MD");
+    ADDM(1, SECONDMDBASE+1);
+    REFCNTCHECK(0, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    ECHO("add second MD + 1");
+    ADDM(3, SECONDMDBASE+3);
+    REFCNTCHECK(2, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    if (numChunks > 0) {
+        ECHO("add second MD - 1");
+        ADDM(5, SECONDMDBASE+5);
+        REFCNTCHECK(4, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    }
+
+    expectedMax++;
+    expectedCur++;
+    ECHO("add third MD");
+    ADDM(1, THIRDMDBASE+1);
+    REFCNTCHECK(0, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    ECHO("add third MD + 1");
+    ADDM(3, THIRDMDBASE+3);
+    REFCNTCHECK(2, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    if (numChunks > 0) {
+        ECHO("add third MD - 1");
+        ADDM(5, THIRDMDBASE+5);
+        REFCNTCHECK(4, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    }
+
+    expectedCur--;
+    ECHO("delete orig obj");
+    DELETE(1, true);
+    REFCNTCHECK(0, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    FRAGISDELETED(0, Constants.ALL_FRAGS, false);
+    FRAGISDELETED(1, Constants.ALL_FRAGS, true);
+    ECHO("delete orig obj + 1");
+    DELETE(3, true);
+    REFCNTCHECK(2, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    FRAGISDELETED(2, Constants.ALL_FRAGS, false);
+    FRAGISDELETED(3, Constants.ALL_FRAGS, true);
+    if (numChunks > 0) {
+        ECHO("delete orig obj - 1");
+        DELETE(5, true);
+        REFCNTCHECK(4, Constants.ALL_FRAGS, expectedCur, expectedMax);
+        FRAGISDELETED(4, Constants.ALL_FRAGS, false);
+        FRAGISDELETED(5, Constants.ALL_FRAGS, true);
+    }
+ 
+    expectedCur--;
+    ECHO("delete third md obj");
+    DELETE(THIRDMDBASE+1, true);
+    REFCNTCHECK(0, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    FRAGISDELETED(0, Constants.ALL_FRAGS, false);
+    FRAGISDELETED(THIRDMDBASE+1, Constants.ALL_FRAGS, true);
+    ECHO("delete third md obj + 1");
+    DELETE(THIRDMDBASE+3, true);
+    REFCNTCHECK(2, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    FRAGISDELETED(2, Constants.ALL_FRAGS, false);
+    FRAGISDELETED(THIRDMDBASE+3, Constants.ALL_FRAGS, true);
+    if (numChunks > 0) {
+        ECHO("delete third md obj - 1");
+        DELETE(THIRDMDBASE+5, true);
+        REFCNTCHECK(4, Constants.ALL_FRAGS, expectedCur, expectedMax);
+        FRAGISDELETED(4, Constants.ALL_FRAGS, false);
+        FRAGISDELETED(THIRDMDBASE+5, Constants.ALL_FRAGS, true);
+    }
+ 
+    expectedMax++;
+    expectedCur++;
+    ECHO("add fourth MD");
+    ADDM(SECONDMDBASE+1, FOURTHMDBASE+1);
+    REFCNTCHECK(0, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    ECHO("add fourth MD + 1");
+    ADDM(SECONDMDBASE+3, FOURTHMDBASE+3);
+    REFCNTCHECK(2, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    if (numChunks > 0) {
+        ECHO("add fourth MD - 1");
+        ADDM(SECONDMDBASE+5, FOURTHMDBASE+5);
+        REFCNTCHECK(4, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    }
+
+    expectedCur--;
+    ECHO("delete second md obj");
+    DELETE(SECONDMDBASE+1, true);
+    REFCNTCHECK(0, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    FRAGISDELETED(0, Constants.ALL_FRAGS, false);
+    FRAGISDELETED(SECONDMDBASE+1, Constants.ALL_FRAGS, true);
+    ECHO("delete second md obj + 1");
+    DELETE(SECONDMDBASE+3, true);
+    REFCNTCHECK(2, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    FRAGISDELETED(2, Constants.ALL_FRAGS, false);
+    FRAGISDELETED(SECONDMDBASE+3, Constants.ALL_FRAGS, true);
+    if (numChunks > 0) {
+        ECHO("delete second md obj - 1");
+        DELETE(SECONDMDBASE+5, true);
+        REFCNTCHECK(4, Constants.ALL_FRAGS, expectedCur, expectedMax);
+        FRAGISDELETED(4, Constants.ALL_FRAGS, false);
+        FRAGISDELETED(SECONDMDBASE+5, Constants.ALL_FRAGS, true);
+    }
+ 
+    expectedCur--;
+    ECHO("delete fourth md obj");
+    DELETE(FOURTHMDBASE+1, true);
+    REFCNTCHECK(0, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    FRAGISDELETED(0, Constants.ALL_FRAGS, true);
+    FRAGISDELETED(FOURTHMDBASE+1, Constants.ALL_FRAGS, true);
+    ECHO("delete fourth md obj + 1");
+    DELETE(FOURTHMDBASE+3, true);
+    REFCNTCHECK(2, Constants.ALL_FRAGS, expectedCur, expectedMax);
+    FRAGISDELETED(2, Constants.ALL_FRAGS, true);
+    FRAGISDELETED(FOURTHMDBASE+3, Constants.ALL_FRAGS, true);
+    if (numChunks > 0) {
+        ECHO("delete fourth md obj - 1");
+        DELETE(FOURTHMDBASE+5, true);
+        REFCNTCHECK(4, Constants.ALL_FRAGS, expectedCur, expectedMax);
+        FRAGISDELETED(4, Constants.ALL_FRAGS, true);
+        FRAGISDELETED(FOURTHMDBASE+5, Constants.ALL_FRAGS, true);
+    }
+
+    ECHO("do retrieve to verify");
+    RETRIEVE(0, false);
+    RETRIEVE(1, false);
+    RETRIEVE(SECONDMDBASE+1, false);
+    RETRIEVE(THIRDMDBASE+1, false);
+    RETRIEVE(FOURTHMDBASE+1, false);
+
+    RETRIEVE(2, false);
+    RETRIEVE(3, false);
+    RETRIEVE(SECONDMDBASE+3, false);
+    RETRIEVE(THIRDMDBASE+3, false);
+    RETRIEVE(FOURTHMDBASE+3, false);
+
+    if (numChunks > 0) {
+        RETRIEVE(4, false);
+        RETRIEVE(5, false);
+        RETRIEVE(SECONDMDBASE+5, false);
+        RETRIEVE(THIRDMDBASE+5, false);
+        RETRIEVE(FOURTHMDBASE+5, false);
+    }
+}
+
+for (int j=0; j<NB_FILES; j++) {
+    storeMultichunkAddMDTest(j);
+}

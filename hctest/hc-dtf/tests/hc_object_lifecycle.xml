@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="hc_object_lifecycle">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>
+        Honeycomb Object LifeCycle test is very simple and tries to simluate the
+        life of an object in honeycomb. So the object is created, later 
+        retrieved we might retrieve its metadata then followed by adding some 
+        more metadata verify that all of the oids created can still get you your 
+        metadata and your data. Then honeycomb query API is used to verify that
+        the object can be found through query. Then later one of the metadata 
+        references are deleted and verified to be actually deleted. Finally the 
+        last reference is deleted and this objects life has come to an end in 
+        the system.
+        </description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT"  path="${dtf.xml.path}/input"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+
+      	<loadproperties uri="storage://INPUT/hc.properties"/> 
+      	<import uri="storage://INPUT/${hc.metadata.filename}"/>
+    </local>
+    
+	<local>
+        <lockcomponent id="CLIENT1">
+        	<attrib name="hc.client.type" value="${hc.client.type}"/>
+        </lockcomponent>
+
+        <lockcomponent id="CLUSTER">
+        	<attrib name="hc.cluster.type" value="${hc.cluster.type}"/>
+        </lockcomponent>
+	</local>
+	
+	<function name="retrieveObject">
+		<param name="oid" type="required"/>
+		<local>
+			<echo>Retrieving data for ${oid} with verification</echo>
+		</local>
+    	<component id="CLIENT1">
+    		<retrieve datavip="${hc.cluster.datavip}"
+    			      port="${hc.cluster.dataport}"
+    			      oid="${oid}"
+    			      verify="true">
+    			<file length="${hc.filesize}" 
+    			      type="${object.file.type}"/>
+    		</retrieve>
+    	</component>
+	</function>
+	
+	<function name="retrieveMetadata">
+		<param name="oid" type="required"/>
+		<local>
+			<echo>Retrieving metadata for ${oid} with verification</echo>
+		</local>
+    	<component id="CLIENT1">
+    		<retrievemd datavip="${hc.cluster.datavip}"
+    			        port="${hc.cluster.dataport}"
+    			        oid="${oid}"
+    			        verify="false">
+    			<metadata refid="MDCMP"/>
+    		</retrievemd>
+    	</component>
+	</function>
+
+	<local>
+		<echo>Storing ${hc.filesize} byte file</echo>
+	</local>
+	<record type="object" 
+	        event="hc"
+		    uri="property://object">
+			<component id="CLIENT1">
+				<store datavip="${hc.cluster.datavip}"
+					   port="${hc.cluster.dataport}">
+					<file length="${hc.filesize}" 
+					      type="${hc.filetype}"/>
+					<metadata refid="MDREF"/>
+				</store>
+			</component>
+	</record>
+    
+	<call function="retrieveObject">
+		<property name="oid" value="${object.oid}"/>
+	</call>
+    
+	<call function="retrieveMetadata">
+		<property name="oid" value="${object.oid}"/>
+	</call>
+	
+	<local>
+		<echo>Adding metadata for ${object.oid}</echo>
+	</local>
+	<record type="object" 
+	        event="hc"
+		    uri="property://object2">
+    	<component id="CLIENT1">
+    		<addmetadata datavip="${hc.cluster.datavip}"
+    			         port="${hc.cluster.dataport}"
+    			         oid="${object.oid}">
+    			<metadata refid="MDREF"/>
+    		</addmetadata>
+    	</component>
+	</record>
+	
+	<local>
+		<echo>Query for the metadata relevant to both previous metadata objects.</echo>
+	</local>
+
+	<!--  I think that here is where I should introduce the notion of 
+	      querying honeycomb in the same manner we'd query the recorder results
+	      database and allow for more control over what is being queried-->	
+<!-- <record type="object" 
+	        event="hc"
+		    uri="property://queryresult">
+      	<component id="CLIENT1">
+    		<hcquery datavip="${hc.cluster.datavip}"
+        	         port="${hc.cluster.dataport}">
+    		</hcquery>
+    	</component> 			      
+    </record> -->
+   
+   <!-- @todo: how to verify the oids returned are the expected? --> 
+	
+	<call function="retrieveMetadata">
+		<property name="oid" value="${object2.oid}"/>
+	</call>
+	
+	<call function="retrieveObject">
+		<property name="oid" value="${object2.oid}"/>
+	</call>
+	
+	<local>
+		<echo>Deleting ${object.oid}</echo>
+	</local>
+	<component id="CLIENT1">
+		<delete datavip="${hc.cluster.datavip}"
+			    port="${hc.cluster.dataport}"
+			    oid="${object.oid}"/>
+	</component>
+	
+</script>

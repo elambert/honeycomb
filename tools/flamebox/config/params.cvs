@@ -1,0 +1,281 @@
+#
+# $Id: params.cvs 10853 2007-05-19 02:50:20Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+#
+# Use this file if your flamebox is using CVS
+# with Bonsai web front-end.
+#
+# These are the default repository, module, and branch.
+#
+$repository = "/src";
+$module = "all";
+$branch = "HEAD";
+
+#
+# The default spacing for the rows in seconds.
+#
+$period = 5 * 60;
+
+#
+# The default time in seconds for page.
+#
+$length = 6 * 60 * 60;
+
+#
+# This the unix directory path and the url path, respectively, to the
+# task images (i.e., vertical text for the column headings).
+#
+$imagepath = "/var/www/flamebox/html/task_img";
+$imageurl = "/flamebox/task_img";
+$imagetype = "gif"; # alternative: png, or whatever is supported by your GD.pm
+
+#
+# This the unix directory path and the url path, respectively, to the
+# logs.
+#
+$logpath = "/var/www/flamebox/html/logs";
+$logurl = "/fbox-cgi/showlog.cgi";
+
+# Version control system - where flamebox pulls up checkins from
+#
+# Currently supported are "cvs" (CVS repository with Bonsai Web viewer)
+# and "svn" (Subversion repository with recent svn-compatible ViewCVS viewer)
+#
+# Note: the rest of the variables are named "bonsai*" when they really apply to any VC.
+# I left the names intact for easier backwards compatibility.
+#
+$vctype = "cvs"; # default
+
+#
+# This is the url to bonsai query interface or viewcvs interface.
+# You must include the treeid parameter here (only for vctype "cvs").
+#
+$bonsaiurl = "/bonsai/cvsquery.cgi?treeid=default";
+
+#
+# These are the parameters to the flamebox database.
+#
+$dburl = "DBI:mysql:flamebox";
+$dbuser = "nobody";
+$dbpasswd = "";
+
+#
+# These are the parameters to the bonsai database or viewcvs checkin database.
+#
+$bonsai_dburl = "DBI:mysql:bonsai";
+$bonsai_dbuser = "nobody";
+$bonsai_dbpasswd = "";
+
+#============================================================================
+#
+# User-extensible subroutines
+#
+
+#
+# Parses a line and returns line type.
+#
+# OK - means the line parsed fine and no action should be taken.
+# INFO - means the line contains information that should be appened to the message
+#        area.
+# ERROR - means the line is an error line, so make a link to it in the message
+#         area.
+# WARNING - means the line is a warning line, so make a link to it in the message
+#           area.
+#
+
+$flamebox_email = "";
+
+sub parse_line
+{
+    my ($line) = (@_);
+
+    # Match ignore commands.
+    if ($line =~ m/.*flamebox-ignore\s+([\S]+)\s+([^\n\r]+)/) {
+	# Add a new ignore pattern.
+	my $key = $1;
+	my $pat = $2;
+	$ignores{$key} = $pat;
+	return "OK";
+    } elsif ($line =~ m/.*flamebox-ignore-cancel\s+([\S]+)/) {
+	# Remove an existing ignore pattern.
+	my $key = $1;
+	if (defined $ignores{$key}) {
+	    delete $ignores{$key};
+	    return "OK";
+	} else {
+	    return "ERROR";
+	}
+    } elsif ($line =~ m/.*tinderbox-ignore\s+([\S]+)\s+([^\n\r]+)/) {
+	# Add a new ignore pattern.
+	my $key = $1;
+	my $pat = $2;
+	$ignores{$key} = $pat;
+	return "OK";
+    } elsif ($line =~ m/.*tinderbox-ignore-cancel\s+([\S]+)/) {
+	# Remove an existing ignore pattern.
+	my $key = $1;
+	if (defined $ignores{$key}) {
+	    delete $ignores{$key};
+	    return "OK";
+	} else {
+	    return "ERROR";
+	}
+    } elsif ($line =~ m/.*flamebox-downgrade\s+([\S]+)\s+([^\n\r]+)/) {
+	# Add a new downgrade pattern - make an error a warning
+	my $key = $1;
+	my $pat = $2;
+	$downgrade{$key} = $pat;
+	return "OK";
+    } elsif ($line =~ m/.*flamebox-downgrade-cancel\s+([\S]+)\s+([^\n\r]+)/) {
+	# Remove an existing downgrade pattern.
+	my $key = $1;
+	if (defined $downgrade{$key}) {
+	    delete $downgrade{$key};
+	    return "OK";
+	} else {
+	    return "ERROR";
+	}
+    } elsif ($line =~ m/.*flamebox-email-cancel/) {
+	$flamebox_email = "";
+    } elsif ($line =~ m/.*flamebox-email/) {
+	my @words = split (/[\s]+/, $line);
+	if ($words[1] eq "off") {
+	    $flamebox_email = "";
+	} else {
+	    $flamebox_email = "-email";
+	}
+    } elsif ( ($line =~ m/^Running Test: .* \(/ ) ||
+	      0) {
+	return "INFO";
+    }
+
+    # Check ignore patterns.
+    foreach my $pat (values %ignores) {
+	if ($line =~ m/$pat/) {
+	    return "OK";
+	}
+    }
+
+    # Check downgrade patterns.
+    foreach my $pat (values %downgrade) {
+	if ($line =~ m/$pat/) {
+	    return "WARNING";
+	}
+    }
+    
+    # Match errors.
+    if (($line =~ m/core dumped/) ||
+	($line =~ m/Segmentation fault/) ||                  # Seg faults
+	($line =~ m/Bus error/) ||                           # Bus error
+	($line =~ m/dumping core/) ||                        # Core dump
+	($line =~ m/STACK TRACE/) ||                         # trace
+	0) {
+	return "CORE" . $flamebox_email;
+    } elsif (($line =~ m/\sORA-\d/)		||		# Oracle
+	($line =~ m/\bNo such file or directory\b/)	||
+	($line =~ m/\b[Uu]nable to\b/)	||		
+	($line =~ m/\bCommand not found\b/)		||	# shell path
+	($line =~ m/\bDied\b/)		||		# Perl error
+	($line =~ m/\b(?<!\/)[Ee]rror(?!\.)\b/)||		# C make error
+	($line =~ m/\b[Ff]atal\b/)		||		# link error
+	($line =~ m/\b[Dd]eprecated\b/)	||		# java error
+	($line =~ m/\b[Aa]ssertion\b/)	||		# test error
+	($line =~ m/\b[Aa]borted\b/)		||		# cvs error
+	($line =~ m/\b[Ff]ailed\b/)		||		# java nmake
+	($line =~ m/Unknown host /)		||		# cvs error
+	($line =~ m/\: cannot find module/)	||		# cvs error
+	($line =~ m/No such file or directory/)	 ||	# cpp error
+	($line =~ m/jmake.MakerFailedException:/) ||         # Java error
+	($line =~ m/FAILED/) ||                              # Unit test error
+	($line =~ m/\b[Ee]rror\b/) ||                        # General error
+	($line =~ m/ERROR/) || 				# General error
+	($line =~ m/err\]/) ||                               # err on logs
+	($line =~ m/fatal\]/) ||                             # fatal on logs
+	($line =~ m/crit\]/) ||                              # critical on logs
+	($line =~ m/\.ERR\]/) ||   			# ERR in logs
+	($line =~ m/\.CRIT\]/) ||   			# CRIT in logs
+	($line =~ m/NBT::Trace::trap\]/) ||                  # qa/lib/NBT/Trace.pm error
+	($line =~ m/make(\[[0-9]+\])?: \*\*\*/) ||   # make error
+	($line =~ m/Use of uninitialised value/) ||  # valgrind error
+	($line =~ m/Conditional jump or move depends on uninitialised value/) ||  # valgrind error
+	($line =~ m/contains uninitialised or unaddressable byte/) ||  # valgrind error
+	($line =~ m/contains unaddressable byte/) ||  # valgrind error
+	($line =~ m/Invalid read of size/) ||  # valgrind error
+	($line =~ m/Invalid write of size/) ||  # valgrind error
+	($line =~ m/Jump to the invalid address stated on the next line/) ||  # valgrind error
+	($line =~ m/SK_\(pp_SkinError\)\(axskind\)/) ||  # valgrind error
+	($line =~ m/[Uu]naddressable byte\(s\) found during client check request/) ||  # valgrind error
+	($line =~ m/Mismatched free\(\) \/ delete/) ||  # valgrind error
+	($line =~ m/Invalid free\(\) \/ delete/) ||     # valgrind error
+	($line =~ m/Source and destination overlap in/) ||   # valgrind error
+	($line =~ m/Possible data race/) ||   # valgrind error
+	($line =~ m/[0-9]+ bytes in [0-9]+ blocks are definitely lost/) ||   # valgrind error
+	($line =~ m/definitely lost: [1-9][0-9]* bytes in/) ||   # valgrind error
+	($line =~ m/Address 0x[0-9A-F]+ is [0-9]+ bytes inside a block of size [0-9]+ alloc\'d/) ||   # valgrind error
+	($line =~ m/More than 30000 total errors detected\./) ||   # valgrind error
+	($line =~ m/Short read when getting file/) ||   # smbclient error
+	($line =~ m/The EEPROM Checksum Is Not Valid/) ||   # onboard gig ethernet error
+	0) {
+
+	return "ERROR" . $flamebox_email;
+    } elsif (($line =~ m/^[-._\/A-Za-z0-9]+\.[A-Za-z0-9]+\:[0-9]+\:/) ||
+	     ($line =~ m/^\"[-._\/A-Za-z0-9]+\.[A-Za-z0-9]+\"\, line [0-9]+\:/) ||
+
+	     ($line =~ m/\b[Ww]arning\b/) ||
+	     ($line =~ m/\bWARNING\b/) ||
+	     ($line =~ m/not implemented:/) ||
+	     ($line =~ m/WARN\]/) ||
+	     ($line =~ m/warn\]/) ||                         # warn on logs
+	     ($line =~ m/[0-9]+ bytes in [0-9]+ blocks are possibly lost/) ||   # valgrind warning
+	     ($line =~ m/possibly lost:   [1-9][0-9]* bytes in/) ||   # valgrind warning
+	     ($line =~ m/[0-9]+ bytes in [0-9]+ blocks are still reachable/) ||   # valgrind warning
+	     ($line =~ m/still reachable: [1-9][0-9]* bytes in/) ||   # valgrind warning
+	     0) {
+	return "WARNING" . $flamebox_email;
+    } elsif ( ($line =~ m/^Running Test: .* \(/ ) ||
+              ($line =~ m/^INFO\b/) ||
+	      0) {
+	return "INFO";
+    } elsif ( ($line =~ m/^LINK\b/) ||
+	      0) {
+	return "LINK";
+    } else {
+	return "OK";
+    }
+}
+
+1;
+

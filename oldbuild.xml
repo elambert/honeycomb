@@ -1,0 +1,1109 @@
+<!--
+ $Id: oldbuild.xml 10859 2007-05-19 03:07:52Z bberndt $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for honeycomb.
+--> 
+<project name="honeycomb" default="honeycomb">
+
+  <!-- allow users to override properties without editing this file
+       and without having to type -Dinstalldir=$HOME/opt/hc everytime -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <!-- common build settings and defaults -->
+  <property file="build.properties"/>
+
+<target name="init-common">
+
+  <!-- target specific -->
+  <property name="target.libdir" value="${target.installdir}/lib:${target.installdir}/lib/md_caches"/>
+  <property name="target.classdir" value="${target.installdir}/lib"/>
+  <property name="target.logconf" value="${target.installdir}/share/logging.properties"/>
+
+</target>
+
+  <!-- default: place compiled code into "classes" and jars into "dist" -->
+<target name="init-release" unless="emma.build" depends="init-common">
+
+  <property name="_classes" value="classes" />
+  <property name="_dist" value="dist" />
+  <property name="target.classpath" value="honeycomb.jar:jetty-4.2.19.jar:servlet-4.2.19.jar:je.jar:db-4.2.jar:concurrent.jar:jug.jar"/>
+  <property name="target.hcjars" value="${target.installdir}/lib/honeycomb.jar"/>
+  <property name="hcsh.file" value="hcsh"/>
+  <property name="emma.jvmflag" value="emma_disabled"/>
+  <property name="build.instr" value=""/>
+</target>
+
+  <!-- instrumented for code coverage with emma -->
+<target name="init-emma" if="emma.build" depends="init-common">
+
+  <property name="_classes" value="instr_classes" />
+  <property name="_dist" value="instr_dist" />
+  <property name="target.classpath" value="honeycomb.jar:jetty-4.2.19.jar:servlet-4.2.19.jar:je.jar:db-4.2.jar:concurrent.jar:jug.jar:emma.jar"/>
+  <property name="target.hcjars" value="${target.installdir}/lib/honeycomb.jar:${target.installdir}/lib/emma.jar"/>
+  <property name="hcsh.file" value="hcsh_emma"/>
+  <property name="build.instr" value="E"/>
+
+  <!-- set instrumentation filters later or on cmd line -Demma.filter=<list> --> 
+  <property name="emma.filter" value="" />
+
+  <!-- where emma tools live -->
+  <property name="emma.dir" value="${basedir}/tools/emma" />
+  <property name="emma.jar" value="${emma.dir}/emma.jar" />
+  <property name="emma_ant.jar" value="${emma.dir}/emma_ant.jar" />
+  <path id="emma.lib" >
+    <pathelement location="${emma.jar}" />
+    <pathelement location="${emma_ant.jar}" />
+  </path>
+
+  <!-- emma metadata file, used for report generation -->
+  <property name="emma.metadata" value="${basedir}/coverage.em" />
+  <!-- emma output file, written to at runtime -->
+  <!-- note: do not mkdir emma.outdir here. honeycomb startup script will. -->
+  <property name="emma.outdir" value="${target.installdir}/coverage" />
+  <property name="emma.coverage" value="-Demma.coverage.out.file=${emma.outdir}/ec" />
+  <property name="emma.jvmflag" value="EMMABUILD" />
+
+  <!-- load <emma> and <emmajava> tasks -->
+  <taskdef resource="emma_ant.properties" classpathref="emma.lib" />
+
+</target>
+
+  <!-- when init runs, _classes and _dist are already correctly set -->
+<target name="init" depends="init-release,init-emma">
+
+  <property name="build" value="${basedir}/${_classes}"/>
+  <property name="dist" value="${basedir}/${_dist}"/>
+  <echo message="build = ${build}  dist = ${dist}"/>
+
+  <property name="libsrc" value="${basedir}/lib"/>
+  <property name="bin" value="${dist}/bin"/>
+  <property name="init.d" value="${dist}/etc/init.d"/>
+  <property name="htdocs" value="${dist}/htdocs"/>
+  <property name="lib" value="${dist}/lib"/>
+  <property name="home" value="${dist}/home"/>
+  <property name="config" value="${dist}/config"/>
+  <property name="share" value="${dist}/share"/>
+  <property name="skel" value="${dist}/etc/skel"/>
+  <property name="ssh" value="${skel}/.ssh"/>
+  <property name="tools" value="${basedir}/tools"/>
+  <property name="apidocs" value="${basedir}/doc/api"/>
+  <property name="client.apidocs" value="${basedir}/doc/client-api"/>
+  <property name="jarfile" value="${lib}/honeycomb.jar"/>
+  <property name="client.jarfile" value="${lib}/honeycomb-client.jar"/>
+  <property name="xml-client.jarfile" value="${lib}/honeycomb-xmlclient.jar"/>
+  <property name="jetty.jar" value="${libsrc}/jetty-4.2.19.jar"/>
+  <property name="servlet.jar" value="${libsrc}/servlet-4.2.19.jar"/>
+  <property name="httpclient.jar" value="${libsrc}/commons-httpclient-2.0.jar"/>
+  <property name="logging.jar" value="${libsrc}/commons-logging-1.0.3.jar"/>
+  <property name="commons.dir" value="${libsrc}/commons"/>
+  <property name="clusterconfig.dir" value="cluster"/>
+  <property name="portmapper.dir" value="platform/src/portmap_5beta"/>
+  <property name="md_caches.dir" value="${basedir}/src/md_caches"/>
+  <property name="jug.jar" value="${libsrc}/jug.jar"/>
+  <property name="concurrent.jar" value="${libsrc}/concurrent.jar"/>
+  <property name="db.lib" value="${libsrc}/libdb-4.2.so"/>
+  <property name="bdb.jar" value="${libsrc}/db-4.2.jar"/>
+  <property name="bdb_je.jar" value="${libsrc}/je.jar"/>
+  <property name="libdb.so" value="${libsrc}/libdb_java-4.2.so"/>
+  <property name="lucene.jar" value="${basedir}/src/md_caches/lib/lucene-1.4-rc3.jar"/>
+  <property name="etheraddr.so" value="${libsrc}/libSolaris_x86_EtherAddr.so"/>
+  <property name="client.dir" value="${basedir}/client"/>
+  <property name="client.tarfile" value="${basedir}/client.tar.gz"/>
+  <property name="client.scripts" value="${client.dir}/src/scripts"/>
+  <property name="client.dist" value="${client.dir}/${_dist}"/>
+  <property name="client.version" value="${client.dist}/client-tar-version"/>
+  <property name="client.dist.client" value="${client.dist}/opt/client"/>
+  <property name="client.dist.honeycomblib" value="${client.dist}/opt/honeycomb/lib"/>
+  <property name="client.dist.siteperl" value="${client.dist}/usr/lib/perl5/site_perl/5.8.4/"/>
+  <property name="client.dist.siteperl.xml" value="${client.dist}/usr/lib/perl5/site_perl/5.8.4/XML"/>
+  <property name="client.dist.sdk" value="${client.dist.client}/sdk"/>
+  <property name="client.dist.utils" value="${client.dist.client}/utils"/>
+  <property name="client.dist.testcmd" value="${client.dist.client}/testcmd"/>
+  <property name="client.dist.bin" value="${client.dist.client}/bin"/>
+  <property name="client.dist.lib" value="${client.dist.client}/lib"/>
+  <property name="pkg.dir" value="${basedir}/pkg"/>
+  <property name="pkg.name" value="SUNWhc"/>
+
+  <property name="test.install" value="${dist}/tests"/>
+  <property name="test.dir" value="${basedir}/test"/>
+  <property name="test.build" value="${test.dir}/${_classes}"/>
+  <property name="test.dist" value="${test.dir}/${_dist}"/>
+  <property name="test.testcmd" value="${test.dir}/src/cmd"/>
+  <property name="test.dist.testcmd" value="${test.dist}/testcmd"/>
+  <property name="test.utils" value="${test.dir}/src/cluster/utils"/>
+  <property name="test.jarfile" value="${test.dist}/honeycomb-test.jar"/>
+  <property name="test.classloader.jarfile" value="${test.dist}/test-classloader.jar"/>
+  <property name="junit.jar" value="${test.dir}/lib/junit-3.8.1.jar"/>
+  <property name="exif.jar" value="${test.dir}/lib/metadata-extractor-2.2.1.jar"/>
+  <property name="jid3lib.jar" value="${test.dir}/lib/jid3lib.jar"/>
+  <property name="jfits.jar" value="${test.dir}/lib/jfits-0.92.jar"/>
+  <property name="fileupload.jar" value="${test.dir}/src/demo/photo/java/servlet/lib/commons-fileupload-1.0.jar"/>
+  <property name="test.qa" value="${test.testcmd}/scripts/qa"/>
+  <property name="test.qadb.pm" value="${test.testcmd}/lib/qadb.pm"/>
+  <property name="test.perllibxml" value="${test.testcmd}/lib/XML"/>
+
+  <!-- For the demo code -->
+  <property name="ftp.jarfile" value="${test.dist}/ftp_hc.jar"/>
+
+  <!-- Build naming and versioning - see target "version" -->
+  <property name="build.basename" value="honeycomb-bin"/>
+  <property name="honeycomb.version" value="${dist}/version"/>
+  <property name="honeycomb.diff" value="${dist}/version.diff"/>
+
+  <path id="classpath">
+    <pathelement location="${jetty.jar}"/>
+    <pathelement location="${servlet.jar}"/>
+    <pathelement location="${httpclient.jar}"/>
+    <pathelement location="${logging.jar}"/>
+    <pathelement location="${jug.jar}"/>
+    <pathelement location="${concurrent.jar}"/>
+    <pathelement location="${bdb.jar}"/>
+    <pathelement location="${bdb_je.jar}"/>
+    <pathelement location="${jarfile}"/>
+  </path>
+
+  <path id="test.classpath">
+    <path refid="classpath"/>
+    <pathelement location="${client.jarfile}"/>
+    <pathelement location="${junit.jar}"/>
+    <pathelement location="${exif.jar}"/>
+    <pathelement location="${jid3lib.jar}"/>
+    <pathelement location="${jfits.jar}"/>
+    <pathelement location="${fileupload.jar}"/>
+    <pathelement location="${jug.jar}"/>
+    <pathelement location="${concurrent.jar}"/>
+    <pathelement location="${getopt.jar}"/>
+    <pathelement location="${lucene.jar}"/>
+  </path>
+
+  <path id="rmi.classpath">
+    <path refid="test.classpath"/>
+    <pathelement location="${basedir}/test/src"/>
+  </path>
+
+  <path id="test.runclasspath">
+    <path refid="classpath"/>
+    <pathelement path="${java.class.path}"/>
+    <pathelement location="${client.jarfile}"/>
+    <pathelement location="${junit.jar}"/>
+    <pathelement location="${jid3lib.jar}"/>
+    <pathelement location="${jfits.jar}"/>
+    <pathelement location="${test.jarfile}"/>
+    <pathelement location="${jug.jar}"/>
+    <pathelement location="${concurrent.jar}"/>
+  </path>
+
+</target>
+  <!-- end of target name="init" -->
+
+  <target name="prepare" depends="init">
+    <condition property="compliantOS">
+      <os name="SunOS"/>
+    </condition>
+
+    <tstamp/>
+    <mkdir dir="${build}"/>
+    <mkdir dir="${dist}"/>
+    <mkdir dir="${lib}"/>
+    <mkdir dir="${bin}"/>
+    <mkdir dir="${share}"/>
+    <mkdir dir="${init.d}"/>
+    <mkdir dir="${htdocs}"/>
+    <mkdir dir="${home}"/>
+    <mkdir dir="${config}"/>
+    <mkdir dir="${skel}"/>
+    <mkdir dir="${ssh}"/>
+    <mkdir dir="${test.install}"/>
+    <mkdir dir="${test.install}/lib"/>
+    <copy file="${servlet.jar}" todir="${lib}"/>
+    <copy file="${jetty.jar}" todir="${lib}"/>
+    <copy file="${db.lib}" todir="${lib}"/>
+    <copy file="${bdb.jar}" todir="${lib}"/>
+    <copy file="${bdb_je.jar}" todir="${lib}"/>
+    <copy file="${libdb.so}" todir="${lib}"/>
+    <copy file="${jug.jar}" todir="${lib}"/>
+    <copy file="${concurrent.jar}" todir="${lib}"/>
+    <copy file="${etheraddr.so}" todir="${lib}"/>
+  </target>
+
+  <target name="test.prepare" depends="init">
+    <mkdir dir="${test.build}"/>
+    <mkdir dir="${test.dist}"/>
+  </target>
+
+  <target name="clean" depends="init,clean_all" />
+
+  <target name="clean_all" depends="test.clean,cluster_config.clean,switch.clean,overlay.tar.clean,kernel.initrd.clean,sdk.clean,client.clean,client.tar.clean,emma.clean">
+    <ant antfile="${md_caches.dir}/build.xml"
+      target="clean"/>
+    <delete dir="${build}"/>
+    <delete dir="${dist}"/>
+    <delete dir="${apidocs}"/>
+    <delete dir="${client.apidocs}"/>
+    <delete dir="${basedir}/src/include"/> 
+    <delete dir="${commons.dir}"/>
+    <delete>
+      <fileset dir="${basedir}" includes="${build.basename}.*${build.instr}*"/>
+    </delete>
+    <delete dir="${deploy.build.dir}/j2sdk1.4.2" />
+    <delete dir="${deploy.dir}/usr" />
+    <delete dir="${pkg.dir}/${pkg.name}"/>
+    <delete file="${basedir}/${pkg.name}.pkg"/>
+    <delete
+      quiet="true">
+      <fileset dir="${deploy.rpm.dir}" includes="*"/>
+    </delete>
+
+    <exec dir="src/native/oa" executable="make">
+       <arg line="clean"/>
+       <arg value="DIST=${dist}"/>
+    </exec> 
+
+    <exec dir="src/native/fscache" executable="make">
+       <arg line="clean"/>
+       <arg value="DIST=${dist}"/>
+    </exec> 
+
+    <exec dir="src/native/oa/checksum" executable="make">
+       <arg line="clean"/>
+       <arg value="DIST=${dist}"/>
+    </exec> 
+	
+	<exec dir="src/native/oa/hash" executable="make">
+       <arg line="clean"/>
+	   <arg value="DIST=${dist}"/>
+    </exec>	
+
+    <exec dir="src/native/syslog" executable="make">
+       <arg line="clean"/>
+       <arg value="DIST=${dist}"/>
+    </exec> 
+
+    <exec dir="src/native/mbox" executable="make">
+       <arg line="clean"/>
+       <arg value="DIST=${dist}"/>
+    </exec> 
+
+    <exec dir="src/native/posix" executable="make">
+       <arg line="clean"/>
+       <arg value="DIST=${dist}"/>
+    </exec>	
+
+    <exec dir="src/native/solaris" executable="make">
+       <arg line="clean"/>
+       <arg value="DIST=${dist}"/>
+    </exec>	
+
+    <exec dir="src/native/admin/editline" executable="make">
+       <arg line="clean"/>
+       <arg value="DIST=${dist}"/>
+    </exec> 
+
+    <exec dir="src/native/power-control" executable="make">
+       <arg value="clean"/>
+    </exec> 
+
+    <!--<echo message="cd ${portmapper.dir}; make clean"/>
+    <exec dir="${portmapper.dir}"
+      executable="make"
+      failonerror="yes"
+      output="${portmapper.dir}/make-clean.log">
+      <arg value="clean"/>
+    </exec>-->
+  </target>
+
+  <target name="test.clean" depends="init">
+    <delete dir="${test.build}"/>
+    <delete dir="${test.dist}"/>
+  </target>
+
+  <target name="parser.check" if="parser.prefix">
+    <uptodate property="parser.notrequired"
+      srcfile="${parser.directory}/${parser.prefix}.jj"
+      targetfile="${parser.directory}/${parser.prefix}.java"/>
+  </target>
+
+  <target name="parser.compile"
+    depends="parser.check"
+    unless="parser.notrequired">
+    <java
+      classname="javacc"
+      classpath="${libsrc}/javacc.jar"
+      fork="yes"
+      failonerror="yes">
+      <arg value="-OUTPUT_DIRECTORY=${parser.directory}"/>
+      <arg value="${parser.directory}/${parser.prefix}.jj"/>
+    </java>
+  </target>
+
+  <target name="create-parsers">
+    <antcall target="parser.compile">
+      <param name="parser.directory"
+        value="${basedir}/src/com/sun/honeycomb/emd/parsers"/>
+      <param name="parser.prefix"
+        value="QueryParser"/>
+    </antcall>
+    
+    <antcall target="parser.compile">
+      <param name="parser.directory"
+        value="${basedir}/src/com/sun/honeycomb/emd/parsers"/>
+      <param name="parser.prefix"
+        value="SchemaParser"/>
+    </antcall>
+  </target>    
+  
+  <target name="compile-java" depends="prepare,create-parsers">
+    <javac classpathref="classpath"
+           destdir="${build}"
+           debug="${debug}"
+           deprecation="${deprecation}"
+	   source="1.4"
+           optimize="${optimize}">
+      <src path="${basedir}/src"/>
+      <exclude name="md_caches/**"/>
+    </javac>
+
+    <antcall target="emma.instrument" >
+      <param name="emma.classes" value="${build}" />
+    </antcall>
+
+  </target>
+
+  <target name="compile-native" depends="compile-java" if="compliantOS">
+    <mkdir dir="${basedir}/src/include"/> 
+    <exec dir="src/native/syslog" executable="make" failonerror="true">
+      <arg value="DIST=${dist}"/>
+    </exec>
+
+    <exec dir="src/native/mbox" executable="make" failonerror="true">
+     <arg value="DIST=${dist}"/>
+    </exec>
+
+    <exec dir="src/native/oa" executable="make" failonerror="true">
+      <arg value="DIST=${dist}"/>
+    </exec>
+	
+    <exec dir="src/native/fscache" executable="make" failonerror="true">
+      <arg value="DIST=${dist}"/>
+    </exec>
+
+    <exec dir="src/native/oa/checksum" executable="make" failonerror="true">
+      <arg value="DIST=${dist}"/>
+    </exec>
+
+    <exec dir="src/native/oa/hash" executable="make" failonerror="true">
+      <arg value="DIST=${dist}"/>
+    </exec>
+
+    <exec dir="src/native/posix" executable="make" failonerror="true">
+      <arg value="DIST=${dist}"/>
+    </exec>
+
+    <exec dir="src/native/solaris" executable="make" failonerror="true">
+      <arg value="DIST=${dist}"/>
+    </exec>
+
+    <exec dir="src/native/admin/editline" executable="make" failonerror="true">
+        <arg value="install"/>
+	<arg value="DIST=${dist}"/>
+    </exec>
+
+    <copy file="src/native/admin/${hcsh.file}" tofile="${_dist}/bin/hcsh"/>
+    <chmod file="${_dist}/bin/hcsh" perm="755"/>
+
+    <exec dir="src/native/power-control" executable="make" failonerror="true">
+        <arg value="install"/>
+        <arg value="DIST=${dist}/bin"/>
+    </exec>
+
+  </target>
+
+  <target name="cluster_config" depends="cluster_config.template">	
+    <echo message="cd ${clusterconfig.dir};building cluster_config files"/>
+    <exec dir="${clusterconfig.dir}"
+	executable="sh"
+	failonerror="yes"
+	output="${clusterconfig.dir}/config.log">
+	<arg value="-c"/>
+	<arg value="for dev in dev???*.conf; do CLUSTER=`echo $dev|nawk -F . '{print $1}'`; cp $dev cluster_config.properties.$CLUSTER; cat cluster_config.properties.tmpl >> cluster_config.properties.$CLUSTER; done"/>
+    </exec>
+  </target>	
+
+  <target name="cluster_config.template" depends="init">
+    <echo message="building cluster config template."/>
+    <exec dir="src/config" executable="make">      
+      <arg line="TEST=${test} DIST=${share} DISTBIN=${bin} HTDOCS=${htdocs} JAVA=${target.javabin} PREFIX=${target.installdir} PACKAGE=${target.package} CLASSDIR=${target.classdir} CLASSPATH=${target.classpath} LIBDIR=${target.libdir} LOGCONF=${target.logconf} EMMABUILD=${emma.jvmflag} EMMAFILE=${emma.coverage}"/>
+    </exec>
+    <exec dir="${basedir}"
+	executable="sh"
+	failonerror="yes">
+	<arg value="-c"/>
+	<arg value="cat ${basedir}/src/config/cluster_config.properties | grep -v 1-2|grep -v 1-1|grep -v honeycomb.cell.mac_powerports|grep -v 2-1|grep -v 2-2|grep -v honeycomb.cells.vips|grep -v 129.144|grep -v honeycomb.cell.vip|grep -v 'external vip'|grep -v vip_admin|grep -v VIP|grep -v NTP|grep -v 'List of vips'|grep -v 'equal to the number'|grep -v 'List of mac'|grep -v 'entries are of the format'|grep -v '# where:'|grep -v 'mac = 6 byte' |grep -v 'rpc = 1|2' |grep -v 'port = 1-8'|grep -v nodeids|grep -v 'diskinit.hardware'|grep -v 'diskinit hardware'|grep -v 'diskspernode'|grep -v 'honeycomb.alerts.smtp.to'|grep -v 'smtp.server'|grep -v 'honeycomb.cell.switch_type'|grep -v 'znyx'|grep -v 'honeycomb.cell.vip_data' | grep -v 'external.logger' | grep -v 'cell.services' > ${clusterconfig.dir}/cluster_config.properties.tmpl"/>
+    </exec>
+  </target>	
+
+  <target name="cluster_config.clean">
+    <exec dir="src/config"
+      executable="make"
+      failonerror="no">
+      <arg value="clean"/>
+    </exec>
+  </target>	
+
+  <target name="portmapper" depends="compile-native">
+  <echo message="cd ${portmapper.dir}; make install prefix=${dist}"/>
+  <exec dir="${portmapper.dir}"
+    executable="make"
+    failonerror="yes"
+    output="${portmapper.dir}/make-install.log">		
+    <arg value="install"/>
+    <arg value="prefix=${dist}"/>
+    <arg value="DIST=${dist}"/>
+   </exec>   
+  </target>
+
+  <target name="test.compile-java" depends="jar, test.prepare">
+    <!-- main compile -->
+    <javac classpathref="test.classpath"
+           destdir="${test.build}"
+           debug="${debug}"
+           deprecation="${deprecation}"
+           source="1.4"
+           optimize="${optimize}">
+      <src path="${basedir}/test/src"/>
+      <exclude name="demo/**"/>
+    </javac>
+
+    <!-- make rmi stub for errsrv client -->
+    <rmic classpathref="rmi.classpath"
+           classname="com.sun.honeycomb.errsrv.srv.ErrInjector"
+           base="${test.build}"
+           verify="Yes"/>
+    <rmic classpathref="rmi.classpath"
+           classname="com.sun.honeycomb.test.rmi.nodesrv.srv.NodeSrvService"
+           base="${test.build}"
+           verify="Yes"/>
+    <rmic classpathref="rmi.classpath"
+           classname="com.sun.honeycomb.test.rmi.clntsrv.srv.ClntSrvService"
+           base="${test.build}"
+           verify="Yes"/>
+    <rmic classpathref="rmi.classpath"
+           classname="com.sun.honeycomb.test.rmi.spsrv.srv.SPSrvService"
+           base="${test.build}"
+           verify="Yes"/>
+
+    <!-- Compilation of the demos-->
+    <!--javac classpathref="test.classpath"
+           destdir="${test.build}"
+           debug="${debug}"
+           deprecation="${deprecation}"
+           optimize="${optimize}">
+      <src path="${basedir}/test/src/demo"/>
+      <exclude name="photo/**"/>
+    </javac-->
+
+    <rmic base="${test.build}"
+          debug="${debug}"
+          includes="com/sun/honeycomb/md/TestServer.class
+                    com/sun/honeycomb/md/Test.class"
+          classpath="${test.build}:${jarfile}"/>
+  
+    <antcall target="emma.instrument" >
+      <param name="emma.classes" value="${test.build}" />
+    </antcall>
+  </target>
+
+  <target name="jar" depends="compile-java">
+    <jar jarfile="${jarfile}">
+      <fileset dir="${build}"
+               excludes="com/sun/honeycomb/protocol/client/*"/>
+    </jar>
+  </target>
+
+  <!-- <sdk> -->
+  <property name="sdk_" value="${basedir}/sdk"/>
+  <property name="sdk_doc_" value="${sdk_}/doc"/>
+  <property name="sdk_doc_api_" value="${sdk_doc_}/api"/>
+  <property name="sdk_doc_api_javadoc_" value="${sdk_doc_api_}/javadoc"/>
+  <property name="sdk_lib_" value="${sdk_}/lib"/>
+  <property name="sdk-honeycomb.jar" value="${sdk_lib_}/honeycomb.jar"/>
+  <property name="sdk.tgz" value="${basedir}/sdk.tgz"/>
+  <property name="sdk.MANIFEST" value="${sdk_}/MANIFEST"/>
+
+  <target name="sdk" depends="jar, xml-client-jar, client-javadoc">
+    <mkdir dir="${sdk_doc_}"/>
+    <mkdir dir="${sdk_doc_api_}"/>
+    <mkdir dir="${sdk_lib_}"/>
+    <copy file="${xml-client.jarfile}" tofile="${sdk-honeycomb.jar}"/>
+    <exec dir="${basedir}" executable="cp" failonerror="yes">
+      <arg value="-rf"/>
+      <arg value="${basedir}/doc/client-api"/>
+      <arg value="${sdk_doc_api_javadoc_}"/>
+    </exec>
+    <exec dir="${sdk_}" executable="ant" failonerror="yes"/>
+    <exec dir="${sdk_}" executable="sh" failonerror="yes">
+	<arg value="-c"/>
+	<arg value="VERSION=`cat version`; DATE=`date`; echo $VERSION \(built $DATE\) > VERSION"/>
+    </exec>
+    <exec dir="${basedir}" executable="tar">
+      <arg value="cfz"/>
+      <arg value="${sdk.tgz}"/>
+      <arg value="-T"/>
+      <arg value="${sdk.MANIFEST}"/>
+    </exec>
+  </target>
+
+  <target name="sdk.clean" depends="init">
+    <exec dir="${sdk_}" executable="ant">
+      <arg value="clean"/>
+    </exec>
+    <delete dir="${sdk_doc_api_javadoc_}"/>
+    <delete file="${sdk-honeycomb.jar}"/>
+    <delete file="${sdk.tgz}"/>
+  </target>
+  <!-- </sdk> -->
+
+  <target name="md_caches" depends="jar">
+    <ant antfile="${md_caches.dir}/build.xml"
+      target="install"/>
+  </target>
+
+  <target name="scripts" depends="jar">
+    <exec dir="src/scripts" executable="make"
+	  failonerror="true">
+      <arg line="DISTBIN=${bin} DISTINIT=${init.d} JAVA=${target.javabin} PREFIX=${target.installdir} LOGCONF=${target.logconf} HCJARS=${target.hcjars} EMMADIR=${emma.outdir} EMMAFILE=${emma.coverage}"/>
+    </exec>
+  </target>
+
+  <target name="switch" if="compliantOS" depends="prepare">
+    <echo message="cd src/native/switch; make all"/>
+    <exec dir="src/native/switch" executable="make"
+      failonerror="yes"/>
+    <copy file="src/native/switch/irule" todir="dist/bin"/>
+    <copy file="src/native/switch/zrule" todir="dist/bin"/>
+    <chmod file="dist/bin/zrule" perm="755"/>
+    <chmod file="dist/bin/irule" perm="755"/>
+  </target>
+
+  <target name="switch.clean">
+    <echo message="cd src/native/switch; make clean"/>
+    <exec dir="src/native/switch"
+      executable="make"
+      failonerror="no">
+      <arg value="clean"/>
+    </exec>
+  </target>
+
+  <!-- switch overlay begin -->
+  <target name="overlay.tar" depends="init">
+    <exec executable="/bin/hostname" outputproperty="hostname"/>
+    <tstamp>
+      <format pattern="EEE MMM d HH:mm:ss z yyyy" property="date"/>
+    </tstamp>
+    <echo file="${overlay.version}">${overlay.tarfile} built ${date} on ${hostname}
+</echo>
+    <tar destfile="${overlay.tarfile}" basedir="${overlay.dir}"
+      excludes="**/CVS, etc/rcZ.d/surviving_partner, root/.ssh, sbin"/>
+    <delete file="${overlay.version}"/>
+  </target>
+
+  <target name="overlay.tar.clean" depends="init">
+    <delete file="${overlay.tarfile}"/>
+  </target>
+  <!-- switch overlay end -->
+
+  <!-- client begin -->
+  <target name="client" depends="honeycomb,xml-client-jar,test.jar,sdk,testcmd">
+    <mkdir dir="${client.dist}"/>
+    <exec executable="/bin/hostname" outputproperty="hostname"/>
+    <tstamp>
+      <format pattern="EEE MMM d HH:mm:ss z yyyy" property="date"/>
+    </tstamp>
+    <echo file="${client.version}">${client.tarfile} built ${date} on ${hostname}</echo>
+    <copy file="${jarfile}" todir="${client.dist.honeycomblib}"/>
+    <copy file="${xml-client.jarfile}" todir="${client.dist.honeycomblib}"/>
+    <copy file="${client.jarfile}" todir="${client.dist.honeycomblib}"/>
+    <copy file="${jug.jar}" todir="${client.dist.honeycomblib}"/>
+    <copy file="${etheraddr.so}" todir="${client.dist.honeycomblib}"/>
+    <copy file="${test.jarfile}" todir="${client.dist.lib}"/>
+    <copy file="${getopt.jar}" todir="${client.dist.lib}"/>
+    <copy file="${test.qa}" todir="${client.dist.bin}"/>
+    <copy file="${test.qadb.pm}" todir="${client.dist.siteperl}"/>
+    <copy todir="${client.dist.bin}">
+      <fileset dir="${client.scripts}">
+        <exclude name="**/CVS"/>
+      </fileset>
+    </copy>
+    <copy todir="${client.dist.testcmd}">
+      <fileset dir="${test.dist.testcmd}">
+        <exclude name="**/CVS"/>
+      </fileset>
+    </copy>
+    <copy todir="${client.dist.utils}">
+      <fileset dir="${test.utils}">
+        <exclude name="**/CVS"/>
+      </fileset>
+    </copy>
+    <copy todir="${client.dist.sdk}">
+      <fileset dir="${sdk_}">
+        <exclude name="**/CVS"/>
+      </fileset>
+    </copy>
+    <copy todir="${client.dist.siteperl.xml}">
+      <fileset dir="${test.perllibxml}">
+        <exclude name="**/CVS"/>
+      </fileset>
+    </copy>
+    <!-- lazy hack to get perms executable in one step -->
+    <chmod perm="755">
+      <fileset dir="${client.dist}"/>
+    </chmod>
+  </target>
+
+  <target name="client.clean" depends="init">
+    <delete dir="${client.dist}"/>
+  </target>
+
+  <target name="client.tar" depends="client">
+    <echo message="NOTE: only gnu tar can be used to untar ${client.tarfile}"/>
+    <tar longfile="gnu" destfile="${client.tarfile}" compression="gzip">
+      <tarfileset dir="${client.dist}" mode="755"/>
+    </tar>
+  </target>
+
+  <target name="client.tar.clean" depends="init">
+    <delete file="${client.tarfile}"/>
+  </target>
+  <!-- client end -->
+
+  <target name="properties" depends="init">
+    <exec dir="${basedir}"
+	  executable="ln"
+	  failonerror="no">
+      <arg value="-sn"/>
+      <arg value="../share/cluster_config.properties"/>
+      <arg value="${config}/system.properties"/>
+    </exec>
+    
+    <exec dir="${basedir}"
+	  executable="ln"
+	  failonerror="no">
+      <arg value="-sf"/>
+      <arg value="../share/cluster_config.properties"/>
+      <arg value="${config}/config.properties"/>
+    </exec>
+    <copy file="${dist}/share/admin.properties" 
+          tofile="${config}/admin.properties"/>
+  </target>
+  
+  <target name="version" depends="prepare">
+
+  <!-- Result of an "ant tar" build is a tarball of honeycomb bits with name:
+         honeycomb-bin.<SvnRevNumber>[E][M].tar.gz 
+       where 
+         SvnRevNumber is the revision your tree is synced to,
+         E is set if the build is emma-instrumented: "ant -Demma.build=true tar"
+         M (or 1-2 other letters from "svn status" output) is set if you have local diffs in your tree
+       Examples: 
+         honeycomb-bin.12345-.tar.gz - build of tree at rev 12345 with no local modifications; nightly builds will produce this type of "official" tarball
+         honeycomb-bin.12345-E.tar.gz - emma-instrumented build of tree at rev 12345
+         honeycomb-bin.12345-EM.tar.gz - emma-instrumented build of tree at rev 12345 with some local modifications, which are listed in file version.diff
+         honeycomb-bin.12345-M.tar.gz - build of tree at rev 12345 with local modifications, which are listed in file version.diff, no emma instrumentation 
+    -->
+
+    <!-- get the svn revision number for your build -->
+    <!-- ${honeycomb.version} file is used here as a temp store -->
+    <exec executable="sh" dir="${basedir}">
+      <arg value="-c"/>
+      <arg value="svn info |grep Revision |sed s/:// |awk '{print $2}' >${honeycomb.version}"/>
+    </exec>
+    <loadfile property="build.no" srcFile="${honeycomb.version}">
+      <filterchain><striplinebreaks/></filterchain>
+    </loadfile>
+
+    <!-- get branch name: either trunk or some dirname under branches -->
+    <exec executable="sh" dir="${basedir}">
+      <arg value="-c"/>
+      <arg value="svn info |grep URL |perl -pe 's/.*honeycomb(\/branches)?\///; s/\/.*//' >${honeycomb.version}"/>
+    </exec>
+    <loadfile property="build.branch" srcFile="${honeycomb.version}">
+      <filterchain><striplinebreaks/></filterchain>
+    </loadfile>
+
+    <!-- is this a dev build, ie do you have local changes in your tree -->
+    <echo file="${honeycomb.version}">-</echo> 
+    <exec executable="sh" dir="${basedir}">
+      <arg value="-c" />
+      <arg value="svn status -q |awk '{print $1}' >>${honeycomb.version}" />
+    </exec>
+    <loadfile property="build.dev" srcFile="${honeycomb.version}">
+      <filterchain><striplinebreaks/></filterchain>
+    </loadfile>
+
+    <property name="build.name" value="${build.basename}.${build.no}-${build.branch}${build.instr}${build.dev}.tar.gz"/>
+    <echo> Build: ${build.name}</echo>
+    <property name="tarfile" value="${basedir}/${build.name}"/>
+
+    <!-- now we write ${honeycomb.version} file for real -->
+    <exec executable="/bin/hostname" outputproperty="hostname"/>
+    <tstamp>
+      <format pattern="EEE MMM d HH:mm:ss z yyyy" property="date"/>
+    </tstamp>
+    <echo file="${honeycomb.version}">${build.name} built ${date} on ${hostname} (${os.name} ${os.arch} ${os.version}) by ${user.name} ${line.separator}</echo>
+
+    <!-- ${honeycomb.diff} file can be empty if your tree is up-to-date, or large if you have a lot of changes -->
+    <echo file="${honeycomb.diff}">Local modifications in this build compared to svn at rev ${build.no}, if any: ${line.separator}</echo>
+    <exec executable="sh" dir="${basedir}">
+      <arg value="-c" />
+      <arg value="svn status -q >>${honeycomb.diff}" />
+    </exec>
+    <exec executable="sh" dir="${basedir}">
+      <arg value="-c" />
+      <arg value="svn diff --non-interactive >>${honeycomb.diff}" />
+    </exec>
+
+  <!-- now both version and diff files contain info about your build -->
+  </target>
+
+  <target name="honeycomb" 
+          depends="jar,client-jar,compile-native,cluster_config,scripts,md_caches,switch,properties,version"/>
+
+  <target name="pkg"
+	  depends="honeycomb">
+    <exec executable="${pkg.dir}/make_pkg.sh"
+	  dir="${pkg.dir}">
+    </exec>
+    <exec executable="sh" dir="${basedir}">
+      <arg value="-c"/>
+      <arg value="ln -sf ${build.name} ${build.basename}.tar.gz"/>
+    </exec>
+  </target>
+
+  <target name="tar-only" depends="init,version">
+    <exec executable="tar"
+      dir="${dist}">
+      <arg value="cfz"/>
+      <arg value="${tarfile}"/>
+      <arg value="--exclude=tests"/>
+      <arg value="."/>
+    </exec>
+  </target>
+
+  <target name="all-jars" depends="jar,client-jar,xml-client-jar,test.jar,md_caches"/>
+
+  <target name="xml-client-jar" depends="compile-java">
+    <uptodate
+      srcfile="${httpclient.jar}"
+      targetfile="${commons.dir}/org/apache/commons/httpclient/HttpClient.class"
+      property="unpack-httpclient-done"/>
+    <antcall target="unpack-httpclient"/>
+
+    <uptodate
+      srcfile="${logging.jar}"
+      targetfile="${commons.dir}/org/apache/commons/logging/Log.class"
+      property="unpack-logging-done"/>
+    <antcall target="unpack-logging"/>
+
+    <jar jarfile="${xml-client.jarfile}">
+      <fileset dir="${commons.dir}"
+               excludes="**/META-INF/*"/>
+      <fileset dir="${build}"
+               includes="com/sun/honeycomb/common/ArchiveException.class,
+                         com/sun/honeycomb/common/ByteArrays.class,
+                         com/sun/honeycomb/common/InsufficientSpaceException.class,
+                         com/sun/honeycomb/common/InternalException.class,
+                         com/sun/honeycomb/common/NameValueXML.class,
+                         com/sun/honeycomb/common/NoSuchObjectException.class,
+                         com/sun/honeycomb/common/ObjectCorruptedException.class,
+                         com/sun/honeycomb/common/ObjectLostException.class,
+                         com/sun/honeycomb/common/StringTerminatedInputStream.class,
+                         com/sun/honeycomb/common/UnsatisfiableReliabilityException.class,
+                         com/sun/honeycomb/common/XMLException.class"/>
+      <fileset dir="${build}"
+               includes="com/sun/honeycomb/client/*"/>
+      <fileset dir="${build}"
+               includes="com/sun/honeycomb/client/caches/*"/>
+    </jar>
+  </target>
+
+  <target name="client-jar" depends="compile-java">
+    <uptodate
+      srcfile="${httpclient.jar}"
+      targetfile="${commons.dir}/org/apache/commons/httpclient/HttpClient.class"
+      property="unpack-httpclient-done"/>
+    <antcall target="unpack-httpclient"/>
+
+    <uptodate
+      srcfile="${logging.jar}"
+      targetfile="${commons.dir}/org/apache/commons/logging/Log.class"
+      property="unpack-logging-done"/>
+    <antcall target="unpack-logging"/>
+
+    <jar jarfile="${client.jarfile}">
+      <fileset dir="${commons.dir}"
+               excludes="**/META-INF/*"/>
+      <fileset dir="${build}"
+               includes="com/sun/honeycomb/common/ArchiveException.class,
+                         com/sun/honeycomb/common/ByteArrays.class,
+                         com/sun/honeycomb/common/InsufficientSpaceException.class,
+                         com/sun/honeycomb/common/NameValueXML.class,
+                         com/sun/honeycomb/common/NoSuchObjectException.class,
+                         com/sun/honeycomb/common/ObjectCorruptedException.class,
+                         com/sun/honeycomb/common/ObjectExistsException.class,
+                         com/sun/honeycomb/common/ObjectLostException.class,
+                         com/sun/honeycomb/common/StringTerminatedInputStream.class,
+                         com/sun/honeycomb/common/UnsatisfiableReliabilityException.class,
+                         com/sun/honeycomb/common/XMLException.class"/>
+      <fileset dir="${build}"
+               includes="com/sun/honeycomb/protocol/client/*"/>
+    </jar>
+  </target>
+
+  <target name="unpack-httpclient"
+          unless="unpack-httpclient-done" depends="init">
+    <mkdir dir="${commons.dir}"/>
+    <exec executable="jar" dir="${commons.dir}">
+      <arg value="xf"/> 
+     <arg value="${httpclient.jar}"/>
+    </exec>
+  </target>
+
+  <target name="unpack-logging"
+          unless="unpack-logging-done" depends="init">
+    <mkdir dir="${commons.dir}"/>
+    <exec executable="jar" dir="${commons.dir}">
+      <arg value="xf"/>
+      <arg value="${logging.jar}"/>
+    </exec>
+  </target>
+
+  <target name="test.jar" depends="honeycomb,test.compile-java">
+    <jar jarfile="${test.jarfile}">
+      <fileset dir="${test.build}">
+        <exclude name="ranab/**"/>
+      </fileset>
+    </jar>
+    <jar jarfile="${test.classloader.jarfile}">
+      <fileset dir="${test.build}">
+        <include name="**/*ClassLoader*"/>
+        <include name="com/sun/honeycomb/md/ByteCodePatcher.class"/>
+        <include name="com/sun/honeycomb/md/ByteCodePatcher$CpInfo.class"/>
+      </fileset>
+    </jar>
+    <!--jar jarfile="${ftp.jarfile}">
+      <fileset dir="${test.build}">
+        <include name="ranab/**"/>
+      </fileset>
+      <fileset dir="${test.dir}/src/demo">
+        <include name="**/*.properties"/>
+      </fileset>
+    </jar-->
+
+    <copy file="${test.jarfile}" todir="${test.install}/lib"/>
+    <copy file="${test.classloader.jarfile}" todir="${test.install}/lib"/>
+    <!--copy file="${ftp.jarfile}" todir="${test.install}/lib"/-->
+  </target>
+
+  <target name="testcmd" depends="init">
+    <ant dir="${test.testcmd}" inheritAll="false">
+      <property name="dist.dir" value="${_dist}"/>
+    </ant>
+  </target>
+
+  <target name="runtest" depends="test.jar">
+    <java classpathref="test.runclasspath"
+          fork="yes"
+          classname="junit.swingui.TestRunner">
+       <env key="LD_LIBRARY_PATH" value="$LD_LIBRARY_PATH:${lib}"/>
+   </java>
+  </target>
+
+  <target name="javadoc" depends="init">
+    <javadoc classpathref="classpath"
+             packagenames="com.sun.honeycomb.*"
+             sourcepath="${basedir}/src"
+             private="true"
+             destdir="${apidocs}"
+             version="true"
+             use="true">
+    </javadoc>
+  </target>
+
+  <target name="client-javadoc" depends="init">
+    <javadoc classpathref="classpath"
+             destdir="${client.apidocs}"
+             version="true"
+             use="true"
+             access="public"
+             overview="${basedir}/src/com/sun/honeycomb/client/overview.html">
+        <fileset dir="${basedir}/src"
+                 includes="com/sun/honeycomb/client/**/*.java,
+                           com/sun/honeycomb/common/ArchiveException.java,
+                           com/sun/honeycomb/common/InsufficientSpaceException.java,
+                           com/sun/honeycomb/common/NoSuchObjectException.java,
+                           com/sun/honeycomb/common/ObjectCorruptedException.java,
+                           com/sun/honeycomb/common/ObjectLostException.java,
+                           com/sun/honeycomb/common/UnsatisfiableReliabilityException.java"/>
+    </javadoc>
+  </target>
+
+  <target name="pmd" depends="compile-java">
+    <taskdef name="pmd" classname="net.sourceforge.pmd.ant.PMDTask">
+      <classpath>
+        <pathelement location="${tools}/lib/pmd-1.2.1.jar"/>
+        <pathelement location="${tools}/lib/jaxen-core-1.0-fcs.jar"/>
+        <pathelement location="${tools}/lib/saxpath-1.0-fcs.jar"/>
+      </classpath>
+    </taskdef>
+    <pmd printToConsole="true"
+         rulesetfiles="rulesets/basic.xml,rulesets/unusedcode.xml,rulesets/imports.xml,rulesets/strings.xml,rulesets/braces.xml,rulesets/design.xml,rulesets/codesize.xml">
+      <formatter type="html" tofile="hc-pmd-report.html"/>
+      <fileset dir="${basedir}/src">
+        <include name="**/${styledir}/*.java" />
+      </fileset>
+    </pmd>
+  </target>
+
+  <target name="checkstyle" depends="compile-java">
+    <taskdef resource="checkstyletask.properties"
+             classpath="${tools}/lib/checkstyle-all-3.1.jar">
+    </taskdef>
+    <checkstyle failOnViolation="false"
+                config="${tools}/checkstyle_sun_checks.xml">
+      <formatter type="plain"/>
+      <formatter type="plain" tofile="hc-style-sun-report.txt"/>
+      <fileset dir="${basedir}/src">
+        <include name="**/${styledir}/*.java" />
+      </fileset>
+    </checkstyle>
+    <checkstyle failOnViolation="false"
+                config="${tools}/checkstyle_bloch_checks.xml">
+      <formatter type="plain"/>
+      <formatter type="plain" tofile="hc-style-bloch-report.txt"/>
+      <fileset dir="${basedir}/src">
+        <include name="**/${styledir}/*.java" />
+      </fileset>
+    </checkstyle>
+  </target>
+
+  <!-- run all the pre-commit checks -->
+  <target name="commit" depends="javadoc,pmd,checkstyle"/>
+
+  <target name="release" depends="pkg,hcb-cheat.rpm" description="Build and package honeycomb" />
+
+  <target name="buildRPM" description="Build an RPM">
+    <!-- Run the RPM build executable -->
+    <exec executable="rpmbuild" os="Linux" failonerror="yes">
+      <arg value="-bb"/>
+      <arg value="--define" /><arg value="_topdir ${deploy.dir}" />
+      <arg value="${deploy.spec.dir}/${type}.spec"/>
+    </exec>
+  </target>
+
+  <target name="jdk.rpm" description="Build the Sun JDK RPM">
+    <!-- Tell RPM to build the rpms in the deploy directory -->
+    <antcall target="buildRPM">
+      <param name="type" value="jdk" />
+    </antcall>
+  </target>
+
+  <target name="hcb-cheat.rpm" description="Build Honeycomb Cheat node  RPM">
+    <!-- Tell RPM to build the rpms in the deploy directory -->
+    <antcall target="buildRPM">
+      <param name="type" value="hcb-cheat" />
+    </antcall>
+  </target>
+
+  <target name="hcb-config.rpm" description="Build Honeycomb Config RPM">
+    <!-- Tell RPM to build the rpms in the deploy directory -->
+    <antcall target="buildRPM">
+      <param name="type" value="hcb-config" />
+    </antcall>
+  </target>
+
+  <target name="hcb-mysqlconfig.rpm" description="Build the Sun mysql honeycomb database  RPM">
+    <!-- Tell RPM to build the rpms in the deploy directory -->
+    <antcall target="buildRPM">
+      <param name="type" value="hcb-mysqlconfig" />
+    </antcall>
+  </target>
+
+  <target name="demos" depends="all-jars,md_caches"
+    description="Build the honeycomb demos">
+    <ant dir="${basedir}/demos"
+      inheritAll="false"/>
+  </target>
+
+  <target name="kernel" if="compliantOS">
+    <ant dir="${basedir}/platform" target="kernel" inheritAll="false"/>
+  </target>
+
+  <target name="initrd" if="compliantOS">
+    <ant dir="${basedir}/platform" target="initrd" inheritAll="false"/>
+  </target>
+
+  <target name="kernel.clean" if="compliantOS">
+    <ant dir="${basedir}/platform" target="kernel.clean" inheritAll="false"/>
+  </target>
+
+  <target name="initrd.clean" if="compliantOS">
+    <ant dir="${basedir}/platform" target="initrd.clean" inheritAll="false"/>
+  </target>
+
+  <target name="kernel.initrd.clean" if="compliantOS">
+    <ant dir="${basedir}/platform" target="clean" inheritAll="false"/>
+  </target>
+
+  <!-- optional instrumentation for code coverage with emma tool -->
+
+  <target name="emma.instrument" if="emma.build" depends="init" >
+    <path id="emma.classpath" > 
+        <pathelement location="${emma.classes}" />
+      </path>
+    <emma enabled="${emma.build}" >
+      <instr instrpathref="emma.classpath"
+        metadatafile="${emma.metadata}"
+        mode="overwrite"
+        filter="${emma.filter}"
+      />
+    </emma>
+    <copy file="${emma.jar}" todir="${lib}" />
+  </target>
+
+  <target name="emma.clean" if="emma.build" depends="init">
+    <delete file="${emma.metadata}"/>
+  </target>
+
+</project>
+

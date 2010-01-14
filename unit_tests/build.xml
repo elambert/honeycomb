@@ -1,0 +1,173 @@
+<!--
+    $Id: build.xml 10854 2007-05-19 02:52:12Z bberndt $
+    
+    Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+    Use is subject to license terms.
+    
+    ant buildfile for honeycomb.
+  --> 
+
+<project name="unit_tests" default="jar">
+  <description>
+    Honeycomb Unit Tests component.
+  </description>
+
+  <!-- first, local, user specified .ant.properties files take precedence -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <property file="${basedir}/../unit_tests/build.properties"/>
+  <property file="${basedir}/../build/build.properties"/>
+
+  <property name="server.jar"
+	value="${server.dist.libdir}/honeycomb-server.jar"/>
+  <property name="common.jar"
+	value="${common.dist.libdir}/honeycomb-common.jar"/>
+
+  <path id="classpath">
+	<pathelement location="${server.jar}"/>
+	<pathelement location="${common.jar}"/>
+        <pathelement location="${external.dist.libdir}/junit-4.1.jar"/>
+        <pathelement location="${external.dist.libdir}/jug.jar"/>
+        <pathelement location="${external.dist.libdir}/jetty-4.2.20.jar"/>
+        <pathelement location="${unit_tests.dist.basedir}/honeycomb-utests.jar"/>
+  </path>
+
+  <target name="prepare">
+    <tstamp/>
+    <mkdir dir="${unit_tests.build.basedir}"/>
+    <mkdir dir="${unit_tests.build.classdir}"/>
+    <mkdir dir="${unit_tests.dist.basedir}"/>
+    <mkdir dir="${unit_tests.dist.libdir}"/>
+    <mkdir dir="${unit_tests.dist.basedir}/share"/>
+
+    <!--ant antfile="${server.basedir}/build.xml" dir="${server.basedir}"
+         target="jar" inheritAll="false"/>
+
+    <ant antfile="${md_caches.basedir}/build.xml" dir="${md_caches.basedir}"
+         target="install" inheritAll="false"/-->
+  </target>
+
+  <target name="compile"
+	depends="prepare">
+    <javac classpathref="classpath"
+	   destdir="${unit_tests.build.classdir}"
+	   debug="${javac.debug}"
+	   deprecation="${javac.deprecation}"
+	   optimize="${javac.optimize}"
+	   source="${javac.source}">
+	  <src path="${unit_tests.basedir}/src/java"/>
+	  <include name="com/sun/honeycomb/emd/**"/>
+	  <include name="com/sun/honeycomb/util/**"/>
+          <include name="com/sun/honeycomb/cm/**"/>
+          <include name="com/sun/honeycomb/layout/**"/>
+          <include name="com/sun/honeycomb/datadoctor/**"/>
+          <include name="com/sun/honeycomb/spreader/**"/>
+          <include name="com/sun/honeycomb/oa/upgrade/**"/>
+          <include name="com/sun/honeycomb/common/**"/>
+          <include name="com/sun/honeycomb/multicell/lib/**"/>
+          <include name="com/sun/honeycomb/multicell/**"/>
+    </javac>
+    <ant antfile="build.xml" dir="${unit_tests.basedir}/deleteTest" inheritAll="true"/>
+  </target>
+
+  <target name="jar"
+	depends="compile">
+	<jar jarfile="${unit_tests.dist.basedir}/honeycomb-utests.jar">
+	  <fileset dir="${unit_tests.build.classdir}"/>
+	</jar>
+    <ant antfile="build.xml" dir="${unit_tests.basedir}/deleteTest" inheritAll="true" target="jar"/>
+  </target>
+
+  <target name="install"
+	depends="jar">
+	<exec executable="cp">
+	  <arg line="-p ${unit_tests.src.bindir}/run_tests.sh ${unit_tests.dist.basedir}"/>
+	</exec>
+	<exec executable="cp">
+	  <arg line="-p ${unit_tests.src.bindir}/run_layout_simulation.sh ${unit_tests.dist.basedir}"/>
+	</exec>
+	<copy file="${unit_tests.src.bindir}/config_defaults.properties" todir="${unit_tests.dist.basedir}"/>
+	<copy file="${unit_tests.basedir}/test.list" todir="${unit_tests.dist.basedir}"/>
+        <copy file="${unit_tests.src.bindir}/start_cmm_only" todir="${unit_tests.dist.basedir}"/>
+
+        <copy todir="${unit_tests.dist.basedir}/share">
+            <fileset dir="${unit_tests.basedir}/share"/> 
+        </copy>
+
+  </target>
+
+  <target name="pkg"
+    depends="install"/>
+
+  <!-- PREPARE JUNIT FOR ANT 1.6.x ******************************************************** -->
+  <!-- Remove ant-junit.jar from ant lib directory, if junit fails to
+       load classpath. Alternately, you can set CLASSPATH and
+       LD_LIBRARY_PATH environment variables.
+       This is necessary as long as we don't upgrade from ant version 1.6.x.
+   -->
+  <target name="junit_prepare">
+    <echo message="ATTENTION: Remove ant-junit.jar from $ANT_HOME/lib if junit fails to load classpath."/>
+    <taskdef name="junit" classname="org.apache.tools.ant.taskdefs.optional.junit.JUnitTask">
+      <classpath>
+        <pathelement location="${external.dist.libdir}/junit-4.1.jar"/>
+        <pathelement location="${common.dist.libdir}/honeycomb-common.jar"/>
+        <pathelement location="${external.dist.libdir}/ant-junit.jar"/>
+      </classpath>
+    </taskdef>
+  </target>
+
+  <!-- RUN SPECIFIED junit TEST ******************************************************** -->
+  <target name="ensure-test-name" unless="test">
+    <fail message="You must run this target with -Dtest=TestFileName"/>
+  </target>
+
+  <target name="runtest" description="Runs the test you specify on the command 
+    line with -Dtest=TestFileName (ex. com/sun/honeycomb...)" depends="ensure-test-name,junit_prepare">
+    <junit printsummary="withOutAndErr" fork="yes"> 
+      <jvmarg value="-Djava.library.path=${server.dist.libdir}"/>
+      <jvmarg value="-Duid.lib.path=${external.dist.libdir}"/>
+      <jvmarg value="-Djava.util.logging.config.file=${unit_tests.basedir}/share"/>
+      <classpath refid="classpath"/>
+      <formatter type="plain" usefile="false"/>
+      <batchtest>
+        <fileset dir="${unit_tests.java.srcdir}/java">
+          <include name="**/${test}"/>
+        </fileset>
+      </batchtest>
+    </junit>
+  </target>
+
+  <!-- RUN ALL junit TESTS ********************************************************** -->
+  <target name="runtests" depends="junit_prepare" description="Runs all tests">
+    <junit printsummary="yes" haltonfailure="yes" showoutput="yes">
+      <jvmarg value="-Djava.library.path=${server.dist.libdir}"/>
+      <jvmarg value="-Duid.lib.path=${external.dist.libdir}"/>
+      <jvmarg value="-Djava.util.logging.config.file=${unit_tests.basedir}/share"/>
+      <classpath refid="classpath"/>
+      <batchtest fork="yes">
+        <formatter type="plain" usefile="false"/>
+        <fileset dir="${unit_tests.java.srcdir}/java">
+          <include name="**/*_t?.java"/>
+        </fileset>
+      </batchtest>
+    </junit> 
+  </target>
+
+  <!-- ************************************************************** -->
+  <target name="build_pkg" depends="pkg"
+    description="compile sources and create the solaris package">
+    <ant antfile="build.xml" dir="${unit_tests.basedir}/deleteTest" inheritAll="true" target="pkg"/>
+  </target>
+
+  <!-- CLEAN ************************************************************** -->
+  <target name="clean" 
+          description="cleans workspace of all generated files">
+    <delete dir="${unit_tests.build.classdir}"/>
+    <delete dir="${unit_tests.build.basedir}"/>
+    <delete dir="${unit_tests.dist.basedir}/share"/>
+    <delete dir="${unit_tests.dist.basedir}"/>
+    <delete dir="${unit_tests.basedir}/logs"/>
+    <ant antfile="build.xml" dir="${unit_tests.basedir}/deleteTest" inheritAll="true" target="clean"/>
+  </target>
+
+</project>

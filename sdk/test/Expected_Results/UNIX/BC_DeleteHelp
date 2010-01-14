@@ -1,0 +1,18 @@
+NAME
+       DeleteObject - Delete a metadata record associated with an OID
+
+SYNOPSIS
+       java DeleteObject [OPTIONS] <IP | HOST> <OID>
+
+DESCRIPTION
+       Delete metadata record.  The OID specifies which metadata record to delete
+
+OPTIONS
+       -v
+              print deleted OID to stdout
+
+       -h
+              print this message
+
+EXAMPLES
+       java DeleteObject honeycomb 013f5239a3f95011d491dd00e08152a9f40000017f0200000000

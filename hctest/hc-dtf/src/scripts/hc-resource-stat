@@ -1,0 +1,418 @@
+#!/usr/bin/perl
+#
+#       Get utilization stats for HC nodes: %CPU, %Mem, %Disk
+#       Based on prustat. Needs to run as root. Uses Kstat, DTrace and procfs. 
+#
+#       By option -d, it will print the stats in conformance to dtf format
+#
+# USAGE:
+#      ./hc-resource-stat [-d] [interval] [count]
+#
+#  eg,
+#      ./hc-resource-stat -d       # print out the stats in conformance to dtf format 
+#      ./hc-resource-stat 2        # 2 second samples
+#      ./hc-resource-stat 10 5     # 5 x 10 second samples
+#      ./hc-resource-stat -d 10 5     # 5 x 10 second samples, in dtf format 
+#
+# $Id$
+#
+# Copyright 2007 Sun Microsystems
+# All Rights Reserved
+
+use Getopt::Std;
+use Sun::Solaris::Kstat;
+my $Kstat = Sun::Solaris::Kstat->new();
+
+
+# --- Default Variables ---
+
+$INTERVAL = 1;		# seconds to sample
+$MAX = 1;		# max count of samples
+$TIME_BEGIN = 1;	# start of interval, ns
+$TIME_END = 1;		# end of interval, ns
+$TARGET_PID = -1;       # target PID, -1 means all
+$STYLE_DTF = 0;         # output style,DTF
+
+# --- Stop flags ---
+
+$STOPFLAG = '/tmp/hc-resource-stat.done'; 
+ 
+# --- Check stop flags ---
+
+if ( $ARGV[0] eq "--stop" ) {
+    print "Stop flag has been set.\n";
+    system "touch $STOPFLAG";
+    exit;
+}
+
+# --- Command Line Arguments ---
+
+&Usage() if $ARGV[0] eq "--help";
+getopts('d') || &Usage();
+$STYLE_DTF = 1 if $opt_d;
+$MAX = 2**32 if @ARGV == 1;
+$INTERVAL = shift(@ARGV) || $INTERVAL;
+$MAX = shift(@ARGV) || $MAX;
+
+# remove the stop flags
+if (-e "$STOPFLAG" ) { 
+    system("rm $STOPFLAG");
+}
+
+# --- Open DTrace ---
+
+@Dscript = <DATA>;
+$dscript = join('',@Dscript);
+open(DTRACE,"$dscript 2>/dev/null |") || die("ERROR1: Can't open dtrace: $!\n");
+
+### Cleanup on signals
+
+$SIG{INT} = \&Cleanup;
+$SIG{QUIT} = \&Cleanup;
+$SIG{TERM} = \&Cleanup;
+$SIG{PIPE} = \&Cleanup;
+
+
+# --- Main ---
+
+printf("\n");
+for (;$count <= $MAX; $count++) {
+ 
+	### Get CPU and Mem data
+	&GetProcStat();	
+
+        next if $count == 1;  # skip summary output (new data only)
+
+	### Preprocess PID
+	&ProcessPID();
+ 
+	### Print data
+        if ($STYLE_DTF) {&PrintUtilDTF();} 
+	else {&PrintUtil();}
+ 
+	### Cleanup memory
+	undef %Comm;
+	undef %PID;
+        undef %PNAME;
+	$TIME_BEGIN = $TIME_END;
+ 
+	### Get Disk and Net data
+	for ($pause = 0; $pause < $INTERVAL; $pause++) {
+		&GetDTraceStat();
+	}
+
+	if (-e "$STOPFLAG") {
+             exit(0);
+        } 
+}
+
+close(DTRACE);
+
+
+# --- Subroutines ---
+
+# GetProcStat - Gets /proc usage statistics and saves them in %PID.
+#	This can be run multiple times, the first time %PID will be 
+#	populated with the summary since boot values.
+#	This reads /proc/*/usage and /proc/*/prstat.
+#
+sub GetProcStat {
+   my $pid;
+   chdir "/proc";
+ 
+   ### Main PID Loop
+   foreach $pid (sort {$a<=>$b} <*>) {
+	next if $pid == $$;
+	next if $pid == 0 && $SCHED == 0;
+	next if $TARGET_PID > -1 && $pid != $TARGET_PID;
+ 
+	### Read psinfo stats
+	open(PSINFO,"/proc/$pid/psinfo") || next;	
+	read(PSINFO,$psinfo,256);
+	close PSINFO;
+	
+	### Unpack psinfo values
+	($pr_flag, $pr_nlwp, $pr_pid, $pr_ppid, $pr_pgid, $pr_sid,
+	 $pr_uid, $pr_euid, $pr_gid, $pr_egid, $pr_addr, $pr_size,
+	 $pr_rssize, $pr_pad1, $pr_ttydev, $pr_pctcpu, $pr_pctmem, 
+	 $pr_start, $pr_time, $pr_ctime, $pr_fname, $pr_psargs, 
+	 $pr_wstat, $pr_argc, $pr_argv, $pr_envp, $pr_dmodel, 
+	 $pr_taskid, $pr_projid, $pr_nzomb, $pr_poolid, $pr_zoneid, $filler) = 
+	 unpack("iiiiiiiiiiIiiiiSSa8a8a8Z16Z80iiIIaa3iiiiii",$psinfo);
+ 
+	### Process psinfo values
+	$PID{$pid}{pctcpu} = $pr_pctcpu / 0x8000;
+	$PID{$pid}{pctmem} = $pr_pctmem / 0x8000;
+	$PID{$pid}{uid} = $pr_uid;
+	
+        ### Save command name
+	$Comm{$pid} = $pr_fname;
+        $Psargs{$pid} = $pr_psargs;
+   }
+  
+}
+
+
+# GetDTraceStat - read detals from a DTrace connection until a heartbeat
+#	is read (happens every second).
+#
+sub GetDTraceStat {
+	my ($line,$cmd,$rest,$uid,$pid,$size,$name,$delta);
+ 
+	while ($line = <DTRACE>) {
+		chomp($line);
+		($cmd,$rest) = split(' ',$line,2);
+	
+		### Start
+		$TIME_BEGIN = $rest if $cmd eq "B";
+  
+		### Heartbeat
+		if ($cmd eq "T") {
+			$TIME_END = $rest;
+			last;
+		}
+  
+		### Disk traffic
+		if ($cmd eq "D") {
+			($uid,$pid,$delta,$size,$name) = split(' ',$rest);
+			next if $TARGET_PID > -1 && $pid != $TARGET_PID;
+			$PID{$pid}{dtime} += $delta;
+			unless (defined $Comm{$pid}) {
+				$Comm{$pid} = $name;
+				$PID{$pid}{uid} = $uid;
+			}
+		}
+	}
+}
+
+# ProcessPID - pre process %PID before printing.
+
+sub ProcessPID {
+	my ($pid,$pname,$cpu,$mem,$disk,$sample);
+	my ($factorcpu,$factormem,$factordisk);
+ 
+	### Factors for %util conversions
+	$sample = $TIME_END - $TIME_BEGIN || 1;
+	$factorcpu = 100;
+	$factormem = 100;
+	$factordisk = 100 / $sample;
+ 
+	### Process %PID
+	foreach $pid (keys(%PID)) {
+		$cpu = $PID{$pid}{pctcpu} * $factorcpu;
+		$mem = $PID{$pid}{pctmem} * $factormem;
+		$disk = $PID{$pid}{dtime} * $factordisk;
+		$PID{$pid}{cpu} = $cpu;
+		$PID{$pid}{mem} = $mem;
+		$PID{$pid}{disk} = $disk;
+                if ($Comm{$pid} =~ /java/){
+                    if ($Psargs{$pid} =~ /DATADOCTOR/) {$pname = "DATADOCTOR";}  
+                    if ($Psargs{$pid} =~ /IO-SERVERS/) {$pname = "IO-SERVERS";}  
+                    if ($Psargs{$pid} =~ /LAYOUT-SERVERS/) {$pname = "LAYOUT-SERVERS";}  
+                    if ($Psargs{$pid} =~ /NODE-SERVERS/) {$pname = "NODE-SERVERS";}  
+                    if ($Psargs{$pid} =~ /API-SERVERS/) {$pname = "API-SERVERS";}   
+                    if ($Psargs{$pid} =~ /ADMIN-SERVERS/) {$pname = "ADMIN-SERVERS";}   
+                    if ($Psargs{$pid} =~ /MASTER-SERVERS/) {$pname = "MASTER-SERVERS";} 
+                    if ($Psargs{$pid} =~ /PLATFORM-SERVERS/) {$pname = "PLATFORM-SERVERS";} 
+                }
+                elsif ($Comm{$pid} =~ /nfsd/){
+                    $pname = "nfsd"; 
+                } 
+                elsif ($Comm{$pid} =~ /clu/){ 
+                    $pname = "hadb"; 
+                }
+                elsif ($Psargs{$pid} =~ /hc-resource-stat/ || $Psargs{$pid} =~ /dtrace/){
+                    $pname = "stats-tool";
+                } 
+                else{
+                    $pname = "others";
+                }
+
+                $PNAME{$pname}{cpu} += $PID{$pid}{cpu};
+                $PNAME{$pname}{mem} += $PID{$pid}{mem};
+                $PNAME{$pname}{disk} += $PID{$pid}{disk};
+	}
+}
+
+# PrintUtil - print a report on utilisation.
+#
+
+sub PrintUtil {
+	my ($date,$pname,$cpu,$mem,$disk);
+    
+	### Print header
+	printf("%20s %18s %6s %6s %6s \n","Date", "Task",
+	 "%CPU","%Mem","%Disk");
+ 
+	### Print report
+	foreach $pname (keys (%PNAME)) {
+ 
+		# Fetch utilisations
+		$cpu = $PNAME{$pname}{cpu};
+		$mem = $PNAME{$pname}{mem};
+		$disk = $PNAME{$pname}{disk};
+
+                chomp($date=`date`);
+ 
+		# Print output
+		printf("%6s %15s %16s %6.2f %6.2f %6.2f \n",substr($date,24,4),substr($date,4,15),$pname,
+		 $cpu,$mem,$disk);
+	}
+        printf(" \n");
+}
+
+sub PrintUtilDTF {
+        my ($host,$unixtime,$pname,$cpu,$mem,$disk);
+
+        chomp($host=`hostname`);
+        use Time::HiRes;
+        # millisecond resolution
+        $unixtime=Time::HiRes::time*1000;
+
+        ### Print report
+        printf("hc.stat.cpu.node=%6s\n",$host);
+        printf("hc.stat.cpu.start=%d\n",$unixtime);
+        printf("hc.stat.cpu.stop=%d\n",$unixtime);
+        printf("hc.stat.cpu.recorded=%d\n",$unixtime);
+        foreach $pname (keys (%PNAME)) {
+                # Fetch utilisations
+                $cpu = $PNAME{$pname}{cpu};
+
+                chomp($date=`date`);
+
+                # Print output
+                printf("hc.stat.cpu.${pname}=%4.2f\n",$PNAME{$pname}{cpu});
+        }
+        printf("\n");
+
+        printf("hc.stat.mem.node=%6s\n",$host);
+        printf("hc.stat.mem.recorded=%d\n",$unixtime);
+        foreach $pname (keys (%PNAME)) {
+                # Fetch utilisations
+                $mem = $PNAME{$pname}{mem};
+
+                chomp($date=`date`);
+
+                # Print output
+                printf("hc.stat.mem.${pname}=%4.2f\n",$PNAME{$pname}{mem});
+        }
+        printf("\n");
+
+        printf("hc.stat.dsk.node=%6s\n",$host);
+        printf("hc.stat.dsk.recorded=%d\n",$unixtime);
+        foreach $pname (keys (%PNAME)) {
+                # Fetch utilisations
+                $disk = $PNAME{$pname}{disk};
+
+                chomp($date=`date`);
+
+                # Print output
+                printf("hc.stat.dsk.${pname}=%4.2f\n",$PNAME{$pname}{disk});
+        }
+        printf("\n");
+}
+
+
+# Cleanup - subroutine for signal management.
+
+sub Cleanup {
+	close(DTRACE);
+	exit(0);
+}
+
+# Usage - print usage message and exit.
+#
+sub Usage {
+	print STDERR <<END;
+USAGE: ./hc-resource-stat [interval] [count]
+e.g.      ./hc-resource-stat -d       # print out the stats in conformance to dtf format
+          ./hc-resource-stat 2        # 2 second samples 
+          ./hc-resource-stat 10 5     # 5 x 10 second samples
+          ./hc-resource-stat -d 10 5     # 5 x 10 second samples, in dtf format
+ 
+END
+	exit;
+}
+
+#
+# --- DTrace ---
+#
+
+__DATA__
+/usr/sbin/dtrace -n '
+/*
+** The following is a trimmed version of iosnoop.d DTrace scripts:
+**
+** iosnoop.d - A program to print I/O events as they happen, with useful
+**	details such as UID, PID, inode, command, etc. 
+**	Written in DTrace (Solaris 10 build 63).
+**
+*/
+
+#pragma D option quiet
+
+
+/*
+** --- TIMESTAMPS ---
+*/
+dtrace:::BEGIN {
+	printf("B %d\n",timestamp);
+	/* last is used as a timestamp to the disk request, OR,
+	   to the last disk completion. This is needed to avoid 
+	   over counting disk times due to disk buffers (queues),
+	   however remains a minor simplification. */
+	last = timestamp;
+}
+profile:::tick-1sec {
+	/* heartbeat */
+	printf("T %d\n",timestamp);
+}
+
+
+/*
+** --- DISK ----
+*/
+
+/*
+**  Store entry details
+*/
+io:::start
+{
+	this->dev = args[0]->b_edev;
+	this->blk = args[0]->b_blkno;
+	start_uid[this->dev,this->blk] = curpsinfo->pr_euid;
+	start_pid[this->dev,this->blk] = pid;
+	start_comm[this->dev,this->blk] = (char *)curpsinfo->pr_fname;
+	last = timestamp;
+}
+
+/*
+**  Process completion
+*/
+io:::done
+{
+	/* fetch entry values */
+	this->dev = args[0]->b_edev;
+	this->blk = args[0]->b_blkno;
+	this->delta = timestamp - last;
+	this->suid = start_uid[this->dev,this->blk];
+	this->spid = start_pid[this->dev,this->blk];
+	this->scomm = start_comm[this->dev,this->blk];
+
+	/* memory cleanup */
+	start_uid[this->dev,this->blk] = 0;
+	start_pid[this->dev,this->blk] = 0;
+	start_comm[this->dev,this->blk] = 0;
+	last = timestamp;
+}
+
+/*
+**  Print event details
+*/
+io:::done 
+{
+        printf("D %d %d %d %d %s\n",
+         this->suid,this->spid,this->delta,args[0]->b_bcount,
+         this->scomm == 0 ? "." : stringof(this->scomm));
+}
+'

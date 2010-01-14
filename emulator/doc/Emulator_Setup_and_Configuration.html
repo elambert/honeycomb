@@ -1,0 +1,36 @@
+<html>
+<!--
+ $Id: Emulator_Setup_and_Configuration.html 10857 2007-05-19 03:01:32Z bberndt $
+ 
+ Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ Use is subject to license terms.
+--> 
+
+<head></head><body>
+<h1>Emulator Overview</h1>
+<p><h2>Introduction</h2>
+The @HoneycombProductName@ emulator mimics the behavior of a @HoneycombProductName@ server.  This allows for testing of software intended for a Honeycomb system without access to a Honeycomb server.  The emulator stores all data and metadata on the local hard drive.  This data is by default stored in the emulator/var folder. 
+</p>
+
+<p><h2>Emulator Startup</h2>
+The @HoneycombProductName@ emulator can run on Solaris, Linux, or Windows.  To start the emulator go  into the emulator/bin directory and execute the start.sh file for Solaris and Linux or the start.bat file for Windows.  The emulator will be listening on port 8080 of the machine you start it on.
+</p>
+
+<p><h2>Emulator Shutdown</h2> 
+Connect to the machine running the @HoneycombProductName@ emulator port 8080 with your web browser (http://localhost:8080 if you are on your local system).  Click on the "HttpContext [/admin]" link. Click on the "Click here to shutdown the emulator" link. (Note that Windows Explorer can't use the :8080 port convention. Firefox may be used instead, or the process may simply be killed.)
+</p>
+
+<p><h2>Schema Modification</h2>
+To add a custom schema to the @HoneycombProductName@, create an XML file detailing your custom schema.  See the xml files in the config folder for examples of this. Note that metadata_config_factory.xml contains the basic factory schema. Once your XML schema file is complete, run the metadata_merge_config.sh script (metadata_merge_config.bat on windows) located in the bin directory.  This script takes one command line argument, which is the full path to your XML schema file.  The emulator should be stopped while updating the schema.</p>
+
+<p><h2>Emulator Event Log</h2>
+The emulator event log is automatically stored under /emulator/logs/emulator.log.  The event log contains all the transactions that the emulator has processed as well as startup and shutdown information.  This log can be very helpful in debugging your @HoneycombProductName@ Client Applications.</p>
+
+<p><h2>Emulator Configuration File</h2>
+The emulator configuration file is located at /emulator/config/emulator.config.  This file contains settings for configuring the emulator.  To configure the emulator to listen on a different port add the line</p><p>
+  
+honeycomb.protocol.port = &lt;PORT NUMBER&gt;
+
+</p><p>to the emulator.config file, where &lt;PORT NUMBER&gt; is the port the emulator will listen on.  For further information on the configuration file please refer to the @HoneycombProductName@ Server documentation.</p>
+  
+</body></html>

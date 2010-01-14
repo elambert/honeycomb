@@ -1,0 +1,87 @@
+<!--
+ $Id: build.xml 10844 2007-05-19 02:30:21Z bberndt $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for sdk files that is distributed with the sdk
+ --> 
+<project name="sdk" default="apps">
+
+  <!-- allow users to override properties without editing this file
+       and without having to type -Dinstalldir=$HOME/opt/hc everytime -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <property name="debug" value="on"/>
+  <property name="deprecation" value="on"/>
+  <property name="optimize" value="off"/>
+
+  <property name="bin_" value="${basedir}/bin"/>
+  <property name="classes_" value="${basedir}/classes"/>
+  <property name="doc_" value="${basedir}/doc"/>
+  <property name="doc_apps_javadoc_" value="${basedir}/doc/htdocs/sdk-api"/>
+  <property name="lib_" value="${basedir}/lib"/>
+  <property name="src_" value="${basedir}/src"/>
+  <property name="honeycomb-client.jar" value="${lib_}/honeycomb-client.jar"/>
+  <property name="honeycomb-common.jar" value="${lib_}/honeycomb-common.jar"/>
+  <property name="honeycomb-sdk.jar" value="${lib_}/honeycomb-sdk.jar"/>
+
+  <target name="apps">
+    <mkdir dir="${classes_}"/>
+    <javac classpath="${honeycomb-client.jar}:${honeycomb-common.jar}"
+           destdir="${classes_}"
+           source="1.4"
+           debug="${debug}"
+           deprecation="${deprecation}"
+           optimize="${optimize}">
+      <src path="${src_}"/>
+    </javac>
+    <copy file="${src_}/gnu/getopt/MessagesBundle.properties" todir="${classes_}/gnu/getopt"/>
+    <jar jarfile="${honeycomb-sdk.jar}">
+      <fileset dir="${classes_}"/>
+    </jar>
+    <javadoc classpath="${honeycomb-client.jar}:${honeycomb-common.jar}"
+             source="1.4"
+             destdir="${doc_apps_javadoc_}"
+             version="true"
+             use="true"
+             access="public">
+      <fileset dir="${src_}"/>
+    </javadoc>
+  </target>
+
+  <target name="clean">
+    <delete file="${honeycomb-sdk.jar}"/>
+    <delete dir="${classes_}"/>
+    <delete dir="${doc_apps_javadoc_}"/>
+  </target>
+
+</project>

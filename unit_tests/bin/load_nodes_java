@@ -1,0 +1,203 @@
+#!/bin/bash
+#
+# $Id: load_nodes_java 10854 2007-05-19 02:52:12Z bberndt $
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+
+#
+#  Launch hcload_java on cluster nodes from cheat, then gather/summarize
+#  the results. Assumes that unit_tests jar and bin scripts are
+#  installed in /opt/honeycomb on cluster nodes.
+#
+LAUNCH=hcload_java
+EXEDIR=/opt/honeycomb/bin/
+USAGE="$0 <max_node (101..116)> <$LAUNCH options>"
+
+if test $# -lt 1 ; then
+    echo $USAGE
+    exit 1
+fi
+
+PROG=$0
+MAX_NODE=$1
+shift
+CMD="$EXEDIR/$LAUNCH $*"
+
+host_up()
+{
+    if test -z "$1" ; then
+        echo "host_up() - need arg"
+        exit 1
+    fi
+
+    host=$1
+    if test -z "$2" ; then
+        wait=0
+    else
+        wait=1
+    fi
+
+    echo Checking availability of $host..
+
+    while [ 1 ] ; do
+
+        RES=`ping -q -c 1 $host |  grep '^rtt' | awk '{print $1}'`
+        if test "$RES" == "rtt" ; then
+            break
+        elif test $wait -eq 0 ; then
+            echo "    " $host is unavailable
+            return 1
+        fi
+        echo "  $host doesn't ping - sleep 5"
+        sleep 5
+
+    done
+    echo "    " $host is available
+    return 0
+}
+
+START=`date`
+
+echo ; echo
+
+# launch a job to each node
+
+#echo $MAX_NODE
+#echo $CMD
+
+c=101
+while test $c -le $MAX_NODE ; do
+    node=hcb$c
+#   echo ssh root@${NODES[$c]}  \"pkill java\"
+    ssh $node "pkill $LAUNCH"
+    echo ssh $node "$CMD > /tmp/$LAUNCH.$c.$$"
+    ssh $node "$CMD > /tmp/$LAUNCH.$c.$$" &
+    c=$(( $c + 1 ))
+done
+echo WAITING..
+c=101
+while test $c -le $MAX_NODE ; do
+    wait
+    echo got one..
+    c=$(( $c + 1 ))
+done
+
+FINISH=`date`
+
+echo FINISHED RUN
+
+# collect results
+/bin/rm -f $LAUNCH.*
+
+c=101
+while test $c -le $MAX_NODE ; do
+    node=hcb$c
+    echo scp $node:/tmp/$LAUNCH.$c.$$ .
+    scp $node:/tmp/$LAUNCH.$c.$$ .
+    c=$(( $c + 1 ))
+done
+
+# analyze
+
+echo "========= results =========================================="
+
+#
+#  open
+#
+open_max=0
+for i in `grep "^open:" $LAUNCH.* | awk '{print $7}'` ; do
+    if test $i -gt $open_max ; then
+        open_max=$i
+    fi
+done
+
+open_avg=0
+ct=0
+for i in `grep "^open:" $LAUNCH.* | awk '{print $3}'` ; do
+    open_avg=$(( $open_avg + $i ))   
+    ct=$(( $ct + 1 ))
+done
+if test $ct == 0 ; then
+    echo NO CASES
+    exit 1
+fi
+open_avg=$(( $open_avg / $ct ))
+
+echo open avg,max $open_avg $open_max
+
+slow_open=0.0
+for i in `grep "^slow_open" $LAUNCH.* | awk '{print $4}'` ; do
+    slow_open=$( echo "scale=10; $slow_open + $i " | bc )
+    ct=$(( $ct + 1 ))
+done
+slow_open=$( echo "scale=10; $slow_open / $ct " | bc )
+
+echo slow_open $slow_open %
+
+#
+#  write
+#
+
+write_avg_mb_s=0
+ct=0
+for i in `grep "^write:" $LAUNCH.* | awk '{print $4}' | sed 's/(//'` ; do
+    write_avg_mb_s=$( echo "scale=10; $write_avg_mb_s + $i " | bc )
+    ct=$(( $ct + 1 ))
+done
+write_avg_mb_s=$(  echo "scale=10; $write_avg_mb_s / $ct " | bc)
+echo write_avg_mb_s $write_avg_mb_s
+
+#
+#  close
+#
+close_avg=0
+ct=0
+for i in `grep "^close:" $LAUNCH.* | awk '{print $3}' | sed 's/(//'` ; do
+    close_avg=$(( $close_avg + $i ))
+    ct=$(( $ct + 1 ))
+done
+close_avg=$(( $close_avg / $ct ))
+
+close_max=0
+for i in `grep "^close:" $LAUNCH.* | awk '{print $7}'` ; do
+    if test $i -gt $close_max ; then
+        close_max=$i
+    fi
+done
+echo close_avg,max $close_avg $close_max
+
+#
+#  rename
+#
+rename_avg=0
+ct=0
+for i in `grep "^rename:" $LAUNCH.* | awk '{print $3}' | sed 's/(//'` ; do
+    rename_avg=$(( $rename_avg + $i ))
+    ct=$(( $ct + 1 ))
+done
+rename_avg=$(( $rename_avg / $ct ))
+                                                                                
+rename_max=0
+for i in `grep "^rename:" $LAUNCH.* | awk '{print $7}'` ; do
+    if test $i -gt $rename_max ; then
+        rename_max=$i
+    fi
+done
+echo rename_avg,max $rename_avg $rename_max
+
+#
+#  total effective per-striped-file bandwidth, open..rename/delete
+#
+agg_bw_mb_s=0.0
+ct=0
+for i in `grep "agg_bw_mb_s" $LAUNCH.* | awk '{print $2}'` ; do
+    agg_bw_mb_s=$( echo "scale=10; $agg_bw_mb_s + $i " | bc )
+    ct=$(( $ct + 1 ))
+done
+agg_bw_mb_s=$( echo "scale=10; $agg_bw_mb_s / $ct " | bc )
+echo net_per_sfile_bw_mb_s $agg_bw_mb_s
+
+echo "START: " $START
+echo "END:   " $FINISH

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    $Id: metadata_config_scp.xml 10856 2007-05-19 02:58:52Z bberndt $
+
+    Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+    Use is subject to license terms.
+-->
+
+<!-- Use /opt/honeycomb/bin/metadata_merge_config.sh to add this config to
+the existing one -->
+
+<metadataConfig>
+
+  <schema>
+    
+    <namespace name="scp" writable="true" extensible="true">
+      <field name="filename" type="string" indexable="true"/>
+      <field name="extension" type="string" indexable="true"/>
+      <field name="user" type="string" indexable="true"/>
+    </namespace>
+    
+  </schema>
+
+  <fsViews>
+    <fsView name="scpFiles" filename="${filename}.${extension}" namespace="scp">
+      <attribute name="user"/>
+    </fsView>
+  </fsViews>
+
+</metadataConfig>

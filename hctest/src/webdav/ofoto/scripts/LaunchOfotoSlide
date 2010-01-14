@@ -1,0 +1,211 @@
+#!/bin/bash
+#
+# $Id: LaunchOfotoSlide 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+PING_CLNTS=false
+# PUT_GET = -a for both put & get, = nothing for put only
+PUT_GET=-a
+#PUT_GET=
+
+RUNDIR=/mnt/test/ofoto/tmp
+EXE=/mnt/test/ofoto/bin/slide.sh
+
+USAGE="$0 <cluster-dataVIP> <start_dir> <n_dirs_per_thread> <tag> <clnts_per_host> <clnt1> <clnt2> ..."
+
+if test $# -lt 5 ; then
+    echo $USAGE
+    exit 1
+fi
+
+################################## same for all Launch scripts:
+
+PROG=$0
+HOST=http://${1}:8080
+START_DIR=$2
+N_DIRS=$3
+TAG=$4
+CLNTS_PER_HOST=$5
+shift; shift; shift; shift; shift
+
+MAX_START=$(( 256 - $N_DIRS ))
+DIR_INC=$(( $N_DIRS - 1 ))
+FILE_TAG=sl_$TAG
+
+host_up()
+{
+    if test -z "$1" ; then
+        echo "host_up() - need arg"
+        exit 1
+    fi
+
+    if test ! "$PING_CLNTS" == "true" ; then
+        return 0
+    fi
+
+    host=$1
+    if test -z "$2" ; then
+        wait=0
+    else
+        wait=1
+    fi
+
+    echo Checking availability of $host..
+
+    while [ 1 ] ; do
+
+        RES=`ping -c 1 $host`
+        RESNUM=$wait
+
+        R2=`echo $RES | grep 'is alive'`
+        if ! test "$R2" == "" ; then
+            break
+        fi
+        R2=`echo $RES | grep '^rtt' | awk '{print $1}'`
+        if test "$R2" == "rtt" ; then
+            break
+        fi
+        if test $RESNUM -eq 0 ; then
+            echo "    " $host is unavailable
+            return 1
+        fi
+        echo "  $host doesn't ping - sleep 5"
+        sleep 5
+
+    done
+    echo "    " $host is available
+    return 0
+}
+
+# wait for HOST to be up
+#host_up $HOST retry
+
+################################# end of basic Launch
+
+# see which clients are up
+N_CLNT=0
+while test $# -gt 0 ; do
+    host_up $1
+    if test $? -eq 0 ; then
+        CLNTS[$N_CLNT]=$1
+        N_CLNT=$(( $N_CLNT + 1 ))
+    fi
+    shift
+done
+
+if test $N_CLNT -eq 0 ; then
+    echo "NO CLIENTS UP - EXITING"
+    echo
+    exit 1
+fi
+
+echo 
+
+# launch a job to each client
+START=`date`
+START_TIME=`perl -e 'print time'`
+echo ==== $START STARTING RUN
+echo
+c=0
+total_threads=0
+i=0
+j=$(( $START_DIR - 1 ))
+while test $c -lt $N_CLNT ; do
+
+    CL=${CLNTS[$c]}
+
+    # scrub logs
+    echo ssh root@${CL} "rm -f $RUNDIR/${FILE_TAG}_*"
+    ssh root@${CL} "rm -f $RUNDIR/${FILE_TAG}_*"
+
+    quit=0
+    cc=0
+    start=$(( $j + 1 ))
+    while test $cc -lt $CLNTS_PER_HOST ; do
+
+        # range calc
+        i=$(( $j + 1 ))
+        if test $i -ge $MAX_START ; then
+            echo out of range at $i
+            quit=1
+            break
+        fi
+        j=$(( $i + $DIR_INC ))
+
+        cc=$(( $cc + 1 ))
+        total_threads=$(( $total_threads + 1 ))
+    done
+    if test $quit -ne 0 ; then
+        break
+    fi
+    # launch
+    cmd="cd $RUNDIR ; $EXE -c $HOST $PUT_GET -s $start -n $N_DIRS -t $CLNTS_PER_HOST -T $TAG  > $RUNDIR/${FILE_TAG}_${CL}_${start}_$j 2>&1"
+    echo "ssh root@${CL} $cmd &"
+    ssh root@${CL} $cmd &
+
+    c=$(( $c + 1 ))
+done
+echo WAITING..
+i=0
+while test $i -lt $total_threads ; do
+    wait
+    echo got one..
+    i=$(( $i + 1 ))
+done
+
+FINISH=`date`
+FINISH_TIME=`perl -e 'print time'`
+DURATION="$((FINISH_TIME - START_TIME))"
+
+N=`echo "$N_DIRS" ^ 6 | bc`
+N_OPS="$((total_threads * 4 * N))"
+RATE="$(echo $N_OPS/$DURATION | bc -l)"
+
+# collect results
+i=0
+while test $i -lt $c ; do
+    echo "scp root@${CLNTS[$i]}:$RUNDIR/${FILE_TAG}_* ."
+    scp root@${CLNTS[$i]}:"$RUNDIR/${FILE_TAG}_*" .
+    i=$(( $i + 1 ))
+done
+
+errors=`grep ERROR ${FILE_TAG}_* | wc -l`
+
+echo =======================================================================
+echo "==== $FILE_TAG START  $START"
+echo "==== $FILE_TAG FINISH $FINISH (${DURATION}s)" 
+printf "==== ERRORS:   \t%d\n" "$errors"
+printf "==== TOTAL:    \t%d\n" "$N_OPS"
+printf "==== RATE:     \t%.2f/s\n" "$RATE"
+

@@ -1,0 +1,101 @@
+// JdaiEXIFInfoBundle_da_DK.java Strings for JdaiEXIFInfo
+// $Id: JdaiEXIFInfoBundle_da_DK.java 3456 2005-02-05 00:43:33Z rw151951 $
+
+package dk.jdai.model;
+
+import java.util.ListResourceBundle;
+
+
+public class JdaiEXIFInfoBundle_da_DK extends ListResourceBundle {
+
+    public Object[][] getContents() {
+        return contents;
+    }
+    private Object[][] contents = {
+        {"HeaderNotCorrect","EXIF header er ikke korrekt"},
+        {"WrongByteAlign","EXIF TIFF header byte align ikke specficeret"},
+        {"PrefName","EXIF information"},
+        {"NotSelected","Tilgængelige værdier"},
+        {"Selected","Valgte værdier"},
+        {"Up","Op"},
+        {"Down","Ned"},
+        {"Center","Centrum"},
+        {"Top","Top"},
+        {"Bottom","Bund"},
+        {"Left","Venstre"},
+        {"Right","Højre"},
+        {"Manual","Manuel"},
+        {"Normal","Normal"},
+        {"Aperature priority","Blændeprioritet"},
+        {"Shutter priority","Lukkerprioritet"},
+        {"Creative","Kreativ"},
+        {"Action","Action"},
+        {"Portrait","Portræt"},
+        {"Landscape","Landskab"},
+        {"YCbCr","YCbCr"},
+        {"RGB","RGB"},
+        {"Unknown","Ukendt"},
+        {"Average","Gennemsnit"},
+        {"Center weigthed average","Centrumvægtet gennemsnit"},
+        {"Spot","Spot"},
+        {"Multi-spot","Multi-spot"},
+        {"Multi-segment","Multi-segment"},
+        {"Partial","Delvis"},
+        {"Other","Anden"},
+        {"Auto","Auto"},
+        {"Daylight","Dagslys"},
+        {"Flourescent","Lysstofrør"},
+        {"Tungsten","Glødepære"},
+        {"Flash","Blitz"},
+        {"Standard light A","Standard lys A"},
+        {"Standard light B","Standard lys B"},
+        {"Standard light C","Standard lys C"},
+        {"D55","D55"},
+        {"D65","D65"},
+        {"D75","D75"},
+        {"No","Nej"},
+        {"Yes","Ja"},
+        {"Yes, not detected","Ja, ikke detekteret"},
+        {"Yes, detected","Ja, detekteret"},
+        {"sRGB","sRGB"},
+        {"Uncalibrated","Unkalibreret"},
+        {"No unit","No enhed"},
+        {"Inch","Tommer"},
+        {"Centimeter","Centimeter"},
+        {"None","Ingen"},
+        {"Jpeg","Jpeg"},
+        {"Monochrome","Monochrome"},
+
+        //List of Fields
+        {"Id","Id"},
+        {"DateTime","Tid"},
+        {"ExifImageWidth","Bredde"},
+        {"ExifImageHeight","Højde"},
+        {"ISOSpeedRatings","ISO"},
+        {"LightSource","Hvidbalance"},
+        {"FNumber","Blænde"},
+        {"ApertureValue","Blænde"},
+        {"ExposureTime","Lukkertid"},
+        {"ShutterSpeedValue","Lukkertid"},
+        {"FocalLength","Brændvidde"},
+        {"ExposureProgram","Program"},
+        {"MeteringMode","Målemetode"},
+        {"Flash","Blitz?"},
+        {"Make","Kameramærke"},
+        {"Model","Kameramodel"},
+        {"Software","Kamerasoftware"},
+        {"MN_ISOSetting","ISO indstilling"},
+        {"MN_ColorMode","Farvemode"},
+        {"MN_Quality","Kvalitet"},
+        {"MN_WhiteBalance","Hvidbalance"},
+        {"MN_ImageSharpening","Billedskarphed"},
+        {"MN_FocusMode","Fokusmetode"},
+        {"MN_FlashSetting","Blitzindstilling"},
+        {"MN_ISOSelection","ISO-valg"},
+        {"MN_ImageAdjustment","Billedjustering"},
+        {"MN_Adapter","Adapter"},
+        {"MN_ManualFocusDistance","Manuel fokusafstand"},
+        {"MN_DigitalZoom","Digital zoom"},
+        {"MN_AFFocusPosition","AF-fokusposition"}
+    };
+}

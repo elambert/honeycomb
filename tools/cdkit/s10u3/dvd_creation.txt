@@ -1,0 +1,124 @@
+
+$Id: dvd_creation.txt 10853 2007-05-19 02:50:20Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+
+Solaris DVD Media Internal Instructions
+----------------------------------------
+
+For Solaris 10 Updates 
+
+Revision: @(#) dvd_creation.txt.s10updates 1.3@(#)
+Last change: 03/11/05 
+File owner: Lou Ann Smith (lou.smith@sun.com)
+            Solaris Release Engineering
+            
+Contents
+--------
+
+Introduction
+Summary of Steps
+Steps for Creating DVD Media
+
+            
+Introduction
+------------
+The following instructions will provide the ability to make changes to the
+Solaris DVD media.  Before you can use these instructions you must already
+have created the Solaris netinstall images (solaris_1, solaris_2, solaris_3,
+solaris_4, langcd) and create the DVD miniroot (dvdboot). You will need 
+the steps in the cdkit_manual.txt to accomplish this.
+
+These instructions also require access to Solaris RE's integration "docks" 
+under /net/paradise.eng/export/integrate_dock.  
+
+Summary of Steps
+----------------        
+
+create Solaris netinstall images and DVD miniroot
+create a combined image that contains all of the solaris CD images
+replace the Boot link with the DVD miniroot
+get the CDKsdvd package
+create DVD media image
+
+
+Steps for Creating DVD Media
+----------------------------
+
+1) Use the cdkit to create the usual images.
+
+   dvdboot.product      solaris_1.product 
+   langcd.product       solaris_2.product
+   solaris_3.product	solaris_4.product
+   solaris_5.product
+
+2) Copy solaris_1.product to solarisdvd.product (or rename if you do
+   not need to save solaris_1.product).
+
+   # mkdir <product area>/solarisdvd.product
+   # cd <product area>/solaris_1.product
+   # find . | cpio -pdum <product area>/solarisdvd.product
+   
+3) Merge in the solaris_2.product 
+
+   # cd <product area>/solaris_2.product/Solaris_10/Tools
+   # ./add_to_install_server <product area>/solarisdvd.product
+
+4) Merge in the solaris_3.product
+
+   # cd <product area>/solaris_3.product/Solaris_10/Tools 
+   # ./add_to_install_server <product area>/solarisdvd.product 
+
+5) Merge in the solaris_4.product
+
+   # cd <product area>/solaris_4.product/Solaris_10/Tools
+   # ./add_to_install_server <product area>/solarisdvd.product
+
+6) Merge in the solaris_5.product
+
+   # cd <product area>/solaris_5.product/Solaris_10/Tools
+      # ./add_to_install_server <product area>/solarisdvd.product
+
+7) Merge in the langcd.product
+
+   # cd <product area>/langcd.product/Tools
+   # ./add_to_install_server <product area>/solarisdvd.product
+   
+8) Merge in the DVD miniroot (SPARC only, the x86 miniroot is already
+there)
+
+   # rm <product area>/solarisdvd.product/Solaris_10/Tools/Boot
+   # mkdir <product area>/solarisdvd.product/Solaris_10/Tools/Boot
+   # cd <product area>/dvdboot.product
+   # find . | cpio -pdum <product area>/solarisdvd.product/Solaris_10/Tools/Boot
+   
+  
+9) Copy in the CDKsdvd package. The <major> variable refers to the major 
+   release name. The <release> is similar to the one used for creating the 
+   CDs.  Example: s10s_u3dvd_05
+
+   # cd /net/paradise.eng/export/integrate_dock/<major>/<release>/<sparc|i386>
+   # find CDKsdvd | cpio -pdum <staging area>/<sparc|i386> 
+
+10) Copy in the contract for solarisdvd.
+
+   # cd /net/paradise.eng/export/integrate_dock/<major>/<release>/contracts
+   # cp solarisdvd.build <staging area>/contracts  
+ 
+
+11) Temporary step to bring in patches for zones upgrade.
+    Copy patches that are listed in zones_patchlist.txt from the dvd integrate dock
+
+    # cd /net/paradise.sfbay/export/integrate_dock/<major>/<release>/file
+    # cp zones_patchlist.txt <staging area>/file
+    # ./copy_patches <staging area> <product area>
+
+Now the DVD media image can be created.
+
+
+12) Run the cdkit Build command again using the "-t cdimage" option.
+
+   # ./cdkit BuildImage -d <drive> -t cdimage <staging area> \
+     <product area> solarisdvd

@@ -1,0 +1,153 @@
+
+#
+# Configuration for the Management Console (CLI) service
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# $Id: cli_config.properties.in 11859 2008-02-28 17:28:51Z ktripp $
+#
+
+cli.hcsh.cmd.package = com.sun.honeycomb.ui.cli.commands
+cli.hcsh.cmd.package.adm = com.sun.honeycomb.adm.cli.commands
+
+#
+# Note - do not change these command names. If you want to alter a command
+#        name, do so in the AdminResources files.
+#
+# misc commands
+cli.hcsh.cmd.name.CommandCopyright = copyright
+cli.hcsh.cmd.name.CommandExit = logout
+cli.hcsh.cmd.name.CommandHelp = help
+cli.hcsh.cmd.name.CommandEcho = echo
+cli.hcsh.cmd.name.CommandEcho.isHidden = true
+
+cli.hcsh.cmd.name.CommandSensor = sensors
+cli.hcsh.cmd.name.CommandLicense = license
+cli.hcsh.cmd.name.CommandLicense.isHidden = true
+
+# statistics and logging commands
+cli.hcsh.cmd.name.CommandVersion = version
+cli.hcsh.cmd.name.CommandStatus = sysstat
+cli.hcsh.cmd.name.CommandHwStatus = hwstat
+cli.hcsh.cmd.name.CommandDiskFree = df
+
+
+# control commands
+cli.hcsh.cmd.name.CommandShutdownCluster = shutdown
+cli.hcsh.cmd.name.CommandRebootCluster = reboot
+cli.hcsh.cmd.name.CommandHwConfig= hwcfg
+cli.hcsh.cmd.name.CommandHwConfig.isHidden = true
+cli.hcsh.cmd.name.CommandWipe = wipe
+cli.hcsh.cmd.name.CommandUpgrade = upgrade
+cli.hcsh.cmd.name.CommandUpgrade.isHidden = true
+cli.hcsh.cmd.name.CommandCellAdmin = celladm
+cli.hcsh.cmd.name.CommandCellAdmin.isHidden = true
+
+# config commands
+cli.hcsh.cmd.name.CommandPassword = passwd
+cli.hcsh.cmd.name.CommandProtocolPassword = protocolpasswd
+cli.hcsh.cmd.name.CommandProtocolPassword.isHidden = true
+cli.hcsh.cmd.name.CommandHiveConfig = hivecfg
+cli.hcsh.cmd.name.CommandHiveConfig = hivecfg
+cli.hcsh.cmd.name.CommandCellConfig = cellcfg
+cli.hcsh.cmd.name.CommandSetupCell = setupcell
+cli.hcsh.cmd.name.CommandSetupCell.isHidden = true
+cli.hcsh.cmd.name.CommandAlertConfig = alertcfg
+# make locale hidden until alert internationlization is complete
+cli.hcsh.cmd.name.CommandLocale = locale
+cli.hcsh.cmd.name.CommandLocale.isHidden = true
+cli.hcsh.cmd.name.CommandServiceTags = servicetags
+cli.hcsh.cmd.name.CommandServiceTags.isHidden = true
+
+# s3kr3t commands
+cli.hcsh.cmd.name.CommandDataDocConfig = ddcfg
+cli.hcsh.cmd.name.CommandDataDocConfig.isHidden = true
+
+# mdconfig command
+cli.hcsh.cmd.name.CommandMDConfig = mdconfig
+
+# hadb command
+cli.hcsh.cmd.name.CommandHadb = hadb
+cli.hcsh.cmd.name.CommandHadb.isHidden = true
+
+# disklabel command
+cli.hcsh.cmd.name.CommandDiskLabel = disklabel
+cli.hcsh.cmd.name.CommandDiskLabel.isHidden = true
+
+# profiler command
+cli.hcsh.cmd.name.CommandProfiler = profiler
+cli.hcsh.cmd.name.CommandProfiler.isHidden = true
+
+# logcfg command
+cli.hcsh.cmd.name.CommandLogControl = logcfg
+cli.hcsh.cmd.name.CommandLogControl.isHidden = true
+
+# logdump command
+cli.hcsh.cmd.name.CommandLogDump = logdump
+cli.hcsh.cmd.name.CommandLogDump.isHidden = false
+
+# multicell command
+cli.hcsh.cmd.name.CommandHiveAdm = hiveadm
+
+# performance stats
+cli.hcsh.cmd.name.CommandPerfStats = perfstats
+
+# date  
+cli.hcsh.cmd.name.CommandDate = date
+
+
+# command for starting/stopping stress tests for config/update
+cli.hcsh.cmd.name.CommandTestConfigUpdate = tcfgupd
+cli.hcsh.cmd.name.CommandTestConfigUpdate.isHidden = true
+
+# command for setting properties on a running cluster
+cli.hcsh.cmd.name.CommandSetProperties = setprops
+cli.hcsh.cmd.name.CommandSetProperties.isHidden = true
+
+
+
+# the locale to use for l10n
+cli.language = en
+cli.bundle.name = CliResources
+
+# Adminserver address
+cli.adm.server.ip = 127.0.0.1
+cli.adm.server.port = 9000
+
+# The following represents the list of known part #'s that represent
+# the system.  server/src/config/AdminResources_??.properties.in
+# contains the descrptions of the part number and the associated
+# marketing number.  Additional numbers may be added but they
+# the information must be added to AdminResources_??.properties.in
+# too.  
+servicetags.knownPartNumbers=594-4516-02,594-3521-03,594-3520-03

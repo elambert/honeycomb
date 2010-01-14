@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="hc_corruption_detection">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>
+        Honeycomb corruption detection test, uses the CorruptingWritableChannel 
+        to corrupt the stream being returned from honeycomb to test the 
+        VerifyWritableChannel code.
+        </description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT"  path="${dtf.xml.path}/input"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+      
+      	<loadproperties uri="storage://INPUT/hc.properties"/> 
+      	<import uri="storage://INPUT/${hc.metadata.filename}"/>
+    </local>
+    
+	<local>
+        <lockcomponent id="CLIENT1">
+        	<attrib name="hc.client.type" value="${hc.client.type}"/>
+        </lockcomponent>
+	</local>
+
+	<for property="filetype" range="deadbeef,random">
+    	<for property="filesize" range="0,1024,9999,99999,1048576">
+        	<local>
+    	      	<property name="offset" value="${dtf.timestamp}" overwrite="true"/>
+        		<echo>Storing file
+                              length:  ${filesize} byte(s)
+                              offset:  ${offset} byte(s)
+                              type:    ${filetype}</echo>
+        	</local>
+        	<record type="object" 
+        	        event="hc"
+        		    uri="property://object">
+        			<component id="CLIENT1">
+        				<store datavip="${hc.cluster.datavip}"
+        					   port="${hc.cluster.dataport}">
+        					<file length="${filesize}" 
+        					      type="${filetype}"
+        					      offset="${offset}"/>
+        				</store>
+        			</component>
+        	</record>
+        	
+        	<local>
+        		<echo>Retrieving file (generating corruption on client side)
+                              oid:     ${object.oid}
+                              length:  ${filesize} byte(s)
+                              offset:  ${offset} byte(s)
+                              type:    ${filetype}</echo>
+        	</local>
+        	<try>
+            	<component id="CLIENT1">
+            		<retrieve datavip="${hc.cluster.datavip}"
+            			      port="${hc.cluster.dataport}"
+            			      oid="${object.oid}"
+            			      verify="true"
+            			      corrupt="true">
+            			<file length="${filesize}" 
+            			      type="${filetype}"
+            			      offset="${offset}"/>
+            		</retrieve>
+            	</component>
+        		<catch exception="${dtf.DTFException}" property="message">
+        			<local>
+        				<echo>Correctly detected corruption on retrieve: ${message}</echo>
+        			</local>
+        		</catch>
+        	</try>
+        	
+        	<local>
+        		<echo>Retrieving file (using wrong offset on file verification)
+                              oid:     ${object.oid}
+                              length:  ${filesize} byte(s)
+                              offset:  ${offset} byte(s)
+                              type:    ${filetype}</echo>
+        	</local>
+        	<try>
+            	<component id="CLIENT1">
+            		<retrieve datavip="${hc.cluster.datavip}"
+            			      port="${hc.cluster.dataport}"
+            			      oid="${object.oid}"
+            			      verify="true"
+            			      corrupt="true">
+            			<file length="${filesize}" 
+            			      type="${filetype}"
+            			      offset="3939393"/>
+            		</retrieve>
+            	</component>
+        		<catch exception="${dtf.DTFException}" property="message">
+        			<local>
+        				<echo>Correctly detected corruption on retrieve: ${message}</echo>
+        			</local>
+        		</catch>
+        	</try>
+            
+            
+        	<local>
+        		<echo>Retrieving file 
+                              oid:     ${object.oid}
+                              length:  ${filesize} byte(s)
+                              offset:  ${offset} byte(s)
+                              type:    ${filetype}</echo>
+        	</local>
+        	<component id="CLIENT1">
+        		<retrieve datavip="${hc.cluster.datavip}"
+        			      port="${hc.cluster.dataport}"
+        			      oid="${object.oid}"
+        			      verify="true">
+        			<file length="${filesize}" 
+        			      type="${filetype}"
+        			      offset="${offset}"/>
+        		</retrieve>
+        	</component>
+        </for>
+	</for>
+</script>

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="distribute">
+	<info>
+		<author>
+			<name>Rodney Gomes</name>
+			<email>rodney.gomes@sun.com</email>
+		</author>
+		<description>Unit test for the distribute tag.</description>
+	</info>
+	
+	 <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+        
+        <loadproperties uri="storage://INPUT/ut.properties"/>
+    </local>
+
+	<function name="runTest">
+		<param name="distribute.func" type="required"/>
+		
+    	<record type="txt" 
+    	        uri="storage://OUTPUT/perf.txt" 
+    	        append="false">
+        	<distribute property="iter"  
+        			    timer="5s"
+        	            workers="5"
+        	            func="${distribute.func}">
+        		<event name="event">
+        			<attribute name="prop1" value="${iter}" />
+        		</event>
+        	</distribute>
+    	</record>
+    
+    	
+    	<query uri="storage://OUTPUT/perf.txt" 
+    	       event="event" 
+    	       type="txt" 
+    	       cursor="cursor1"/>
+    	       
+    	<record uri="property://perf" type="object">
+    		<stats cursor="cursor1" event="stats"/>
+    	</record>
+    	
+    	<local>	
+        	<echo>
+                  Distribute Stats for ${distribute.func}
+                  
+                  Average events/second: ${perf.avg_occ}
+                  Total events:          ${perf.tot_occ}
+        	</echo>
+    	</local>
+   	</function>
+   	
+   	<call function="runTest">
+   		<property name="distribute.func" value="const(150)"/>	
+   	</call>
+	
+   	<call function="runTest">
+   		<property name="distribute.func" value="step(0,10,1)"/>	
+   	</call>
+
+   	<call function="runTest">
+   		<property name="distribute.func" value="list(10,20,10,20,10,50)"/>	
+   	</call>
+   	
+</script>

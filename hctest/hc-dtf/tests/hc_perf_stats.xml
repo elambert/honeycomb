@@ -1,0 +1,350 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="hc_perf">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>Honeycomb performance testsuite.</description>
+    </info>
+
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input" />
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+        <createstorage id="TINPUT" path="${dtf.xml.path}" />
+
+        <loadproperties uri="storage://INPUT/hc.properties" />
+        <loadproperties uri="storage://INPUT/perf_expected.properties" />
+        
+        <property name="test.result" value="success"/>
+        <property name="hc.perf.print" value="expected"/>
+        <property name="hc.perf.stats.filename" 
+                  value="storage://OUTPUT/perf_stats_${runid}.results"/>
+        <property name="hc.perf.stats.absolute.location"
+                  value="${OUTPUT.dir}/perf_stats_${runid}.results"/>
+    </local>
+
+    <function name="calcOps">
+        <param name="event.name" type="required"/>
+        <param name="event.file" type="required"/>
+        <param name="runid" type="required"/>
+        <param name="result" type="required"/>
+        
+        <query type="txt" 
+               event="${event.name}"
+               uri="${event.file}" 
+               cursor="event_cursor">
+            <where>
+                <and>
+                    <eq op1="runid" op2="${runid}" />
+                    <eq op1="succeeded" op2="true" />
+                </and>
+            </where>
+        </query>
+
+        <record type="object" 
+                event="${event.name}"
+                uri="property://${result}.success">
+            <stats cursor="event_cursor" event="${event.name}" />
+        </record>
+
+        <query type="txt"
+               event="${event.name}"
+               uri="${event.file}"
+               cursor="event_failed_cursor">
+            <where>
+                <and>
+                    <eq op1="runid" op2="${runid}"/>
+                    <neq op1="succeeded" op2="true" nullable="true"/>
+                </and>
+            </where>
+        </query>
+
+        <record type="object" 
+                event="${event.name}"
+                uri="property://${result}.failure">
+            <stats cursor="event_failed_cursor" event="${event.name}" />
+        </record>
+    </function>
+    
+    <function name="validateResults">
+        <param name="tolerance" type="required"/>
+        <param name="expected" type="required"/>
+        <param name="actual" type="required"/>
+        <param name="operation" type="required"/>
+        <param name="units" type="required"/>
+        
+        <if>
+            <within op1="${actual}" 
+                    op2="${expected}"
+                    tolerance="${tolerance}"/>
+            <then/>
+            <else>
+                <local>
+                    <!-- mark the failure so at the end of the run we can 
+                         fail the test correctly -->
+                    <property name="test.result" value="failed" overwrite="true"/>
+                    <cat uri="${hc.perf.stats.filename}">
+                    ERROR ${operation}: got ${actual} ${units} expected ${expected} ${units}</cat>
+                </local>
+            </else>
+        </if>
+    </function>
+    
+    <function name="printResults">
+        <param name="expected" type="required"/>
+        <param name="actual" type="required"/>
+        <param name="operation" type="required"/>
+        <param name="units" type="required"/>
+   
+        <if>
+            <eq op1="${hc.perf.print}" op2="expected"/>
+            <then>
+                <local>
+                    <cat uri="${hc.perf.stats.filename}">
+                    ${operation}: got ${actual} ${units} expected ${expected} ${units}</cat>
+                </local>
+            </then>
+            <else>
+                <local>
+                    <cat uri="${hc.perf.stats.filename}">
+                    ${operation}: got ${actual} ${units}</cat>
+                </local>
+            </else>
+        </if>
+    </function>
+
+    <for property="filesize" range="${hc.perf.filesizes}">
+        <call function="calcOps">
+            <property name="event.name" value="hc.store"/>
+            <property name="event.file"
+                      value="storage://OUTPUT/store_perf_${filesize}.txt"/>
+            <property name="result"  value="storeperf.${filesize}"/>
+        </call>
+        
+        <call function="calcOps">
+            <property name="event.name" value="hc.store"/>
+            <property name="event.file"
+                      value="storage://OUTPUT/mdstore_perf_${filesize}.txt"/>
+            <property name="result"  value="mdstoreperf.${filesize}"/>
+        </call>
+        
+        <call function="calcOps">
+            <property name="event.name" value="hc.retrieve"/>
+            <property name="event.file"
+                      value="storage://OUTPUT/retrieve_perf_${filesize}.txt"/>
+            <property name="result"  value="retrieveperf.${filesize}"/>
+        </call>
+        
+        <call function="calcOps">
+            <property name="event.name" value="hc.addmd"/>
+            <property name="event.file"
+                      value="storage://OUTPUT/addmd_perf_${filesize}.txt"/>
+            <property name="result"  value="addmdperf.${filesize}"/>
+        </call>
+        
+        <call function="calcOps">
+            <property name="event.name" value="hc.delete"/>
+            <property name="event.file"
+                      value="storage://OUTPUT/delete_data_perf_${filesize}.txt"/>
+            <property name="result"  value="deletedataperf.${filesize}"/>
+        </call>
+        
+        <call function="calcOps">
+            <property name="event.name" value="hc.delete"/>
+            <property name="event.file"
+                      value="storage://OUTPUT/delete_md_perf_${filesize}.txt"/>
+            <property name="result"  value="deletemdperf.${filesize}"/>
+        </call>
+    </for>
+
+    <for property="md.type" range="${md.results.types},${md.ops.types}">
+        <call function="calcOps">
+            <property name="event.name" value="hc.query"/>
+            <property name="event.file"
+                      value="storage://OUTPUT/query_${md.type}_perf.txt"/>
+            <property name="result"  value="query.${md.type}"/>
+        </call>
+    </for>
+
+    <local>
+        <cat uri="${hc.perf.stats.filename}" append="false">
+        Performance statistics</cat>
+    </local>
+
+    <for property="filesize" range="${hc.perf.filesizes}">
+        <!-- These operations are printed differently based on size -->
+        <local>
+            <cat uri="${hc.perf.stats.filename}">
+            
+            Performance statistics for ${filesize} byte objects:
+            </cat>
+        </local>
+
+        <for property="operation" range="store,mdstore,retrieve">
+            <if>
+                <lt op1="${filesize}"
+                    op2="${hc.perf.analysis.threshold}" />
+                <then>
+                    <call function="printResults">
+                        <property name="expected"
+                            value="${${operation}.${filesize}.ops}" />
+                        <property name="actual"
+                            value="${${operation}perf.${filesize}.success.avg_occ}" />
+                        <property name="operation" value="${operation}" />
+                        <property name="units" value="ops/s" />
+                    </call>
+                </then>
+                <else>
+                    <call function="printResults">
+                        <property name="expected"
+                                  value="${${operation}.${filesize}.bytesPerSec}" />
+                        <property name="actual"
+                                  value="${${operation}perf.${filesize}.success.size.avg_val}" />
+                        <property name="operation" value="${operation}" />
+                        <property name="units" value="bytes/s" />
+                    </call>
+                </else>
+            </if>
+        </for>
+
+        <!-- These operations only make sense to print in ops/s -->
+        <for property="operation" range="addmd,deletemd,deletedata">
+            <call function="printResults">
+                <property name="expected"
+                          value="${${operation}.${filesize}.ops}" />
+                <property name="actual"
+                          value="${${operation}perf.${filesize}.success.avg_occ}" />
+                <property name="operation" value="${operation}" />
+                <property name="units" value="ops/s" />
+            </call>
+        </for>
+    </for>
+
+    <!-- Print query results -->
+    <for property="md.type" range="${md.results.types}">
+        <call function="printResults">
+            <property name="expected"
+                      value="${query.${md.type}.resultsPerSec}" />
+            <property name="actual"
+                      value="${query.${md.type}.success.results.avg_val}" />
+            <property name="operation" value="query ${md.type}" />
+            <property name="units" value="results/s" />
+        </call>
+    </for>
+    <for property="md.type" range="${md.ops.types}">
+        <call function="printResults">
+            <property name="expected"
+                      value="${query.${md.type}.ops}" />
+            <property name="actual"
+                      value="${query.${md.type}.success.avg_occ}" />
+            <property name="operation" value="query ${md.type}" />
+            <property name="units" value="ops/s" />
+        </call>
+    </for>
+   
+    <try>
+        <if>
+            <eq op1="${hc.perf.validation}" op2="true"/>
+            <then>
+    
+                <for property="filesize" range="${hc.perf.filesizes}">
+                    <local>
+                        <cat uri="${hc.perf.stats.filename}">
+                        
+                        Verifying results for ${filesize} byte objects:
+                        </cat>
+                    </local>
+                    <!-- These operations are analyzed differently based on size -->
+                    <for property="operation" range="store,mdstore,retrieve">
+                        <if>
+                            <lt op1="${filesize}" op2="${hc.perf.analysis.threshold}"/>
+                                <then>
+                                    <call function="validateResults">
+                                        <property name="tolerance"
+                                                  value="${hc.perf.analysis.tolerance}"/>
+                                        <property name="actual"
+                                                  value="${${operation}perf.${filesize}.success.avg_occ}"/>
+                                        <property name="expected"
+                                                  value="${${operation}.${filesize}.ops}"/>
+                                        <property name="operation" value="${operation}"/>
+                                        <property name="units" value="ops/s"/>
+                                    </call>
+                                </then>
+                                <else>
+                                    <call function="validateResults">
+                                        <property name="tolerance"
+                                                  value="${hc.perf.analysis.tolerance}"/>
+                                        <property name="actual"
+                                                  value="${${operation}perf.${filesize}.success.size.avg_val}"/>
+                                        <property name="expected"
+                                                  value="${${operation}.${filesize}.bytesPerSec}"/>
+                                        <property name="operation" value="${operation}"/>
+                                        <property name="units" value="bytes/s"/>
+                                    </call>
+                                </else>
+                        </if>
+                    </for>
+                    
+                    <!-- These operations only make sense to analyze in ops/s -->
+                    <for property="operation" range="addmd,deletemd,deletedata">
+                        <call function="validateResults">
+                            <property name="tolerance"
+                                      value="${hc.perf.analysis.tolerance}"/>
+                            <property name="actual"
+                                      value="${${operation}perf.${filesize}.success.avg_occ}"/>
+                            <property name="expected"
+                                      value="${${operation}.${filesize}.ops}"/>
+                            <property name="operation" value="${operation}"/>
+                            <property name="units" value="ops/s"/>
+                        </call>
+                    </for> 
+                </for>
+            
+                <!-- Validate query results -->
+                <for property="md.type" range="${md.results.types}">
+                    <call function="validateResults">
+                        <property name="tolerance"
+                                  value="${hc.perf.analysis.tolerance}"/>
+                        <property name="expected"
+                                  value="${query.${md.type}.resultsPerSec}" />
+                        <property name="actual"
+                                  value="${query.${md.type}.success.results.avg_val}" />
+                        <property name="operation" value="query.${md.type}" />
+                        <property name="units" value="results/s" />
+                    </call>
+                </for>
+                <for property="md.type" range="${md.ops.types}">
+                    <call function="validateResults">
+                        <property name="tolerance"
+                                  value="${hc.perf.analysis.tolerance}"/>
+                        <property name="expected"
+                                  value="${query.${md.type}.ops}" />
+                        <property name="actual"
+                                  value="${query.${md.type}.success.avg_occ}" />
+                        <property name="operation" value="query.${md.type}" />
+                        <property name="units" value="results/s" />
+                    </call>
+                </for>
+    
+                <if>
+                    <neq op1="${test.result}" op2="success"/>
+                    <then>
+                        <local>
+                            <fail message="Test has failed, see above ERROR messages for more information"/>
+                        </local>
+                    </then>
+                </if>
+            </then>
+        </if>
+        <finally>
+            <local>
+                <cat uri="${hc.perf.stats.filename}"/>
+                <echo>
+                Results saved at ${hc.perf.stats.absolute.location}</echo>
+            </local>
+        </finally>
+    </try>
+</script>

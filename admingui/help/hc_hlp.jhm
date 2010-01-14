@@ -1,0 +1,190 @@
+<?xml version='1.0' encoding='ISO-8859-1' ?>
+
+<map version="1.0">
+ <mapID target="hc_hlp-01-1_html_wp1010731" url="hc_hlp-01-1.html" />  <!-- Sun StorageTek&#8482; 5800 System Administrator Online Help -->
+ <mapID target="hc_hlp-02-02_html_wp1021303" url="hc_hlp-02-02.html" />  <!-- Product Overview -->
+ <mapID target="hc_hlp-02-02_html_wp1021350" url="hc_hlp-02-02.html#wp1021350" />  <!-- Product Overview -->
+ <mapID target="hc_hlp-02-03_html_wp1014259" url="hc_hlp-02-03.html" />  <!-- About Having Multiple Users -->
+ <mapID target="hc_hlp-02-03_html_wp1020240" url="hc_hlp-02-03.html#wp1020240" />  <!-- About Having Multiple Users -->
+ <mapID target="hc_hlp-02-03_html_wp1020243" url="hc_hlp-02-03.html#wp1020243" />  <!-- About Having Multiple Users -->
+ <mapID target="hc_hlp-02-05_html_wp1014303" url="hc_hlp-02-05.html" />  <!-- Launching the GUI From a Browser -->
+ <mapID target="hc_hlp-02-06_html_wp1020051" url="hc_hlp-02-06.html" />  <!-- Setting MIME Associations for the Browser -->
+ <mapID target="hc_hlp-02-06_html_wp1020054" url="hc_hlp-02-06.html#wp1020054" />  <!-- Setting MIME Associations for the Browser -->
+ <mapID target="hc_hlp-02-07_html_wp1020279" url="hc_hlp-02-07.html" />  <!-- Launching the GUI From the Command Line -->
+ <mapID target="hc_hlp-02-08_html_wp1020078" url="hc_hlp-02-08.html" />  <!-- Using the GUI Interface -->
+ <mapID target="hc_hlp-02-09_html_wp1014355" url="hc_hlp-02-09.html" />  <!-- About the Interface Layout -->
+ <mapID target="hc_hlp-02-10_html_wp1014412" url="hc_hlp-02-10.html" />  <!-- About the Toolbar -->
+ <mapID target="hc_hlp-02-11_html_wp1014519" url="hc_hlp-02-11.html" />  <!-- About the Navigation Panel -->
+ <mapID target="hc_hlp-02-12_html_wp1014606" url="hc_hlp-02-12.html" />  <!-- About the Folder Symbols -->
+ <mapID target="hc_hlp-02-13_html_wp1014669" url="hc_hlp-02-13.html" />  <!-- About Other Buttons -->
+ <mapID target="hc_hlp-02-14_html_wp1014813" url="hc_hlp-02-14.html" />  <!-- About the Content Panel -->
+ <mapID target="hc_hlp-02-15_html_wp1014843" url="hc_hlp-02-15.html" />  <!-- About the Status Panel -->
+ <mapID target="hc_hlp-02-16_html_wp1014887" url="hc_hlp-02-16.html" />  <!-- Using Help -->
+ <mapID target="hc_hlp-02-17_html_wp1013953" url="hc_hlp-02-17.html" />  <!-- 5800 System CLI -->
+ <mapID target="hc_hlp-03-2_html_wp1014189" url="hc_hlp-03-2.html" />  <!-- Getting Started: Task Overview -->
+ <mapID target="hc_hlp-03-2_html_wp1014190" url="hc_hlp-03-2.html#wp1014190" />  <!-- Getting Started: Task Overview -->
+ <mapID target="hc_hlp-04-2_html_wp1014334" url="hc_hlp-04-2.html" />  <!-- Configuring System Access Parameters -->
+ <mapID target="hc_hlp-04-3_html_wp1014368" url="hc_hlp-04-3.html" />  <!-- About System Access -->
+ <mapID target="hc_hlp-04-4_html_wp1014676" url="hc_hlp-04-4.html" />  <!-- Configuring the Administrative IP Address -->
+ <mapID target="hc_hlp-04-5_html_wp1014428" url="hc_hlp-04-5.html" />  <!-- Configuring the Data IP Address -->
+ <mapID target="hc_hlp-04-5_html_wp1015161" url="hc_hlp-04-5.html#wp1015161" />  <!-- Configuring the Data IP Address -->
+ <mapID target="hc_hlp-04-6_html_wp1014458" url="hc_hlp-04-6.html" />  <!-- Configuring the Service Node IP Address -->
+ <mapID target="hc_hlp-04-7_html_wp1015471" url="hc_hlp-04-7.html" />  <!-- Configuring the Gateway -->
+ <mapID target="hc_hlp-04-8_html_wp1014483" url="hc_hlp-04-8.html" />  <!-- Configuring the Administrative Password -->
+ <mapID target="hc_hlp-04-8_html_wp1014492" url="hc_hlp-04-8.html#wp1014492" />  <!-- Configuring the Administrative Password -->
+ <mapID target="hc_hlp-04-9_html_wp1014509" url="hc_hlp-04-9.html" />  <!-- Configuring Authorized Subnetworks -->
+ <mapID target="hc_hlp-05-2_html_wp1014572" url="hc_hlp-05-2.html" />  <!-- Configuring Network Parameters -->
+ <mapID target="hc_hlp-05-3_html_wp1014595" url="hc_hlp-05-3.html" />  <!-- About Network Parameters -->
+ <mapID target="hc_hlp-05-4_html_wp1015011" url="hc_hlp-05-4.html" />  <!-- About NTP Servers -->
+ <mapID target="hc_hlp-05-4_html_wp1015398" url="hc_hlp-05-4.html#wp1015398" />  <!-- About NTP Servers -->
+ <mapID target="hc_hlp-05-5_html_wp1014643" url="hc_hlp-05-5.html#wp1014643" />  <!-- Configuring an NTP Server -->
+ <mapID target="hc_hlp-05-5_html_wp1014915" url="hc_hlp-05-5.html" />  <!-- Configuring an NTP Server -->
+ <mapID target="hc_hlp-05-6_html_wp1015220" url="hc_hlp-05-6.html" />  <!-- Checking System Time -->
+ <mapID target="hc_hlp-05-6_html_wp1015452" url="hc_hlp-05-6.html#wp1015452" />  <!-- Checking System Time -->
+ <mapID target="hc_hlp-05-7_html_wp1014967" url="hc_hlp-05-7.html" />  <!-- Configuring DNS Servers -->
+ <mapID target="hc_hlp-06-2_html_wp1016078" url="hc_hlp-06-2.html" />  <!-- Managing System Hardware and Data -->
+ <mapID target="hc_hlp-06-3_html_wp1016267" url="hc_hlp-06-3.html" />  <!-- Shutting Down a Cell -->
+ <mapID target="hc_hlp-06-4_html_wp1016280" url="hc_hlp-06-4.html" />  <!-- Rebooting a Cell -->
+ <mapID target="hc_hlp-06-5_html_wp1016600" url="hc_hlp-06-5.html" />  <!-- Deleting All Data From the System -->
+ <mapID target="hc_hlp-06-5_html_wp1016604" url="hc_hlp-06-5.html#wp1016604" />  <!-- Deleting All Data From the System -->
+ <mapID target="hc_hlp-07-2_html_wp1014708" url="hc_hlp-07-2.html" />  <!-- Configuring System Notifications -->
+ <mapID target="hc_hlp-07-3_html_wp1014727" url="hc_hlp-07-3.html" />  <!-- About System Notifications -->
+ <mapID target="hc_hlp-07-4_html_wp1014759" url="hc_hlp-07-4.html" />  <!-- Configuring Email Notifications -->
+ <mapID target="hc_hlp-07-5_html_wp1014802" url="hc_hlp-07-5.html" />  <!-- Configuring the Logging Host -->
+ <mapID target="hc_hlp-08-02_html_wp1014831" url="hc_hlp-08-02.html" />  <!-- Configuring the Metadata Schema and Virtual File System Views -->
+ <mapID target="hc_hlp-08-03_html_wp1016460" url="hc_hlp-08-03.html" />  <!-- Metadata Schema Overview -->
+ <mapID target="hc_hlp-08-03_html_wp1019040" url="hc_hlp-08-03.html#wp1019040" />  <!-- Metadata Schema Overview -->
+ <mapID target="hc_hlp-08-04_html_wp1016463" url="hc_hlp-08-04.html#wp1016463" />  <!-- About Metadata -->
+ <mapID target="hc_hlp-08-04_html_wp1019031" url="hc_hlp-08-04.html" />  <!-- About Metadata -->
+ <mapID target="hc_hlp-08-05_html_wp1016468" url="hc_hlp-08-05.html" />  <!-- About System Metadata -->
+ <mapID target="hc_hlp-08-05_html_wp1016472" url="hc_hlp-08-05.html#wp1016472" />  <!-- About System Metadata -->
+ <mapID target="hc_hlp-08-06_html_wp1016479" url="hc_hlp-08-06.html" />  <!-- About Extended Metadata -->
+ <mapID target="hc_hlp-08-06_html_wp1016480" url="hc_hlp-08-06.html#wp1016480" />  <!-- About Extended Metadata -->
+ <mapID target="hc_hlp-08-07_html_wp1018141" url="hc_hlp-08-07.html" />  <!-- About Metadata Types -->
+ <mapID target="hc_hlp-08-07_html_wp1018145" url="hc_hlp-08-07.html#wp1018145" />  <!-- About Metadata Types -->
+ <mapID target="hc_hlp-08-08_html_wp1018250" url="hc_hlp-08-08.html" />  <!-- About Namespaces -->
+ <mapID target="hc_hlp-08-09_html_wp1018259" url="hc_hlp-08-09.html#wp1018259" />  <!-- About Writable and Extensible Namespaces -->
+ <mapID target="hc_hlp-08-09_html_wp1019057" url="hc_hlp-08-09.html" />  <!-- About Writable and Extensible Namespaces -->
+ <mapID target="hc_hlp-08-10_html_wp1018295" url="hc_hlp-08-10.html" />  <!-- About Reserved Namespaces -->
+ <mapID target="hc_hlp-08-10_html_wp1018507" url="hc_hlp-08-10.html#wp1018507" />  <!-- About Reserved Namespaces -->
+ <mapID target="hc_hlp-08-11_html_wp1018515" url="hc_hlp-08-11.html" />  <!-- About the system Namespace -->
+ <mapID target="hc_hlp-08-11_html_wp1018518" url="hc_hlp-08-11.html#wp1018518" />  <!-- About the system Namespace -->
+ <mapID target="hc_hlp-08-12_html_wp1018397" url="hc_hlp-08-12.html" />  <!-- About the filesystem Namespace -->
+ <mapID target="hc_hlp-08-12_html_wp1018530" url="hc_hlp-08-12.html#wp1018530" />  <!-- About the filesystem Namespace -->
+ <mapID target="hc_hlp-08-13_html_wp1018470" url="hc_hlp-08-13.html" />  <!-- About Fully Qualified Names -->
+ <mapID target="hc_hlp-08-14_html_wp1018484" url="hc_hlp-08-14.html" />  <!-- Planning Namespaces -->
+ <mapID target="hc_hlp-08-14_html_wp1020815" url="hc_hlp-08-14.html#wp1020815" />  <!-- Planning Namespaces -->
+ <mapID target="hc_hlp-08-15_html_wp1018585" url="hc_hlp-08-15.html" />  <!-- About Tables and Columns -->
+ <mapID target="hc_hlp-08-15_html_wp1018586" url="hc_hlp-08-15.html#wp1018586" />  <!-- About Tables and Columns -->
+ <mapID target="hc_hlp-08-16_html_wp1018590" url="hc_hlp-08-16.html#wp1018590" />  <!-- Table Example -->
+ <mapID target="hc_hlp-08-16_html_wp1018900" url="hc_hlp-08-16.html" />  <!-- Table Example -->
+ <mapID target="hc_hlp-08-17_html_wp1018666" url="hc_hlp-08-17.html" />  <!-- About the length Attribute for Fields -->
+ <mapID target="hc_hlp-08-17_html_wp1018667" url="hc_hlp-08-17.html#wp1018667" />  <!-- About the length Attribute for Fields -->
+ <mapID target="hc_hlp-08-18_html_wp1018678" url="hc_hlp-08-18.html" />  <!-- Planning Tables -->
+ <mapID target="hc_hlp-08-19_html_wp1018681" url="hc_hlp-08-19.html" />  <!-- Planning Table Rows -->
+ <mapID target="hc_hlp-08-19_html_wp1018951" url="hc_hlp-08-19.html#wp1018951" />  <!-- Planning Table Rows -->
+ <mapID target="hc_hlp-08-20_html_wp1018922" url="hc_hlp-08-20.html" />  <!-- Planning Table Rows Example -->
+ <mapID target="hc_hlp-08-20_html_wp1018923" url="hc_hlp-08-20.html#wp1018923" />  <!-- Planning Table Rows Example -->
+ <mapID target="hc_hlp-08-21_html_wp1018772" url="hc_hlp-08-21.html" />  <!-- Planning Tables Checklist -->
+ <mapID target="hc_hlp-08-21_html_wp1018926" url="hc_hlp-08-21.html#wp1018926" />  <!-- Planning Tables Checklist -->
+ <mapID target="hc_hlp-08-22_html_wp1018783" url="hc_hlp-08-22.html" />  <!-- About Indexes -->
+ <mapID target="hc_hlp-08-22_html_wp1018784" url="hc_hlp-08-22.html#wp1018784" />  <!-- About Indexes -->
+ <mapID target="hc_hlp-08-22_html_wp1018786" url="hc_hlp-08-22.html#wp1018786" />  <!-- About Indexes -->
+ <mapID target="hc_hlp-08-23_html_wp1018787" url="hc_hlp-08-23.html" />  <!-- Planning Indexes -->
+ <mapID target="hc_hlp-08-23_html_wp1019002" url="hc_hlp-08-23.html#wp1019002" />  <!-- Planning Indexes -->
+ <mapID target="hc_hlp-08-24_html_wp1018869" url="hc_hlp-08-24.html" />  <!-- Planning Indexes Example -->
+ <mapID target="hc_hlp-08-24_html_wp1018870" url="hc_hlp-08-24.html#wp1018870" />  <!-- Planning Indexes Example -->
+ <mapID target="hc_hlp-08-24_html_wp1019009" url="hc_hlp-08-24.html#wp1019009" />  <!-- Planning Indexes Example -->
+ <mapID target="hc_hlp-08-25_html_wp1018878" url="hc_hlp-08-25.html" />  <!-- Excluding Attributes From Indexes and Queries -->
+ <mapID target="hc_hlp-08-25_html_wp1018879" url="hc_hlp-08-25.html#wp1018879" />  <!-- Excluding Attributes From Indexes and Queries -->
+ <mapID target="hc_hlp-08-26_html_wp1018881" url="hc_hlp-08-26.html" />  <!-- Planning Tables and Indexes Checklist -->
+ <mapID target="hc_hlp-08-26_html_wp1018882" url="hc_hlp-08-26.html#wp1018882" />  <!-- Planning Tables and Indexes Checklist -->
+ <mapID target="hc_hlp-08-27_html_wp1016494" url="hc_hlp-08-27.html#wp1016494" />  <!-- Virtual File System Views Overview -->
+ <mapID target="hc_hlp-08-27_html_wp1018235" url="hc_hlp-08-27.html" />  <!-- Virtual File System Views Overview -->
+ <mapID target="hc_hlp-08-28_html_wp1016500" url="hc_hlp-08-28.html" />  <!-- About WebDAV -->
+ <mapID target="hc_hlp-08-28_html_wp1016502" url="hc_hlp-08-28.html#wp1016502" />  <!-- About WebDAV -->
+ <mapID target="hc_hlp-08-28_html_wp1016510" url="hc_hlp-08-28.html#wp1016510" />  <!-- About WebDAV -->
+ <mapID target="hc_hlp-08-29_html_wp1018000" url="hc_hlp-08-29.html#wp1018000" />  <!-- Using WebDAV to Browse Virtual File System Views -->
+ <mapID target="hc_hlp-08-29_html_wp1018002" url="hc_hlp-08-29.html" />  <!-- Using WebDAV to Browse Virtual File System Views -->
+ <mapID target="hc_hlp-08-30_html_wp1016523" url="hc_hlp-08-30.html#wp1016523" />  <!-- WebDAV Example -->
+ <mapID target="hc_hlp-08-30_html_wp1018008" url="hc_hlp-08-30.html" />  <!-- WebDAV Example -->
+ <mapID target="hc_hlp-08-31_html_wp1016582" url="hc_hlp-08-31.html" />  <!-- About Metadata Attributes and WebDAV Properties -->
+ <mapID target="hc_hlp-08-31_html_wp1016583" url="hc_hlp-08-31.html#wp1016583" />  <!-- About Metadata Attributes and WebDAV Properties -->
+ <mapID target="hc_hlp-08-32_html_wp1019864" url="hc_hlp-08-32.html" />  <!-- About Including Additional File Attributes in Virtual Views -->
+ <mapID target="hc_hlp-08-32_html_wp1019868" url="hc_hlp-08-32.html#wp1019868" />  <!-- About Including Additional File Attributes in Virtual Views -->
+ <mapID target="hc_hlp-08-32_html_wp1019881" url="hc_hlp-08-32.html#wp1019881" />  <!-- About Including Additional File Attributes in Virtual Views -->
+ <mapID target="hc_hlp-08-33_html_wp1017053" url="hc_hlp-08-33.html" />  <!-- About Directory Structure in a Virtual File System View -->
+ <mapID target="hc_hlp-08-33_html_wp1017077" url="hc_hlp-08-33.html#wp1017077" />  <!-- About Directory Structure in a Virtual File System View -->
+ <mapID target="hc_hlp-08-34_html_wp1015654" url="hc_hlp-08-34.html" />  <!-- Configuring the Metadata Schema -->
+ <mapID target="hc_hlp-08-34_html_wp1015655" url="hc_hlp-08-34.html#wp1015655" />  <!-- Configuring the Metadata Schema -->
+ <mapID target="hc_hlp-08-35_html_wp1021037" url="hc_hlp-08-35.html" />  <!-- Summary of Metadata Schema Elements -->
+ <mapID target="hc_hlp-08-35_html_wp1021320" url="hc_hlp-08-35.html#wp1021320" />  <!-- Summary of Metadata Schema Elements -->
+ <mapID target="hc_hlp-08-36_html_wp1020261" url="hc_hlp-08-36.html" />  <!-- Viewing the Metadata Schema -->
+ <mapID target="hc_hlp-08-36_html_wp1020270" url="hc_hlp-08-36.html#wp1020270" />  <!-- Viewing the Metadata Schema -->
+ <mapID target="hc_hlp-08-37_html_wp1020280" url="hc_hlp-08-37.html" />  <!-- Displaying the Fields in a Namespace -->
+ <mapID target="hc_hlp-08-38_html_wp1020293" url="hc_hlp-08-38.html" />  <!-- Displaying the Fields in a Table -->
+ <mapID target="hc_hlp-08-39_html_wp1019954" url="hc_hlp-08-39.html#wp1019954" />  <!-- Modifying the Metadata Schema -->
+ <mapID target="hc_hlp-08-39_html_wp1020253" url="hc_hlp-08-39.html" />  <!-- Modifying the Metadata Schema -->
+ <mapID target="hc_hlp-08-39_html_wp1020258" url="hc_hlp-08-39.html#wp1020258" />  <!-- Modifying the Metadata Schema -->
+ <mapID target="hc_hlp-08-40_html_wp1015729" url="hc_hlp-08-40.html" />  <!-- Creating Namespaces -->
+ <mapID target="hc_hlp-08-40_html_wp1015774" url="hc_hlp-08-40.html#wp1015774" />  <!-- Creating Namespaces -->
+ <mapID target="hc_hlp-08-41_html_wp1015792" url="hc_hlp-08-41.html" />  <!-- Creating Tables -->
+ <mapID target="hc_hlp-08-42_html_wp1015857" url="hc_hlp-08-42.html" />  <!-- Adding Fields to an Existing Namespace -->
+ <mapID target="hc_hlp-08-42_html_wp1015880" url="hc_hlp-08-42.html#wp1015880" />  <!-- Adding Fields to an Existing Namespace -->
+ <mapID target="hc_hlp-08-43_html_wp1015910" url="hc_hlp-08-43.html" />  <!-- Configuring Virtual File System Views -->
+ <mapID target="hc_hlp-08-44_html_wp1020408" url="hc_hlp-08-44.html" />  <!-- Displaying the Current Virtual File System Views Configuration -->
+ <mapID target="hc_hlp-08-45_html_wp1020441" url="hc_hlp-08-45.html" />  <!-- Displaying the Fields in a View -->
+ <mapID target="hc_hlp-08-46_html_wp1020404" url="hc_hlp-08-46.html" />  <!-- Creating a New Virtual File System View -->
+ <mapID target="hc_hlp-08-47_html_wp1016455" url="hc_hlp-08-47.html" />  <!-- Previewing Virtual File Systems -->
+ <mapID target="hc_hlp-09-02_html_wp1016390" url="hc_hlp-09-02.html" />  <!-- Monitoring the 5800 System -->
+ <mapID target="hc_hlp-09-03_html_wp1016416" url="hc_hlp-09-03.html" />  <!-- Monitoring the System -->
+ <mapID target="hc_hlp-09-04_html_wp1016467" url="hc_hlp-09-04.html" />  <!-- Displaying Failed Components -->
+ <mapID target="hc_hlp-09-05_html_wp1016486" url="hc_hlp-09-05.html" />  <!-- Displaying the System Space Usage -->
+ <mapID target="hc_hlp-09-06_html_wp1016499" url="hc_hlp-09-06.html" />  <!-- Displaying System Performance Statistics -->
+ <mapID target="hc_hlp-09-07_html_wp1017452" url="hc_hlp-09-07.html" />  <!-- Displaying Environmental Status -->
+ <mapID target="hc_hlp-09-08_html_wp1016592" url="hc_hlp-09-08.html" />  <!-- Monitoring Cells -->
+ <mapID target="hc_hlp-09-09_html_wp1016615" url="hc_hlp-09-09.html" />  <!-- Displaying the System Software Version on a Cell -->
+ <mapID target="hc_hlp-09-10_html_wp1016634" url="hc_hlp-09-10.html" />  <!-- Displaying the Nodes in a Cell -->
+ <mapID target="hc_hlp-09-11_html_wp1016644" url="hc_hlp-09-11.html" />  <!-- Displaying the Disks in a Cell -->
+ <mapID target="hc_hlp-09-12_html_wp1016668" url="hc_hlp-09-12.html" />  <!-- Displaying the Cell IP Addresses -->
+ <mapID target="hc_hlp-09-13_html_wp1016682" url="hc_hlp-09-13.html" />  <!-- Monitoring Nodes -->
+ <mapID target="hc_hlp-09-14_html_wp1016705" url="hc_hlp-09-14.html" />  <!-- Displaying the FRU ID of a Node -->
+ <mapID target="hc_hlp-09-15_html_wp1016715" url="hc_hlp-09-15.html" />  <!-- Displaying Node Space Usage -->
+ <mapID target="hc_hlp-09-16_html_wp1016725" url="hc_hlp-09-16.html" />  <!-- Displaying the Node Status -->
+ <mapID target="hc_hlp-09-17_html_wp1017582" url="hc_hlp-09-17.html" />  <!-- Displaying the Disks in a Node -->
+ <mapID target="hc_hlp-09-18_html_wp1016787" url="hc_hlp-09-18.html" />  <!-- Monitoring Disks -->
+ <mapID target="hc_hlp-09-18_html_wp1016795" url="hc_hlp-09-18.html#wp1016795" />  <!-- Monitoring Disks -->
+ <mapID target="hc_hlp-10-02_html_wp1016889" url="hc_hlp-10-02.html" />  <!-- Reference Pages -->
+ <mapID target="hc_hlp-10-04_html_wp1017088" url="hc_hlp-10-04.html" />  <!-- Configuration Panels -->
+ <mapID target="hc_hlp-10-05_html_wp1017111" url="hc_hlp-10-05.html" />  <!-- Metadata Panels -->
+ <mapID target="hc_hlp-10-11_html_wp1017595" url="hc_hlp-10-11.html" />  <!-- Virtual File Systems Panels -->
+ <mapID target="hc_hlp-10-15_html_wp1017847" url="hc_hlp-10-15.html" />  <!-- Network Panels -->
+ <mapID target="hc_hlp-10-18_html_wp1018044" url="hc_hlp-10-18.html" />  <!-- Notification Panels -->
+ <mapID target="hc_hlp-10-21_html_wp1018250" url="hc_hlp-10-21.html" />  <!-- System Access Panels -->
+ <mapID target="hc_hlp-10-25_html_wp1018526" url="hc_hlp-10-25.html" />  <!-- Monitoring Panels -->
+ <mapID target="hc_hlp-10-28_html_wp1022137" url="hc_hlp-10-28.html" />  <!-- Cells Panels -->
+ <mapID target="hc_hlp-11-2_html_wp1012999" url="hc_hlp-11-2.html" />  <!-- Glossary -->
+ <mapID target="hc_hlp-addnamespace_html_wp1017308" url="hc_hlp-addnamespace.html" />  <!-- Add Namespace Panel -->
+ <mapID target="hc_hlp-addnamespacefields_html_wp1020447" url="hc_hlp-addnamespacefields.html" />  <!-- Add Namespace Fields Panel -->
+ <mapID target="hc_hlp-authorizedataclients_html_wp1020347" url="hc_hlp-authorizedataclients.html" />  <!-- Authorize Data Clients Panel -->
+ <mapID target="hc_hlp-browsefilesystemview_html_wp1020654" url="hc_hlp-browsefilesystemview.html" />  <!-- Browse Virtual File Systems Panel -->
+ <mapID target="hc_hlp-cellstatus_html_wp1022154" url="hc_hlp-cellstatus.html" />  <!-- Cell Summary Panel -->
+ <mapID target="hc_hlp-changeadministrationpassword_html_wp1020352" url="hc_hlp-changeadministrationpassword.html" />  <!-- Change Administration Password Panel -->
+ <mapID target="hc_hlp-configurecellips_html_wp1018387" url="hc_hlp-configurecellips.html" />  <!-- Configure Cell IPs Panel -->
+ <mapID target="hc_hlp-configureemailalerts_html_wp1018056" url="hc_hlp-configureemailalerts.html" />  <!-- Configure Email Alerts Panel -->
+ <mapID target="hc_hlp-createfilesystemtable_html_wp1017219" url="hc_hlp-createfilesystemtable.html" />  <!-- Create File System Table Panel -->
+ <mapID target="hc_hlp-diskstatus_html_wp1022264" url="hc_hlp-diskstatus.html" />  <!-- All Disks in Cell Panel -->
+ <mapID target="hc_hlp-environmentalstatus_html_wp1018538" url="hc_hlp-environmentalstatus.html" />  <!-- Environmental Status Panel -->
+ <mapID target="hc_hlp-nodestatus_html_wp1022311" url="hc_hlp-nodestatus.html" />  <!-- Node Status Panel -->
+ <mapID target="hc_hlp-performancestatistics_html_wp1018595" url="hc_hlp-performancestatistics.html" />  <!-- Performance Statistics Panel -->
+ <mapID target="hc_hlp-setlogginghost_html_wp1019797" url="hc_hlp-setlogginghost.html" />  <!-- Logging Host Panel -->
+ <mapID target="hc_hlp-setntpservers_html_wp1017909" url="hc_hlp-setntpservers.html" />  <!-- Set NTP Servers Panel -->
+ <mapID target="hc_hlp-setupdns_html_wp1017972" url="hc_hlp-setupdns.html" />  <!-- Configure DNS Servers Panel -->
+ <mapID target="hc_hlp-setupfilesystemview_html_wp1020657" url="hc_hlp-setupfilesystemview.html" />  <!-- Set Up Virtual File System View Panel -->
+ <mapID target="hc_hlp-setupmetadataschema_html_wp1017417" url="hc_hlp-setupmetadataschema.html" />  <!-- Set Up Schema Panel -->
+ <mapID target="hc_hlp-systemstatus_html_wp1022382" url="hc_hlp-systemstatus.html" />  <!-- Status at a Glance Panel -->
+ <mapID target="hc_hlp-viewfilesystemview_html_wp1017785" url="hc_hlp-viewfilesystemview.html" />  <!-- Virtual File System Views Panel -->
+ <mapID target="hc_hlp-viewmetadataschema_html_wp1020512" url="hc_hlp-viewmetadataschema.html" />  <!-- View Schema Panel -->
+ <mapID target="login_html_wp1019860" url="login.html" />  <!-- Logging In -->
+ <mapID target="login_html_wp1019864" url="login.html#wp1019864" />  <!-- Logging In -->
+</map>

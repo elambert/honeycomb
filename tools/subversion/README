@@ -1,0 +1,46 @@
+$Id: README 10853 2007-05-19 02:50:20Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+
+When updating this readme, please copy it as follows:
+
+  scp README root@subversion:/usr/local/svnrepos/honeycomb/hooks/README
+
+Don't modify these scripts directly on the subversion server...
+First, check the change in to the appropriate repository and then
+copy that version here so it has the updated SVN header.  This makes
+tracking changes to these scripts a lot more managable.  See the comments
+in the files for more info on how to copy them to the right place.
+
+For /usr/local/svnrepos/docs/hooks/*, update <docsrepo>/tools/subversion
+For /usr/local/svnrepos/honeycomb/hooks/*, update <honeycombrepo>/tools/subversion
+For /usr/local/svnrepos/platform/hooks/*, update <honeycombrepo>/tools/subversion/*-platform
+
+(Note the reason the platform hooks are in the honeycomb repository
+is that checking out the platform repository is a pain because it is
+huge, and it is easier to just use the honeycomb repository for this.
+We can change this if we want to be more consistent.)
+
+
+To test post-commit, you can run, but note that this will send a new diff
+mail for this "test" diff, which isn't a big deal. 
+
+[root@subversion hooks]# ./post-commit /usr/local/svnrepos/honeycomb 7184
+
+
+Occasionally, we have to update the bt-cli bits...
+
+/usr/local/bt-client/WEB-INF copied from /usr/dist/share/bt2cli
+
+To test out bt-cli access outside of the commit scripts, do this:
+
+/usr/local/bt-client/bt-cli print cr -U honeycomb -pFile /usr/local/bt-client/passwd.txt -id 6209241
+
+/usr/local/bt-client/bt-cli print cr -U honeycomb -pFile /usr/local/bt-client/passwd.txt -s ./identity.xsl -o foo.out -id 6209241
+
+
+You can use this bugid for checkins: 
+6191145 svn tools to the svn repository (ongoing)
+

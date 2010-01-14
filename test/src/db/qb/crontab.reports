@@ -1,0 +1,5 @@
+MAILTO=hc-flamebox@sun.com
+0 2,8,11,14,17,20 * * * /home/www/hc-web/svn/docs/bin/update-docs.sh
+0 3               * * * rm -f /home/www/hc-web/qb/reports/suite*.html; rm -f /home/www/hc-web/qb/reports/testproc*.html; cd /usr/local/apache/cgi-bin/qb; ./qb_reports.pl suite -H ALL
+0 0              * * thu cd /home/www/hc-web/qb/reports/reports_archive; mkdir `date +\%m-\%d-\%y`; cp /home/www/hc-web/qb/reports/*.html `date +\%m-\%d-\%y`/
+

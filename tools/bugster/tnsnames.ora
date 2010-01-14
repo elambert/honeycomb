@@ -1,0 +1,20 @@
+SBLRPT =
+  (DESCRIPTION =
+    (ADDRESS_LIST =
+      (ADDRESS = (PROTOCOL = TCP)(HOST = swsblrpt.central.sun.com)(PORT = 1525))
+    )
+    (CONNECT_DATA =
+      (SERVICE_NAME = sblrpt)
+    )
+  )
+
+SBLUATR =
+  (DESCRIPTION =
+    (ADDRESS_LIST =
+      (ADDRESS = (PROTOCOL = TCP)(HOST = sbluatrpt.sfbay.sun.com)(PORT = 1524))
+    )
+    (CONNECT_DATA =
+      (SERVICE_NAME = sbluatr)
+    )
+  )
+

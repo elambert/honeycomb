@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="query">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>
+        Unit test for the query tag, query can be used to retrieve 
+        events previously recorded by the recorder tag.
+        </description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+        
+        <echo>Query Unit Testsuite</echo>
+    </local>
+
+	<testsuite name="query">
+		<local>
+			<echo>Txt Query Unit Test</echo>
+		</local>
+		<property name="query.type" value="txt" overwrite="true"/>
+		<testscript uri="storage://INPUT/query_testcase.xml"/>
+	
+		<local>
+			<echo>Database Query Unit Test</echo>
+		</local>
+		<property name="query.type" value="database" overwrite="true"/>
+		<testscript uri="storage://INPUT/query_testcase.xml"/>
+	</testsuite>
+    
+</script>

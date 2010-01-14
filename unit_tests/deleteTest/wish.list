@@ -1,0 +1,33 @@
+$Id: wish.list 10854 2007-05-19 02:52:12Z bberndt $
+ 
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+OA UNIT TEST WISHLIST
+=====================
+
++ [dmehra 06/07/06]
+  Expand the  OA unit test framework to test more IO exceptions.
+  See closed bug 6393135 "OA should handle unexpected exceptions 
+  when doing fragment ops and treat them as a single frag error".
+  
++ [dmehra 06/07/06]
+  Add RemoveTmpFrags ops to the framework. This is required to test
+  coming fixes for bugs 6406228, 6416220.
+
++ [dmehra 06/07/06]
+  Port the framework to run on a real cluster. This will require
+  writing a new ErrorInjectingFragmentFile and reconfiguring ant
+  to build with different sources (eg. real Layout and Disk).
+  The win is ability to run all UT scenarios on the cluster.
+
++ [dmehra/sarahg 06/07/06]
+  Sarah's old todo list is here, she will help decipher items:
+  https://hc-twiki.sfbay.sun.com/twiki/bin/view/Main/OAUnitTests
+
++ [dmehra 06/07/06]
+  Need to look over scenarii/KNOWN_FAILURES, they indicate either
+  a problem in UT framework, or potentially an OA bug. Look at the
+  testcase files, XXX notes at the top explain the nature of failure.
+
+

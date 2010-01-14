@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    $Id: info.nib 10854 2007-05-19 02:52:12Z bberndt $
+
+    Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+    Use is subject to license terms.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IBDocumentLocation</key>
+	<string>95 107 356 240 0 0 1280 1002 </string>
+	<key>IBEditorPositions</key>
+	<dict>
+		<key>29</key>
+		<string>95 349 318 44 0 0 1280 1002 </string>
+	</dict>
+	<key>IBFramework Version</key>
+	<string>403.0</string>
+	<key>IBSystem Version</key>
+	<string>8A278</string>
+</dict>
+</plist>

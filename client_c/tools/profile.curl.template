@@ -1,0 +1,4 @@
+[profile]
+merge_dir=%HC_BUILD%/curl/src
+tree=%HC_SRC%/%CURL%/common
+tree=%HC_SRC%/%CURL%/%OS%

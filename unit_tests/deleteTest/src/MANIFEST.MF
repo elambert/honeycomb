@@ -1,0 +1,2 @@
+Main-Class: com.sun.honeycomb.delete.Test
+Class-Path: ./honeycomb-common.jar ./honeycomb-server.jar ./jug.jar ./je.jar ./bsh-2.0b2.jar ./jetty-4.2.20.jar .

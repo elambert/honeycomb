@@ -1,0 +1,4 @@
+[profile]
+MERGE_DIR=/export/home/sarnoud/1.0/build/client_c/build_sol_9_sparc/curl/src
+TREE=/export/home/sarnoud/1.0/client_c/curl-7.14.0/common
+TREE=/export/home/sarnoud/1.0/client_c/curl-7.14.0/sol_9_sparc

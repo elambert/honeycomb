@@ -1,0 +1,187 @@
+#!/usr/bin/ksh
+#
+# $Id: parse_clustertoc 10853 2007-05-19 02:50:20Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+# @(#) parse_clustertoc 1.4@(#)
+
+[ $# -lt 1 ] && {
+	echo "You need to specify the absolute path of the clustertoc file" >&2
+	return 1
+}
+
+typeset -r clustertoc=$1
+typeset OPT_MCLUSTER=
+
+[ ! -f "$clustertoc" ] && {
+	echo "Cannot read file $clustertoc" >&2
+	return 1
+}
+
+shift 1
+if [ $# -ne 0 ] ; then
+	OPT_MCLUSTER="$*"
+fi
+
+##
+## WARNING:
+## WARNING:  DO NOT DELETE ANY SPACE FROM THIS PROGRAM UNLESS YOU KNOW
+## WARNING:  WHAT YOU ARE DOING.  awk(1) IS VERY SPACE SENSITIVE SPECIALLY
+## WARNING:  IN FUNCTION DECLARATION!!
+## WARNING:
+## 
+
+cat $clustertoc | nawk -F= -v "opt_mc=$OPT_MCLUSTER" 'BEGIN {
+		current=""
+		error=0
+	}
+	function strip(var,	arr) {
+	
+		split(var, arr, " ")
+		return arr[1]
+	}
+	function stripFuncName(dyn_name,	arr) {
+		split(dyn_name, arr, ")")
+		return strip(arr[2])
+	}
+	function printErr(message) {
+		printf("Line %s: %s -> %s\n",NR, message, $0) | "cat 1>&2" ;
+	}
+	function nameExisted(name) {
+		if (name in cluster || name in metacluster) {
+			return 1
+		} else {
+			return 0
+		}
+	}
+	function printMatch(mname,cname,	n,i,arr) {
+		if (cname in metacluster) {
+			printf("%s is a metacluster - fatal", cname)
+			error++
+			return
+		}
+		if (cname in list) {
+			n = split(list[cname], arr, " ")
+			for (i = 1; i <= n; i++) {
+				printMatch(mname, arr[i])
+			}
+		} else {
+			print (mname ":" cname)
+		}
+	}
+	function workOnCluster(pkg,key,elem) {
+		if (pkg != "") {
+			printErr("unexcepted CLUSTER or METACLUSTER");
+			return 1
+		}
+		if (nameExisted(elem)) {
+			printf("%s is already existed\n", elem);
+			return 1
+		}
+		if (key == "CLUSTER") {
+			cluster[elem]=""
+		} else if (key == "METACLUSTER") {
+			metacluster[elem]=""
+		}
+	}
+	{
+		key = strip($1)
+		elem = strip($2)
+
+		if (key == "METACLUSTER") {
+			if ( opt_mc != "" && index(opt_mc,elem) == 0 ) {
+				do {
+					getline
+				} while ( strip($1) != "END")
+				current=""
+			} else if (workOnCluster(current,key,elem) > 0) {
+				error++
+				next
+			} else {
+				current=elem
+			}
+		} else if (key == "CLUSTER") {
+			if (workOnCluster(current,key,elem) > 0) {
+				error++
+				next
+			} else {
+				current=elem
+			}
+		} else if (key == "SUNW_CSRMEMBER") {
+			if (current == "") {
+				printErr("CLUSTER or METACLUSTER is expected");
+				error++
+				next
+			}
+			list[current]=(list[current] " " elem " ")
+		} else if (key == "SUNW_CSRMBRIFF") {
+			if (current == "") {
+				printErr("CLUSTER or METACLUSTER is expected");
+				error++
+				next
+			}
+			elem = stripFuncName($2)
+			list[current]=(list[current] " " elem " ")
+		} else if (key == "END") {
+			if (current == "") {
+				printErr("unexcepted END");
+			} else {
+				current = ""
+			}
+		} else if (key == "VERSION") {
+		} else if (key == "DESC") {
+		} else if (key == "VENDOR") {
+		} else if (key == "NAME") {
+		} else if (key == "DEFAULT") {
+		} else if (key == "REQUIRED") {
+		} else if (key == "HIDDEN") {
+		} else if (key ~ /^#/) {
+		} else {
+			printErr("syntax error");
+			error++
+			next
+		}
+	}
+	END {
+		if (error == 0) {
+			for (item in metacluster) {
+				nn = split(list[item], melem, " ")
+				for (ii = 1; ii <= nn; ii++) {
+					printMatch(item, melem[ii])
+				}
+			}
+		}
+		exit(error)
+	}'

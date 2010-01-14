@@ -1,0 +1,89 @@
+<html>
+<!--
+ $Id: Java_Example_README.html 11604 2007-10-16 22:07:48Z wr152514 $
+ 
+ Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ Use is subject to license terms.
+--> 
+
+<head></head><body>
+<h1>@HoneycombFullProductName@ Java Examples</h1>
+<p>
+Included with the @HoneycombProductName@ SDK are several command line 
+example applications that demonstrate the Java API. The example 
+applications are located in the SDK under java/examples. These 
+example applications are designed to be compiled with Java 1.5 or higher and 
+come complete with a build script. The following Java examples are included:
+<p>
+<strong>StoreFile</strong><br>
+Allows you to specify a file from the command line to store on a 
+@HoneycombProductName@ as data. Also allows you to specify
+ metadata to include with the file.
+<a href="../examples/StoreFile.java"><i>view source code</i><a>
+<p>
+<strong>AddMetadata</strong><br>
+Allows you to specify name value pairs from the command line to store on a
+@HoneycombProductName@ as a metadata record.
+<a href="../examples/AddMetadata.java"><i>view source code</i><a>
+</p><p>
+<strong>RetrieveData</strong><br>
+Allows you to retrieve data from the @HoneycombProductName@ associated with the supplied Object Identifier. 
+The data is saved to a file specified on the command line.
+<a href="../examples/RetrieveData.java"><i>view source code</i><a>
+</p><p>
+<strong>RetrieveMetadata</strong><br>
+Allows you to retrieve a metadata record from the @HoneycombProductName@ 
+associated with the supplied Object Identifier.
+The metadata record is printed to standard output.
+<a href="../examples/RetrieveMetadata.java"><i>view source code</i><a>
+</p><p>
+<strong>DeleteRecord</strong><br>
+Deletes a Record from the @HoneycombProductName@ 
+for an Object Identifier supplied on the command line. If successful returns 
+the OID of the deleted object to standard output.
+<a href="../examples/DeleteRecord.java"><i>view source code</i><a>
+<p>
+<strong>Query</strong><br>
+Query a @HoneycombProductName@ for specified Metadata. 
+The query string is provided on the command line. Query can print 
+out the results as a list of name/value pairs or as a list of OIDs. 
+Query allows you to specify the maximum number of results returned.
+<a href="../examples/Query.java"><i>view source code</i><a>
+<p>
+<strong>RetrieveSchema</strong><br>
+Retrieves the metadata schema from a @HoneycombProductName@ printing 
+it to standard output.
+<a href="../examples/RetrieveSchema.java"><i>view source code</i><a>
+<p>
+<h2>How to Build the Example Applications</h2>
+The example applications are in the java/examples 
+folder in the SDK. To build the example applications execute 
+the master_build.sh script for Linux/Solaris or the master_build.bat script 
+for Windows. This will build the examples and put them in a jar archive 
+located in java/lib/ (note that this has already been done for you, so
+it isn't necessary unless you want to change the programs and recompile).
+The compile warning, "Some input files use unchecked or unsafe operations"
+can be ignored - it is a Java 1.5 artifact of using a HashMap to store a
+variety of object types.
+<p>
+<h2>How to run the Example Applications</h2>
+Once you have built the example applications go to the 
+java/examples/build folder and execute the jar files:
+<p>
+	java -jar &lt;Jar File Name&gt; &lt;arguments&gt;
+<p>
+The examples depend on Getopt.jar and honeycomb-client.jar. 
+These files must be in the same directory as the example jar 
+files in order for them to run.
+<p>
+<h2>About the Example Application Source Code</h2>
+The example applications are simple and all
+follow the same basic pattern. First, Commandline.parse 
+is called to parse the argument list. Next, the appropriate
+method in in the NameValueObjectArchive class is called to 
+communicate with the  @HoneycombProductName@.
+Finally, output is delivered back to either standard output, 
+a file, or both. Please refer to the comments in the sample 
+code for further details.
+</body>
+</html>

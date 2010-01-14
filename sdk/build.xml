@@ -1,0 +1,375 @@
+<!--
+ $Id: build.xml 12007 2008-05-30 22:44:39Z wr152514 $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for honeycomb.
+ --> 
+<project name="sdk" default="sdk">
+  <description>
+    Honeycomb SDK. Building this project results in a 
+    Solaris package named SUNWhcsdk.
+  </description>
+
+  <!-- Note that the order below is different for this package from other
+       packages! -->
+
+  <!-- first, local, user specified .ant.properties files take precedence -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <!-- second, use the top-level builds properties file -->
+  <property file="../build/build.properties"/>
+
+  <!-- finally, use the build.properties for this package -->
+  <property file="build.properties"/>
+
+  <path id="sdk.build.classpath">
+    <pathelement location="${client.dist.libdir}/${jarname.client}"/>
+  </path>
+
+  <property name="get_os" value="${client_c.srcdir}/currentos.pl"/>
+	
+  <!-- SDK_PREPARE ********************************************************* -->
+  <target name="sdk_prepare">
+    <!-- build the client jar.  This is also used for javadoc below. -->
+    <mkdir dir="${sdk.build.basedir}"/>
+    <mkdir dir="${sdk.build.classdir}"/>
+    <mkdir dir="${sdk.build.pkgdir}"/>
+    <mkdir dir="${sdk.dist.basedir}"/>
+    <mkdir dir="${sdk.dist.doc}"/>
+    <mkdir dir="${sdk.dist.java}"/>  	
+    <mkdir dir="${sdk.dist.javalibdir}"/>
+ <!--   <mkdir dir="${sdk.dist.javasrcdir}"/> -->
+    <mkdir dir="${sdk.dist.javadocdir}"/>
+    <mkdir dir="${sdk.dist.javaapidocdir}"/>
+	
+    <exec executable="perl"
+          dir="${client_c.srcdir}"
+          failonerror="yes"
+          outputproperty="builtOs">
+      <arg line="${get_os}"/>
+    </exec>
+  </target>
+
+
+  <!-- SDK ***************************************************************** -->
+  <target name="sdk" depends="sdk_prepare">
+    <mkdir dir="${sdk.dist.javaexamples.build}"/>
+
+
+    <!-- Build the java tools -->
+    <!-- javac classpathref="sdk.build.classpath"
+           destdir="${sdk.build.classdir}"
+           source="${javac.source}"
+           debug="${javac.debug}"
+           deprecation="${javac.deprecation}"
+           optimize="${javac.optimize}"
+           srcdir="${sdk.java.src}"
+           failonerror="yes"/ -->
+
+
+    <filter token="HoneycombProductName" value="5800 system"/>
+    <filter token="HoneycombFullProductName" value="Sun StorageTek 5800 System"/>
+    <filter token="SampleOID" value="0200004f75ee01094cc13e11dbbad000e08159832d000024d40200000000"/>
+<!--    <filter token="HoneycombProductName" value="StorageTek&lt;small&gt;[tm]&lt;/small&gt; 5800"/>-->
+<!--    <filter token="HoneycombProductName" value="Honeycomb"/>-->
+    <filter token="OID_HEX_LENGTH" value="60"/>
+    <filter token="OID_BYTE_LENGTH" value="30"/>
+    <filter token="OID_LENGTH" value="30"/>
+
+    <!-- Copy Javadocs for Java SDK -->
+    <copy todir="${sdk.dist.javadocdir}" filtering="true">
+      <fileset dir="${client.dist.docdir}">
+        <include name="**/*html"/>
+      </fileset>
+    </copy>
+    
+    <!-- Don't do substitutions on binary files -->
+    <copy todir="${sdk.dist.javadocdir}" filtering="false">
+      <fileset dir="${client.dist.docdir}">
+        <exclude name="**/*html"/>
+      </fileset>
+    </copy>
+
+    <!-- copy the LICENSE files -->
+    <copy file="${sdk.basedir}/LICENSE.txt" todir="${sdk.dist.basedir}" filtering="false"/>
+    <copy file="${sdk.basedir}/StorageTek_5800_SLA&amp;Entitlement&amp;PRN.txt" todir="${sdk.dist.basedir}"/>
+
+    <!-- copy the help file -->
+    <copy file="${sdk.java.src}/usage.txt" todir="${sdk.build.classdir}" filtering="true"/>
+
+    <copy todir="${sdk.dist.java}/scripts" filtering="true">
+      <fileset dir="${sdk.java.src}/scripts">
+	<exclude name="AddLegalHold.bat"/>
+	<exclude name="AddLegalHold.sh"/>
+	<exclude name="QueryLegalHold.bat"/>
+	<exclude name="QueryLegalHold.sh"/>
+	<exclude name="RemoveLegalHold.sh"/>
+	<exclude name="RemoveLegalHold.bat"/>
+	<exclude name="SetRetentionTime.bat"/>
+	<exclude name="SetRetentionTime.sh"/>
+	<exclude name="SetRetentionTimeRelative.bat"/>
+	<exclude name="SetRetentionTimeRelative.sh"/>
+      </fileset>
+    </copy>
+    <chmod dir="${sdk.dist.java}/scripts" perm="755"
+	includes="**/*.sh"/>
+
+    <copy todir="${sdk.dist.javaexamples}" filtering="true">
+      <fileset dir="${sdk.java.src.examples}">
+	<exclude name="AddLegalHold.java"/>
+	<exclude name="AddLegalHold.txt"/>
+	<exclude name="QueryLegalHold.java"/>
+	<exclude name="QueryLegalHold.txt"/>
+	<exclude name="RemoveLegalHold.java"/>
+	<exclude name="RemoveLegalHold.txt"/>
+	<exclude name="SetRetentionTime.java"/>
+	<exclude name="SetRetentionTime.txt"/>
+	<exclude name="SetRetentionTimeRelative.java"/>
+	<exclude name="SetRetentionTimeRelative.txt"/>
+      </fileset>
+    </copy>
+
+    <!-- copy the client lib. -->
+    <copy file="${client.dist.libdir}/${jarname.client}" 
+       todir="${sdk.dist.javalibdir}"/>
+
+    <!-- copy the emulator part of the distribution. --> 
+    <mkdir dir="${sdk.dist.emulator}"/>
+    <copy todir="${sdk.dist.emulator}" failonerror="false">
+      <fileset dir="${openedition.build.basedir}">
+        <exclude name="src/**"/>
+        <exclude name="dist/**"/>
+      </fileset>
+    </copy>
+    <!--
+    <copy todir="${sdk.dist.emulator}">
+      <fileset dir="${emulator.dist.basedir}">
+        <exclude name="logs/**"/>
+        <exclude name="var/**"/>
+	<exclude name="config/metadata_config.xml"/>
+	<exclude name="config/logger.cfg"/>
+	<exclude name="bin/create_multicell_config"/>
+	<exclude name="bin/start-multicell.sh"/>
+	<exclude name="bin/start-cli.sh"/>
+	<exclude name="lib/honeycomb-server.jar"/>
+	<exclude name="lib/honeycomb-mgmt.jar"/>
+	<exclude name="lib/honeycomb-adm.jar"/>
+      </fileset>
+    </copy> 
+    -->
+
+    <!-- set all xxx.sh and xxx.bat files back to executable permissions -->
+    <chmod perm="755">
+        <fileset dir="${sdk.dist.emulator}">
+	    <include name="**/*.sh"/>
+	    <include name="**/*.bat"/>
+	</fileset>
+    </chmod>
+    <chmod perm="755">
+        <fileset dir="${sdk.dist.javaexamples}">
+	    <include name="**/*.sh"/>
+	    <include name="**/*.bat"/>
+	</fileset>
+    </chmod>
+
+<!--    <copy file="${client.dist.libdir}/honeycomb-client.jar" todir="${sdk.dist.javaexamples.build}"/> -->
+
+    <!-- copy the C part of the distribution. -->
+
+    <!-- copy platform neutral C files -->
+    <mkdir dir="${sdk.dist.c.doc}"/> 
+    <copy todir="${sdk.dist.c.doc}" filtering="true">
+      <fileset dir="${sdk.docs.c}">
+        <exclude name="Non-blocking_C_API.html"/>
+	<exclude name="README"/>
+      </fileset>
+    </copy>
+
+    <copy file="${sdk.docs.c}/README" todir="${sdk.dist.c}"/>
+
+    <mkdir dir="${sdk.dist.c.include}"/>
+    <copy file="${client_c.honeycomb.common}/hc.h" todir="${sdk.dist.c.include}"/>
+    <copy file="${client_c.honeycomb.common}/hcclient.h" todir="${sdk.dist.c.include}"/>
+
+    <copy todir="${sdk.dist.c.examples}" filtering="true">
+      <fileset dir="${client_c.examples}"/>
+    </copy>
+
+    <!-- copy platform specific C files -->
+    <mkdir dir="${sdk.dist.c}/Linux"/>
+    <mkdir dir="${sdk.dist.c}/Linux/include"/>
+    <mkdir dir="${sdk.dist.c}/Win32"/>
+    <mkdir dir="${sdk.dist.c}/Win32/include"/>
+    <mkdir dir="${sdk.dist.c}/sol_9_sparc"/>
+    <mkdir dir="${sdk.dist.c}/sol_9_sparc/include"/>
+    <mkdir dir="${sdk.dist.c}/sol_10_sparc"/>
+    <mkdir dir="${sdk.dist.c}/sol_10_sparc/include"/>
+    <mkdir dir="${sdk.dist.c}/sol_10_x86"/>
+    <mkdir dir="${sdk.dist.c}/sol_10_x86/include"/>
+
+    <copy file="${client_c.honeycomb}/Win32/hchost.h" todir="${sdk.dist.c}/Win32/include"/>
+    <copy file="${client_c.honeycomb}/Linux/hchost.h" todir="${sdk.dist.c}/Linux/include"/>
+    <copy file="${client_c.honeycomb}/sol_9_sparc/hchost.h" todir="${sdk.dist.c}/sol_9_sparc/include"/>
+    <copy file="${client_c.honeycomb}/sol_10_sparc/hchost.h" todir="${sdk.dist.c}/sol_10_sparc/include"/>
+    <copy file="${client_c.honeycomb}/sol_10_x86/hchost.h" todir="${sdk.dist.c}/sol_10_x86/include"/>
+
+    <!-- copy distrubution docs. -->
+    <copy file="${sdk.docs}/SDK_Overview_README.html" todir="${sdk.dist.basedir}" filtering="true"/>
+    <copy file="${emulator.basedir.doc}/Emulator_Setup_and_Configuration.html" todir="${sdk.dist.emulator}" filtering="true"/>
+    <copy file="${sdk.docs}/Java_Example_README.html" todir="${sdk.dist.javadocdir}" filtering="true"/>
+
+    <copy file="${sdk.docs}/AdminGuide-820-4118-10.pdf" todir="${sdk.dist.doc}"
+          filtering="false"/>
+    <copy file="${sdk.docs}/APIGuide-820-4796-10.pdf" todir="${sdk.dist.doc}" 
+          filtering="false"/>
+    <copy file="${sdk.docs}/SDKGuide-820-4797-10.pdf" todir="${sdk.dist.doc}" 
+          filtering="false"/>
+
+    <copy file="${sdk.docs}/Schema_Metadata_Overview.html" todir="${sdk.dist.doc}" filtering="true"/>
+    <copy file="${sdk.docs}/Honeycomb_Utility_Applications.html" todir="${sdk.dist.doc}" filtering="true"/>
+    <copy file="${sdk.docs}/Query.html" todir="${sdk.dist.doc}" filtering="true"/>
+    <!-- copy file="${sdk.docs}/StorageTek_Client_API.html" todir="${sdk.dist.doc}" filtering="true"/-->
+
+    <!-- Put time stamp on the README file so that we can track when this SDK was built --> 
+    <tstamp>
+         <format property="buildtime" pattern="MM/dd/yyyy" locale="en"/>
+    </tstamp>
+    <echo file="${sdk.dist.basedir}/SDK_Overview_README.html" append="true" message="&lt;!-- SDK Distribution Date: ${buildtime} -->"/> 
+
+    <!-- Copy tests -->
+    <copy todir="${sdk.test.basedir}">
+      <fileset dir="${sdk.basedir}/test"/>
+    </copy>
+  </target>
+
+  <!-- build the sdk jar -->
+  <target name="compile_java_examples"
+	  depends="sdk"
+	  description="Build Java examples using the actual shipped build tool.">
+    <condition property="isWindows">
+          <os family="windows"/>
+    </condition>
+    <antcall target="compile_nonwindows_java_examples"/>
+    <antcall target="compile_windows_java_examples"/>
+  </target>
+
+  <target name="compile_nonwindows_java_examples" unless="isWindows">
+    <exec executable="${sdk.dist.javaexamples}/master_build.sh"
+          dir="${sdk.dist.javaexamples}"
+          failonerror="yes">
+    </exec>
+  </target>
+
+  <target name="compile_windows_java_examples" if="isWindows">
+    <exec executable="${sdk.dist.javaexamples}/master_build.bat"
+          dir="${sdk.dist.javaexamples}"
+          failonerror="yes">
+    </exec>
+  </target>
+
+
+  <!-- PKG ***************************************************************** -->
+  <target name="pkg"
+          depends="sdk,compile_java_examples,c_api_files,build_and_clean_c_examples"
+          description="build Solaris package">
+<!--
+    <exec executable="${pkgmk.bin}" failonerror="yes">
+      <arg line="-o -d ${sdk.build.pkgdir} -f ${sdk.pkgdefs}/prototype -r ${sdk.build.basedir}"/>
+    </exec>
+    <exec executable="${pkgtrans.bin}" failonerror="yes">
+      <arg line="-s ${sdk.build.pkgdir} ${sun.pkgname.sdk}.pkg ${sun.pkgname.sdk}"/>
+    </exec>
+-->
+      <!-- arg value="" does not work here for some reason -->
+
+  </target>
+
+  <!-- Build the examples to verify that they still build.  Then clean up the results -->
+  <target name="build_c_examples" 
+	  depends="sdk_prepare,sdk,c_api_files"
+	  description="Builds the SDK examples">
+    <exec executable="make"
+          dir="${sdk.dist.c.examples}"
+          failonerror="yes">
+    </exec>
+  </target>
+
+  <target name="build_and_clean_c_examples" 
+	  depends="build_c_examples"
+	  description="Deletes the build code from the C examples">
+    <delete includeEmptyDirs="true">
+     	  <fileset dir="${sdk.dist.c.examples}/${builtOs}"/>
+    </delete> 
+  </target>
+
+  <target name="c_api_files" depends="sdk_prepare" description="copy platform specific library files into the SDK">
+    <mkdir dir="${sdk.dist.c}"/> 
+    <mkdir dir="${sdk.dist.c}/${builtOs}"/>
+    <mkdir dir="${sdk.dist.c}/${builtOs}/lib"/>
+
+    <copy todir="${sdk.dist.c}/${builtOs}/lib">
+      <fileset dir="${client_c.builddir}/build_${builtOs}/honeycomb/dist"/>
+    </copy>
+
+    <copy todir="${sdk.dist.c}/${builtOs}/lib">
+      <fileset dir="${client_c.builddir}/build_${builtOs}/curl/dist/lib"/>
+    </copy>
+  </target>
+
+  <target name="prerelease" depends="pkg" description="Builds sdk with files specific to the pre-release version of the sdk">
+    <copy file="${sdk.docs}/prerelease/SDK_Overview_README.html" todir="${sdk.dist.basedir}" overwrite="true" filtering="true"/>
+
+    <!-- Put time stamp on the README file so that we can track when this SDK was built -->
+    <tstamp>
+         <format property="buildtime" pattern="MM/dd/yyyy" locale="en"/>
+    </tstamp>
+    <echo file="${sdk.dist.basedir}/SDK_Overview_README.html" append="true" message="&lt;!-- SDK Distribution Date: ${buildtime} -->"/>
+  </target>
+
+  <!-- ************************************************************** -->
+  <target name="build_pkg" depends="pkg"
+    description="compile sources and create the solaris package" />
+
+
+  <!-- CLEAN *************************************************************** -->
+  <target name="clean">
+    <delete dir="${sdk.dist.apidocdir}"/>
+    <delete dir="${sdk.dist.docdir}"/>
+    <delete dir="${sdk.dist.srcdir}"/>
+    <delete dir="${sdk.dist.libdir}"/>
+    <delete dir="${sdk.dist.basedir}"/>
+    <delete dir="${sdk.build.classdir}"/>
+    <delete dir="${sdk.build.basedir}"/>
+  </target>
+
+</project>

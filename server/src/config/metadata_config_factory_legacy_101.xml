@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+ $Id: metadata_config_factory_legacy_101.xml 10855 2007-05-19 02:54:08Z bberndt $
+
+  Legacy 1.0.1 Factory Config File
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+-->
+
+<metadataConfig>
+  
+  <schema>
+
+    <namespace name="system" writable="false" extensible="false">
+      <field name="object_id" type="string" length="56" />
+      <field name="object_ctime" type="long"  indexed="true"/>
+      <field name="object_layoutMapId" type="long" />
+      <field name="object_size" type="long"  indexed="true" />
+      <field name="object_hash" type="string" length="40" />
+      <field name="object_hash_alg" type="string" length="4" />
+      <namespace name="test">
+        <field name="type_long" type="long"  />
+        <field name="type_double" type="double"  />
+        <field name="type_string" type="string" length="512"  />
+      </namespace>
+    </namespace>
+
+    <namespace name="filesystem" writable="true" extensible="false">
+      <field name="uid" type="long" />
+      <field name="gid" type="long" />
+      <field name="mode" type="long" />
+      <field name="mtime" type="long" />
+      <field name="mimetype" type="string" length="256" />
+      <namespace name="ro" writable="false" extensible="false">
+      </namespace>
+    </namespace>
+
+  </schema>
+
+  <tables>
+    <table name="system">
+       <column name="system.object_ctime" />
+       <column name="system.object_layoutMapId" />
+       <column name="system.object_size" />
+       <column name="system.object_hash" />
+       <column name="system.object_hash_alg" />
+    </table>
+
+    <table name="filesystem">
+       <column name="filesystem.uid" />
+       <column name="filesystem.gid" />
+       <column name="filesystem.mode" />
+       <column name="filesystem.mtime" />
+       <column name="filesystem.mimetype" />
+   </table>
+  </tables>
+</metadataConfig>

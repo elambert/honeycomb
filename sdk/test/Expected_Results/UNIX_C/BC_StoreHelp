@@ -1,0 +1,25 @@
+NAME
+       StoreFile - store a file
+
+SYNOPSIS
+       StoreFile [OPTIONS] <IP | HOST> <FILE>
+
+       CLASSPATH must include apps.jar and honeycomb.jar
+
+DESCRIPTION
+       Store a file.  The OID of the file is printed to stdout.
+
+OPTIONS
+       -m "<name>=<value>"
+              Any number of --metadata options can be specified.  Each option
+              specifies a single (name,value) pair.
+
+       -f  FILE
+              Use metadata from a FILE that contains a list of <name>=<value> lines.
+
+       -h
+              print this message
+
+EXAMPLES
+       StoreFile honeycomb /var/log/messages
+       StoreFile 10.152.0.12 ~/journal

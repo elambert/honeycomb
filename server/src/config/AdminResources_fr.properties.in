@@ -1,0 +1,745 @@
+# AdminResources_fr.properties
+#
+# Contains all French resources used in the Honeycomb command-line and web
+# administrative interfaces.
+#
+# Copyright 2007-2008 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# $Id: AdminResources_fr.properties.in 11886 2008-03-05 00:02:03Z tt107269 $
+#
+###############################################################################
+
+###############################################################################
+# COMMON STRINGS
+###############################################################################
+
+common.missingString = String resource not available in this language.
+common.disabled = disabled
+common.node = node
+
+###############################################################################
+# ALERTS FOR CLI
+###############################################################################
+
+
+
+cli.alert.wipe = \
+Admin operation:: The disks and schema have been wiped successfully
+
+cli.alert.aboutToWipe = \
+Admin operation:: About to wipe disks and schema
+
+cli.alert.hwconfig = \
+Admin operation:: Successfully {0} {1} {2}
+
+cli.alert.shutdown = \
+Admin operation:: The cell is about to be shut down
+
+cli.alert.reboot = \
+Admin operation:: The cell is about to be rebooted
+
+cli.alert.password = \
+Admin operation:: The admin password has been changed
+
+cli.alert.preUpgrade = \
+Admin operation:: About to upgrade the cell
+
+cli.alert.postUpgrade = \
+Admin operation:: Cell upgrade succeeded
+
+cli.alert.clearSchema =\
+Admin operation:: The schema has been cleared
+
+cli.alert.newSchema =\
+Admin operation:: The schema has been updated
+
+
+###############################################################################
+# ALERT MAIL INFO
+###############################################################################
+
+# Store Block
+alertMail.Layout.storesBlocked=\
+Cell {0} is full and is not accepting store requests.
+
+alertMail.Layout.storesUnblocked=\
+Cell {0} is no longer full and is now accepting store requests.
+
+# DiskMonitor.java
+alertMail.diskMonitor.disk.capacity = \
+DISK-{1}:{0} is becoming full.
+
+alertMail.diskMonitor.disk.status = \
+DISK-{1}:{0} is now {2}.
+
+# Switch
+alertMail.switch.switchID = \
+Switch failover: Switch {0} is now the active switch.
+
+# Backup Switch Status
+alertMail.switch.backupSwitchStatus = \
+Backup Switch is now {0} 
+
+# Service Processor Status
+alertMail.spStatus = \
+Service node is now {0} 
+
+# Spreader/Platform IP configuration
+alertMail.dataVip = \
+The dataVIP has been changed to {0}
+
+alertMail.adminVip = \
+The adminVIP has been changed to {0}
+
+alertMail.gatewayIp = \
+The gateway IP has been changed to {0}
+
+alertMail.spIp = \
+The service processor IP has been changed to {0}
+
+# SMTP server configuration
+
+
+alertMail.smtpIp = \
+The SMTP IP has been changed to {0}
+
+alertMail.smtpPort = \
+The SMTP port has been changed to {0}
+
+# Network messages
+err.spreader.sendarp = \
+Gratuitous sendarp failed: {0}
+
+warn.StatusManager.update = \
+StatusManager.update failed
+
+# NTP Server online status
+alertMail.ntpServer.remoteStatus = \
+NTP Server {0}, is {1}
+
+# NTP Server running status
+alertMail.ntpServer.runningStatus = \
+NTP Server {0}, is {1}
+
+# NTP Server synced status
+alertMail.ntpServer.syncedStatus = \
+NTP Server {0}, is {1}
+
+# NTP Server trusted status
+alertMail.ntpServer.trustedStatus = \
+NTP Server {0}, is {1}
+
+# Master Node Compliance status
+alertMail.masterNode.complianceStatus = \
+CMM Master node, is {0}
+
+# Layout (not currently used)
+alert.layout.currentMap = \
+The current disk map has been changed to {0}
+
+# Node Manager
+alertMail.cmm.membership = \
+The NODE-{0} has {1} the cell.
+
+alertMail.cmm.curmembership = \
+Cell is booting or master failed over. \
+Current membership is {0}
+
+## Miscellaneous alert messages
+alertMail.lostQuorum = \
+Lost quorum
+
+alertMail.gainedQuorum = \
+Gained quorum
+
+
+alertMail.err.disk.disabled = \
+Failed to mount or initialize DISK-{1}:{0}, setting state to disabled.
+
+###############################################################################
+# External Log Info
+###############################################################################
+
+
+#
+# Contains external logging messages that will be forwarded to the loghost.
+#
+
+#
+# Switch
+#
+info.switch.failover = \
+Switch failover: Switch {0} is now the active switch.
+
+err.util.Switch.rebootfailed = \
+Switch reboot failed: {0}
+
+info.util.Switch.reboot = \
+Rebooting switches: {0}
+
+err.hwProfiles.Aquarius.bothintfactive = \
+Both interfaces {0} and {1} active?.
+
+#
+# DiskMonitor
+#
+info.disk.monitor.status =\
+Disk monitor : Disk status has changed: {0} {1} {2}
+
+info.disk.monitor.newdisk = \
+Disk monitor : A new disk has been added on node {0}
+
+warn.disk.monitor.rmdisk = \
+Disk monitor : DISK-{1}:{0} is not part of the cell any longer
+
+warn.disk.monitor.capacity = \
+Disk full : DISK-{1}-{0} is getting full
+
+warn.disk.monitor.initialize = \
+Disk monitor couldn't initialize {0} got exception : {1}
+
+info.disk.initialize.foreign = \
+Won't touch foreign disk: {0}
+
+info.disk.initialize.notMounted = \
+Disk {0} is being taken offline; won't be mounted
+
+warn.disk.initialize.mkfs = \
+Making a new filesystem on {0}
+
+err.disk.initialize.alldisks = \
+Couldn't initialize disks: {0}
+
+info.disk.label.newdisk = \
+New disk detected: {0}
+
+warn.disk.monitor.listener.sataattachdetach = \
+unexpected SATA device attach/detach: {0}
+
+err.disk.monitor.listener.kernerror = \
+Detected kernel error on disk  {0} {1}
+#
+# EMD Clients messages
+#
+err.emd.query.io = \
+IO error: Failed to run the query {0}
+
+warn.emd.query.io = \
+IO error: Failed to execute the query on node {0}
+
+warn.emd.selectUnique.io = \
+IO error: Failed to run selectUnique on node {0}
+
+err.emd.setMetadata.io = \
+IO error: Failed to set the Metdata on node {0}
+
+err.emd.setMetadata.cache = \
+Cache error: Failed to update some of the cache Metadata on node {0}
+
+err.emd.removeMetadata.io = \
+IO error: Failed to remove the Metadata on node {0}
+
+err.emd.removeMetadata.cache = \
+Cache error: Failed to remove some of the cache Metadata on node {0}
+
+
+#
+# OA Clients messages
+#
+err.oa.resource = \
+Resource error: Operation {0} cannot complete. \
+Too many disks have failed
+
+warn.oa.delete.completed = \
+Deletion completed : The deletion of object {0} has been completed on retrieve
+
+
+
+#
+# Coordinator messages
+#
+warn.coord.restore.wrcontext = \
+Restore Context : Failover occured correctly during a store
+
+
+
+
+#
+# Platform messages
+#
+info.platform.adminVip = \
+IP Change: The adminVIP has been changed to {0}
+
+info.platform.dataVip = \
+IP Change: The dataVIP has been changed to {0}
+
+info.platform.biosVersion = \
+Platform startup for node {0} running with BIOS version: {1}
+
+#
+# CM messages
+#
+err.cm.nodemgr.startup = \
+NodeManager error : Fail to start NodeMgr on node {0}
+
+
+
+warn.cm.heartbeat = \
+Heartbeat missed : Node {0} failed to send heartbeat
+
+info.cm.nodejoin = \
+Node join : NODE-{0} joined the cell
+
+warn.cm.nodeleft = \
+Node leave : NODE-{0} left the cell
+
+info.cm.membership = \
+Cell is booting or master failed over. \
+Current membership is {0}
+
+
+info.cm.services.startup = \
+Services initialization : ST5800 services have been started \
+successfully on NODE-{0}
+
+info.cm.services.shutdown = \
+Services shutdown : ST5800 services have been stopped \
+successfully on NODE-{0}
+
+info.cm.node.reboot = \
+Node reboot : NODE-{0} is rebooted
+
+err.cm.version.mismatch = \
+Version mismatch: Software version does not match config version. \
+NODE-{0} will be shut down.
+
+info.cm.node.shutdown = \
+Node shutdown: NODE-{0} is shut down
+
+#
+# DiskInitialize
+#
+err.disk.init = \
+Disk initialization : Failed to initialize DISK-{1}:{0}
+
+alertMail.err.disk.init = \
+Failed to mount or initialize DISK-{1}:{0}, setting state to disabled
+
+err.disk.mismatch = \
+Disk initialization : DISK-{1}:{0} is a foreign disk
+
+info.disk.init = \
+Disk initialization : Done with Initialization of all the disks on NODE-{0} 
+
+# Time Compliance
+info.date.compliance_date_str = compliant time
+info.date.nocompliance_date_str = non-compliant time 
+
+#
+# Client API
+#
+
+info.admin.adminApi.startMaintenance = \
+Entered maintenance mode
+
+info.admin.adminApi.stopMaintenance = \
+Stopped maintenance mode
+
+info.admin.adminApi.setDataVIP = \
+Client Api: Set DataVIP: {0}
+
+#
+# DataDoctor
+#
+warn.datadoctor.errors_in_cycle = \
+Healing Task {0} completed with {1} {1,choice,0#errors|1#error|1<errors}: This may indicate a potential serious problem and should be escalated to a Service Technician.
+
+# 
+# OAObjectSerializer
+#
+err.oa.bulk.skippedObject = \
+Backup has skipped an incomplete object {0}: This may indicate a potential serious problem and should be escalated to a Service Technician.
+
+#
+# NDMP Tape Disaster Protection messages
+#
+
+info.ndmp.idle = \
+No current media
+
+info.ndmp.connected = \
+Connected
+
+info.ndmp.halted = \
+Halted
+
+info.ndmp.backup = \
+Backup
+
+info.ndmp.restore = \
+Restore
+
+info.ndmp.accepted = \
+Accepted request
+
+info.ndmp.objectsBytesProcessed = \
+{0}: {1, number, integer} objects, {2, number, integer} bytes processed
+
+info.ndmp.backupRequest = \
+Backup requested from  {0,date} to {1,date}
+
+info.ndmp.backupStarted = \
+Backup writing to tape
+
+info.ndmp.backupFinished = \
+Backup finished. {0, number, integer} objects, {1, number, integer} bytes backed up
+
+info.ndmp.restoreRequest = \
+Restore requested
+
+info.ndmp.restoreStarted = \
+Restore reading tape
+
+info.ndmp.restoreFinished = \
+Restore finished. {0, number, integer} objects, {1, number, integer} bytes restored
+
+err.ndmp.error = \
+Request failed with error: {0}
+
+err.ndmp.backupError = \
+Backup failed with error: {0}
+
+err.ndmp.restoreError = \
+Restore failed with error: {0}
+
+err.ndmp.parseFields = \
+Unable to parse date from {0} environment variable: {1}. Expected date in form {2}
+
+err.ndmp.missingField = \
+Backup request missing required {0} environment variable
+
+#
+# Audit Logging Messages
+#
+# If add a message make sure add constant to AdminResourcesConstants.java
+#
+
+# Alert notification configuration
+info.adm.addToEmail = \
+Alert To Email address change requested by Session Id: {0}.  Add Values: {1}
+
+info.adm.delToEmail = \
+Alert To Email address change requested by Session Id: {0}.  Delete Values: {1}
+
+info.adm.setToEmail = \
+Alert To Email address change requested by Session Id: {0}.  New Value: {1}
+
+info.adm.setToEmailOld = \
+Alert To Email address modified by Session Id: {0}.  New Value: {1}
+
+info.adm.addCCEmail = \
+Alert CC Email address change requested by Session Id: {0}.  Add Values: {1}
+
+info.adm.delCCEmail = \
+Alert CC Email address change requested by Session Id: {0}.  Delete Values: {1}
+
+info.adm.setCCEmail = \
+Alert CC Email address change requested by Session Id: {0}.  New Value: {1}
+
+# Cell config properties
+info.adm.setAdminIP = \
+Administration IP address change requested by Session Id: {0} for Cell Id: {2} New Value: {1}
+
+info.adm.setDataIP = \
+Data IP address change requested by Session Id: {0} for Cell Id: {2}  New Value: {1}
+
+info.adm.setServiceNodeIP = \
+Service Node IP address change requested by Session Id: {0} for Cell Id: {2}  New Value: {1}
+
+info.adm.setSubnetIP = \
+Subnet IP address change requested by Session Id: {0} for Cell Id: {2}  New Value: {1}
+
+info.adm.setGatewayIP = \
+Gateway IP address change requested by Session Id: {0} for Cell Id: {2}  New Value: {1}
+
+info.adm.setSubnetMask =\
+Gateway Subnet Mask change requested by Session Id: {0} for Cell Id: {2} New Value: {1}
+
+info.adm.setupCellConfig =\
+Setup cell configuration  Session Id: {0} Cell Id: {1} Service Node IP: {2} Admin IP: {3} Data IP: {4} Gateway: {5}  Subnet Mask: {6}
+
+info.adm.setupCellHiveConfig =\
+Setup cell hive configuration Session Id: {0}  Cell Id: {1}  NTP Server: {2} SMTP Server: {3} SMTP Port: {4}  External Logger: {5}  Authorized Clients: {6}
+
+info.adm.setupCellDNSEnabled =\
+Setup cell DNS enabled Session Id: {0}  Cell Id: {1}  Domain Name: {2}  Primary Server: {3}  Seconary Server: {4}  DNS Search: {5}
+
+info.adm.setupCellDNSDisabled =\
+Setup cell DNS disabled Session Id: {0}  Cell Id: {1}  Domain Name: {2}  Primary Server: {3}  Seconary Server: {4}  DNS Search: {5}
+
+# Cell admin
+info.adm.startCellExpansion = \
+Cell expansion requested by Session Id: {0}
+
+info.adm.cancelCellExpansion = \
+Cancel cell expansion requested by Session Id: {0}
+
+# Silo Properties (Hive configuration)
+info.adm.setNTPServer =\
+NTP Server change requested by Session Id: {0}  New Value: {1}
+
+info.adm.setSMTPServer =\
+SMTP Server change requested by Session Id: {0}  New Value: {1}
+
+info.adm.setSMTPPort =\
+SMTP Port change requested by Session Id: {0} New Value: {1}
+
+info.adm.setDNSParamsOld =\
+Enabling DNS and setting Parameters.  Session Id: {0} Domain Name: {1}  Primary Server: {2}  Seconary Server: {3}  DNS Search: {4}
+
+info.adm.setDNSParams =\
+DNS Parameter change requested by Session Id: {0}  DNS Enabled: {1} Domain Name: {1}  Primary Server: {2}  Seconary Server: {3}  DNS Search: {4}
+
+info.adm.setDNS =\
+DNS Enabled change requested by Session Id: {0}. New Value: {1}
+
+info.adm.setPrimaryDNSServer =\
+DNS Primary Server change requested by Session Id: {0}. New Value: {1}
+
+info.adm.setSecondaryDNSServer =\
+DNS Secondary Server change requested by Session Id: {0}. New Value: {1}
+
+info.adm.setDNSSearchPath =\
+DNS Search Path change requested by Session Id: {0}. New Value: {1}
+
+info.adm.setDataClients =\
+Authorized Data Clients change requested by Session Id: {0}.  New Value: {1}
+
+info.adm.setExternalLogger =\
+External Logger change requested by Session Id: {0}. New Value: {1}
+
+info.adm.setDomainName =\
+Domain name change requested by Session Id: {0}.  New Value: {1}
+
+info.adm.setDNSSearch =\
+DNS Search list change requested by Session Id: {0}. New Value: {1}
+
+# Hive Administration
+info.adm.addCell =\
+Add new cell requested by Session Id:{0}  Admin IP: {1} Data IP: {2}
+
+info.adm.removeCell =\
+Remove cell operation requested by Session Id: {0}  Cell Id: {1}
+
+# Hardware Configuration
+info.adm.wipeCellDisks =\
+Wipe of disks requested by Session Id: {0}  Cell Id: {1}
+
+info.adm.powerOnNode =\
+Power on of node requested by Session Id: {0}  Node Id: {1}   Cell Id: {2}
+
+info.adm.powerOffNode =\
+Power off of node requested by Session Id: {0}  Node Id: {1}   Cell Id: {2}
+
+info.adm.powerOffNodeIpmi =\
+Power off of node requested using IPMI by Session Id: {0}  Node Id: {1}   Cell Id: {2}
+
+info.adm.enableDisk =\
+Enable disk requested by Session Id: {0}  Disk Id: {1}  Node Id: {2}
+
+info.adm.disableDisk =\
+Disable disk requested by Session Id: {0}  Disk Id: {1}  Node Id: {2}
+
+info.adm.onlineDisk =\
+Bringing disk online requested by Session Id: {0}  Disk Id: {1}  Node Id: {2}
+
+info.adm.offlineDisk =\
+Bringing disk offline requested by Session Id: {0}  Disk Id: {1}  Node Id: {2}
+
+info.adm.wipeDisk =\
+Wipe of disk requested by Session Id: {0}  Disk Id: {1}  Node Id: {2}
+
+# login in /out
+info.adm.login =\
+Admin login for Session Id: {0}
+
+info.adm.logout =\
+Admin logout for Session Id: {0}
+
+# Metatdata Changes
+info.adm.updateSchema =\
+Changes to schema requested by Session Id: {0}
+
+info.adm.retrySchemaUpdate =\
+Retrying previous schema modification requested by Session Id: {0}
+
+info.adm.wipeSchema = \
+Wipe of schema requested by Session Id: {0}
+
+# Data Doctor Configuration
+info.adm.DataDoc.setDefaults =\
+Setting Data Doctor configuration back to default values requested by Session Id: {0}
+
+info.adm.DataDoc.setOff =\
+Stopping Data Doctor requested by Session Id: {0}
+
+info.adm.DataDoc.setFullspeed =\
+Setting Data Doctor to run at fullspeed requested by Session Id: {0}
+
+info.adm.DataDoc.set =\
+Changing Data Doctor run configuration  requested by Session Id: {0}  New Value: {1}
+
+info.adm.DataDoc.setDupFrags =\
+Change to Data Doctor Remove Duplicate Fragments Cycle requested by Session Id: {0}   New Value: {1}
+
+info.adm.DataDoc.setTempFrags =\
+Change to Data Doctor Remove Temporary Fragments Cycle requested by Session Id: {0}   New Value: {1}
+
+info.adm.DataDoc.setPopSysCache =\
+Change to Data Doctor Populate System Cache Cycle requested by Session Id: {0}   New Value: {1}
+
+info.adm.DataDoc.setPopExtCache =\
+Change to Data Doctor Populate External Cache Cycle requested by Session Id: {0}   New Value: {1}
+
+info.adm.DataDoc.setRecoverLostFrags =\
+Change to Data Doctor Recover Lost Fragments Cycle requested by Session Id: {0}   New Value: {1}
+
+info.adm.DataDoc.setScanFrags =\
+Change to Data Doctor Scan Fragments Cycle requested by Session Id: {0}   New Value: {1}
+
+info.adm.DataDoc.setSloshFrags =\
+Change to Data Doctor Slosh Fragments Cycle requested by Session Id: {0}   New Value: {1}
+
+#DB Configuration
+info.adm.clearHadbFailure =\
+Clear HADB failure using restart requested by Session Id: {0}
+
+# Miscellaneous
+info.adm.setLicense = \
+Set new license id requested by Session Id: {0}
+
+info.adm.setLocale = \
+Set locale requested by Session Id: {0}  New Value: {1}
+
+info.adm.setPassword   =\
+Password change requested by Session Id: {0}
+
+info.adm.setProtocolPassword = \
+Protocol Password change requested by Session Id: {0} for Realm {1}  User: {2}
+
+info.adm.reboot   =\
+Reboot of nodes requested by Session Id: {0} on Cell Id: {1}
+
+info.adm.rebootSwitch   =\
+Reboot of nodes and switch requested by Session Id: {0} on Cell Id: {1}
+
+info.adm.rebootServiceProcessor   =\
+Reboot of nodes and service processor requested by Session Id: {0} on Cell Id: {1}
+
+info.adm.rebootAll   =\
+Reboot of nodes, switches and service processor requested by Session Id: {0} on Cell Id: {1}
+
+info.adm.rebootNode =\
+Reboot of node requested by Session Id: {0} on Cell Id: {1}  for Node Id: {2}
+
+info.adm.shutdown =\
+Shutdown requested by Session Id: {0} on Cell Id: {1}  
+
+info.adm.shutdown.ipmi =\
+Shutdown requested using IPMI by Session Id: {0} on Cell Id: {1}  
+
+info.adm.shutdownAll =\
+Shutdown all nodes and service processor requested by Session Id: {0} on Cell Id: {1} 
+
+info.adm.shutdownAll.ipmi =\
+Shutdown all nodes and service processor using IPMI requested by Session Id: {0} on Cell Id: {1} 
+
+info.adm.wipe =\
+Wipe of cluster requested by Session Id: {0} 
+
+info.adm.startUpgrade =\
+Upgrade of cluster requested by Session Id: {0} 
+
+info.adm.upgradeVersion =\
+Upgrading from version {0} to {1}
+
+info.adm.updateCellServiceTagData=\
+Service tag data for Cell Id: {1} modified by Session Id: {0}
+
+info.adm.refreshServiceTagRegistry=\
+Service tag registry refresh requested by Session Id: {0}
+
+info.adm.disableServiceRegistry=\
+Service tag registry generation disabled by Session Id: {0}
+
+info.adm.enableServiceRegistry=\
+Service tag registry generation enabled by Session Id: {0}
+
+# Hadb State machine.
+warn.hadb.hadbm.forceshutdown = \
+Forced shutdown -- exit without stopping HADB.
+
+err.hadb.hadbm.pathcorrupt = \
+SUNhadb path corrupt or missing
+
+warn.hadb.hadbm.convdb = \
+Couldn't convert database: {0}
+
+warn.hadb.hadbm.notup = \
+HADB is still not up: resetting and wiping it.
+
+err.hadb.hadbm.dbupgradefail = \
+Database upgrade failed!
+
+err.hadb.hadbm.upgradetimeout = \
+Database upgrade timed out.
+
+err.hadb.hadbm.timeoutexpire = \
+Timeout expired: couldn't start enough MA servers!
+
+err.hadb.hadbm.shutdownfail = \
+Failed to shutdown database.
+
+err.hadb.hadbm.domainfail = \
+Couldn't create domain; wipe and re-start.
+
+err.hadb.hadbm.hadbnonoperational = \
+HADB has been non-operational for {0}s; wiping HADB.
+
+err.hadb.hadbm.failedstop = \
+Failed to stop database!
+
+# Data doctor
+info.datadoctor.diskmask = \
+Detected Disk Mask change, was: {0} now: {1}
+
+# Cluster Management.
+warn.admin.mgmt.ClusterManagement.lostquorum = \
+NodeMgr detected loss of quorum.
+
+err.cm.node_mgr.ServiceMailbox.nodeaccess = \
+ClusterMgmt - cannot access node config.
+
+err.cm.node_mgr.NodeMgr.toomanyfailures = \
+ClusterMgmt - **** NODE HAS TOO MANY FAILURES ****.
+
+## Service Tag Info
+servicetag.productName =\
+Sun StorageTek 5800 System
+servicetag.productSoftwareName =\
+Sun StorageTek 5800 Software {0}
+# Where 0 is the product serial number and 1 is the marketing #
+servicetag.productInstanceID ={0} - {1}
+
+# This is the value we search for in the service tag registry
+# to determine whether there are ny Sun StorageTek 5800 records
+# in the database.   See ServiceTagsRegistry.getRegistryStatus()
+servicetag.searchKey=Sun StorageTek 5800
+
+servicetag.desc.594-4516-02=Sun StorageTek 5800 Dual-Cell (32 Nodes)
+servicetag.marketingNum.594-4516-02=XT-5832-20AMCBZ
+servicetag.desc.594-3521-03=Sun StorageTek 5800 Full Cell (16 Nodes)
+servicetag.marketingNum.594-3521-03=XT-5816-20AMCBZ
+servicetag.desc.594-3520-03=Sun StorageTek 5800 1/2 Cell (8 Nodes)
+servicetag.marketingNum.594-3520-03=XT-5808-20AMCBZ

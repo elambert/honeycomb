@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+    $Id: admgui.jnlp.template 10942 2007-05-31 21:58:35Z ad120940 $
+
+    Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+    Use is subject to license terms.
+-->
+
+<jnlp codebase="https://${host}:${port}/" href="admgui.jnlp">
+  <information>
+    <title>Sun StorageTek 5800</title>
+    <vendor>Sun Microsystems</vendor>
+    <homepage href="http://www.sun.com"/>
+    <description>Sun StorageTek 5800</description>
+  </information>
+
+  <security>
+    <all-permissions/>
+  </security>
+
+  <resources>
+    <j2se href="http://java.sun.com/products/autodl/j2se" version="1.4.2+" />
+
+    <jar href="st5800-admingui.jar"/>
+    <jar href="concurrent.jar"/>
+    <jar href="jh.jar" download="lazy"/>
+    <jar href="st5800-help.jar" download="lazy"/>
+    <jar href="xmlrpc-2.0.1.jar"/>
+    <jar href="commons-codec-1.3.jar"/>
+    <jar href="swing-layout-1.0.jar"/>
+
+    <property name="admingui.objectFactory" value="com.sun.honeycomb.admingui.present.ObjectFactory" />
+    <property name="admingui.host" value="${host}:${port}" />
+
+  </resources>
+
+  <application-desc main-class="com.sun.honeycomb.admingui.present.Main" />
+</jnlp>

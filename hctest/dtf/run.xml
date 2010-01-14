@@ -1,0 +1,252 @@
+<?xml version="1.0" ?>
+<project>
+	<taskdef resource="net/sf/antcontrib/antlib.xml">
+	  <classpath>
+	    <pathelement location="apache-ant-1.6.0/lib/ant-contrib-1.0b3.jar"/>
+	  </classpath>
+	</taskdef>
+	
+	<target name="init" description="initialize target">
+		<loadproperties srcfile="dtf.properties"/>
+		<path id="dtf.classpath">
+			<fileset dir="lib">
+				<include name="*.jar"/>
+			</fileset>
+		</path>
+		
+		<condition property="dtf.connect.addr" value="localhost">
+			<not>
+				<isset property="dtf.connect.addr"/>
+			</not>
+		</condition>
+		
+		<condition property="dtf.connect.port" value="20000">
+			<not>
+				<isset property="dtf.connect.port"/>
+			</not>
+		</condition>
+
+		<condition property="dtf.dtfa.ids" value="1,2,3">
+			<not>
+				<isset property="dtf.dtfa.ids"/>
+			</not>
+		</condition>
+	
+		<property name="dtf.properties.filename" value="dtf.properties"/>
+		<property name="dtf.connect.addr" value="${dtf.connect.addr}"/>
+		<property name="dtf.connect.port" value="${dtf.connect.port}"/>
+		
+		<propertyset id="dtf.default.propertyset">
+			<propertyref name="dtf.properties.filename"/>
+			
+			<propertyref name="dtf.connect.addr"/>
+			<propertyref name="dtf.connect.port"/>
+		</propertyset>
+		
+		<tstamp>
+	    	<format property="stamp" pattern="dd-MM-yyyy.HH.mm.ss"/>
+		</tstamp>
+		<property name="logdir" value="logs/${stamp}"/>
+		<echo>Creating log dir ${logdir}</echo>
+		<mkdir dir="${logdir}"/>
+	</target>
+
+	<target name="run_dtfa" depends="init" description="run dtfa target">
+		<condition property="dtfa.output" value="dtfa">
+			<not>
+				<isset property="dtfa.output"/>
+			</not>
+		</condition>
+		
+		<echo>Starting DTFA</echo>
+   	    <echo>logging to ${logdir}/${dtfa.output}.*.log</echo>
+		
+		<java classname="com.sun.dtf.DTFNode"
+			  fork="true"
+			  failonerror="true"
+			  output="${logdir}/${dtfa.output}.out.log"
+			  error="${logdir}/${dtfa.output}.err.log">
+			
+			<classpath refid="dtf.classpath"/>
+			<syspropertyset refid="dtf.default.propertyset"/>
+			<sysproperty key="dtf.node.type" value="dtfa"/>
+			
+			<jvmarg line="${dtf.jvm.arg}"/>
+			<syspropertyset>
+				<propertyref builtin="commandline"/>
+			</syspropertyset>
+		</java>
+	</target>
+
+	<target name="run_dtfx" depends="init" description="run target">
+		<java classname="com.sun.dtf.DTFNode"
+			  fork="true"
+			  failonerror="true">
+			<classpath refid="dtf.classpath"/>
+			<sysproperty key="dtf.node.type" value="dtfx"/>
+			<syspropertyset refid="dtf.default.propertyset"/>
+
+			<jvmarg line="${dtf.jvm.arg}"/>
+			<syspropertyset>
+				<propertyref builtin="commandline"/>
+			</syspropertyset>
+		</java>
+	</target>
+
+	<target name="run_dtfc" depends="init" description="run target">
+		<condition property="dtf.listen.port" value="20000">
+			<not>
+				<isset property="dtf.listen.port"/>
+			</not>
+		</condition>
+
+		<java classname="com.sun.dtf.DTFNode"
+			  fork="true"
+			  failonerror="true">
+			<classpath refid="dtf.classpath"/>
+			<syspropertyset refid="dtf.default.propertyset"/>
+			<sysproperty key="dtf.node.name" value="dtfc"/>
+			<sysproperty key="dtf.node.type" value="dtfc"/>
+			<sysproperty key="dtf.listen.port" value="${dtf.listen.port}" />
+			
+			<jvmarg line="${dtf.jvm.arg}"/>
+			<syspropertyset>
+				<propertyref builtin="commandline"/>
+			</syspropertyset>
+		</java>
+	</target>
+
+	<target name="run_components" depends="init">
+		<parallel>
+    		<sequential>
+    			<echo>Starting up dtfc</echo>
+    	   	    <echo>logging to ${logdir}/dtfc.*.log</echo>
+    			
+        		<condition property="dtf.listen.port" value="20000">
+        			<not>
+        				<isset property="dtf.listen.port"/>
+        			</not>
+        		</condition>
+        
+        		<java classname="com.sun.dtf.DTFNode"
+        			  fork="true"
+        			  failonerror="true"
+        			  output="${logdir}/dtfc.out.log"
+        			  error="${logdir}/dtfc.err.log">
+        			<classpath refid="dtf.classpath"/>
+        			<syspropertyset refid="dtf.default.propertyset"/>
+        			
+        			<sysproperty key="dtf.node.name" value="dtfc"/>
+        			<sysproperty key="dtf.node.type" value="dtfc"/>
+        			<sysproperty key="dtf.listen.port" value="${dtf.listen.port}" />
+        			
+        			<jvmarg line="${dtf.jvm.arg}"/>
+        		</java>
+    		</sequential>
+			<sequential>
+				<!-- 3 seconds seems enough time to startup the DTFC -->
+				<sleep seconds="3"/>
+				<parallel>
+					<for list="${dtf.dtfa.ids}"
+						 param="id"
+						 parallel="true">
+    					<sequential>
+    						<echo>Starting DTFA@{id}...</echo>
+			    	   	    <echo>logging to ${logdir}/dtfa-@{id}.*.log</echo>
+    						<java classname="com.sun.dtf.DTFNode"
+    							  fork="true"
+    							  failonerror="true"
+			        			  output="${logdir}/dtfa-@{id}.out.log"
+  				      			  error="${logdir}/dtfa-@{id}.err.log">
+    							<classpath refid="dtf.classpath"/>
+    							
+    							<syspropertyset refid="dtf.default.propertyset"/>
+    							<sysproperty key="dtf.node.type" value="dtfa"/>
+    							
+    							<jvmarg line="${dtf.jvm.arg}"/>
+    						</java>
+    					</sequential>
+					</for>
+				</parallel>
+			</sequential>
+		</parallel>
+	</target>
+	
+	<target name="stop_dtfc" depends="init">
+		<java classname="com.sun.dtf.DTFNode"
+			  fork="true"
+			  failonerror="true"
+			  output="${logdir}/shutdown_dtfc.out.log"
+			  error="${logdir}/shutdown_dtfc.err.log">
+			
+			<classpath refid="dtf.classpath"/>
+			<syspropertyset refid="dtf.default.propertyset"/>
+			
+			<sysproperty key="dtf.node.type" value="dtfx"/>
+			<sysproperty key="dtf.xml.filename" value="tests/ut/stopdtfc.xml"/>
+			
+			<jvmarg line="${dtf.jvm.arg}"/>
+		</java>
+	</target>
+			
+	<target name="run_ut"
+			depends="init"
+			description="run DTF unit tests.">
+		<parallel>
+		    <antcall target="run_components"/>
+    			
+			<trycatch>
+				<try>
+        			<sequential>
+                		<!-- XXX: temporary hack -->
+                		<sleep seconds="5"/>
+                		<ant antfile="build.xml"
+                			 target="run_dtfx"
+                		 	 output="${logdir}/dtfx.log">
+                			<property name="hc.cluster.type" 
+                                      value="${hc.cluster.type}"/>
+                			<property name="dtf.xml.filename"
+                                      value="tests/ut/ut.xml"/>
+                		</ant>
+            			
+        			</sequential>
+				</try>
+			<finally>
+				<echo>Shutting down background run_components task.</echo>
+				<antcall target="stop_dtfc"/>
+			</finally>
+		</trycatch>
+		</parallel>
+	</target>
+	
+	<target name="run_test"
+			depends="init"
+			description="run test against simple DTF setup.">
+		<parallel>
+		    <antcall target="run_components"/>
+        	
+			<trycatch>
+				<try>
+        			<sequential>
+                		<!-- XXX: temporary hack -->
+                		<sleep seconds="5"/>
+                		<ant antfile="build.xml"
+                			 target="run_dtfx"
+                		 	 output="${logdir}/dtfx.log">
+                			<property name="hc.cluster.type" 
+                                      value="${hc.cluster.type}"/>
+                		</ant>
+        			</sequential>
+    			</try>
+    			<finally>
+    				<echo>Shutting down background run_components task.</echo>
+    				<antcall target="stop_dtfc"/>
+    			</finally>
+    		</trycatch>
+		</parallel>
+	</target>
+
+	<target name="clean" depends="init" description="clean target">
+		<delete dir="${dtf.build.dir}" failonerror="false"/>
+	</target>
+</project>

@@ -1,0 +1,83 @@
+#
+# $Id: prototype 11556 2007-09-28 03:56:03Z elambert $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# This required package information file contains a list of package contents.
+# The 'pkgmk' command uses this file to identify the contents of a package
+# and their location on the development machine when building the package.
+# Can be created via a text editor or through use of the 'pkgproto' command.
+ 
+#!search <pathname pathname ...>        # where to find pkg objects
+#!include <filename>                    # include another 'prototype' file
+#!default <mode> <owner> <group>        # default used if not specified on entry
+#!<param>=<value>                       # puts parameter in pkg environment
+
+i pkginfo
+i postinstall
+
+d none /opt 0755 bin bin
+d none /opt/test 755 bin bin
+d none /opt/test/config 755 bin bin
+d none /opt/test/etc 755 bin bin
+d none /opt/test/etc/ssh 755 bin bin
+f none /opt/test/lib/honeycomb-wbsp.jar=lib/honeycomb-wbsp.jar 0644 bin bin
+f none /opt/test/lib/honeycomb-server.jar=lib/honeycomb-server.jar 0644 bin bin
+f none /opt/test/lib/honeycomb-common.jar=lib/honeycomb-common.jar 0644 bin bin
+f none /opt/test/lib/honeycomb-test.jar=lib/honeycomb-test.jar 0644 bin bin
+f none /opt/test/lib/jmx.jar=lib/jmx.jar 0644 bin bin
+f none /opt/test/lib/jmxremote.jar=lib/jmxremote.jar 0644 bin bin
+f none /opt/test/lib/jmxremote_optional.jar=lib/jmxremote_optional.jar 0644 bin bin
+f none /opt/test/lib/hadbmgt.jar=lib/hadbmgt.jar 0644 bin bin
+f none /opt/test/bin/cmm_disk_client=bin/cmm_disk_client 0555 bin bin
+f none /opt/test/bin/cmm_verifier=bin/cmm_verifier 0555 bin bin
+f none /opt/test/bin/dfck.sh=bin/dfck.sh 0555 bin bin
+f none /opt/test/bin/factoryClient.sh=bin/factoryClient.sh 0555 bin bin
+f none /opt/test/bin/cleanDisks.sh=bin/cleanDisks.sh 0555 bin bin
+f none /opt/test/bin/factoryQual.sh=bin/factoryQual.sh 0555 bin bin
+f none /opt/test/bin/start_cluster.sh=bin/start_cluster.sh 0555 bin bin
+f none /opt/test/bin/update_ramdisk=bin/update_ramdisk 0555 bin bin
+f none /opt/test/config/config_defaults.properties=cfg/config_defaults.properties 0555 bin bin 
+f none /opt/test/lib/ExternalLogs_en.properties=lib/AdminResources_en.properties 0544 bin bin 
+f none /opt/test/etc/ssh/id_dsa=etc/ssh/id_dsa 0600 root root
+f none /opt/test/etc/ssh/id_dsa.pub=etc/ssh/id_dsa.pub 0644 root root
+f none /opt/test/etc/ssh/authorized_keys=etc/ssh/authorized_keys 0644 root root
+f none /opt/test/bin/run_sucker.sh=bin/run_sucker.sh 0555 bin bin
+f none /opt/test/bin/analyze=bin/analyze 0555 bin bin
+f none /opt/test/bin/sucker=bin/sucker 0555 bin bin
+f none /opt/test/bin/snapshot.sh=bin/snapshot.sh 0555 bin bin
+f none /opt/test/bin/verify_snapshot.sh=bin/verify_snapshot.sh 0555 bin bin
+f none /opt/test/bin/runRebootTest.sh=bin/runRebootTest.sh 0555 bin bin
+f none /opt/test/bin/runhadbscenarios.sh=bin/runhadbscenarios.sh 0555 bin bin
+f none /opt/test/bin/find_oid.sh=bin/find_oid.sh 0555 bin bin
+f none /opt/test/bin/getHadbLogs.sh=bin/getHadbLogs.sh 0555 bin bin

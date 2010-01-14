@@ -1,0 +1,176 @@
+<!--
+ $Id: build.xml 3416 2005-01-31 21:59:58Z jr1520251 $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for honeycomb adm infrastructure
+--> 
+<project name="adm" default="adm_jar">
+  <description>
+    Honeycomb adm component. Building this project creates
+    adm.jar
+  </description>
+
+  <!-- first, local, user specified .ant.properties files take precedence -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <!-- second, use the build.properties for this package -->
+  <property file="build.properties"/>
+
+  <!-- lastly, use the top-level builds properties file -->
+  <property file="../build/build.properties"/>
+
+  <!-- reference environment variables as env.X -->
+  <!-- ie. ${env.USER} -->
+  <property environment="env"/>
+
+
+
+  <!-- INIT *************************************************************** -->
+  <target name="adm_init">
+    
+    <path id="adm.build.classpath">
+      <pathelement location="${common.dist.libdir}/${jarname.common}"/>
+      <pathelement location="${server.dist.libdir}/${jarname.server}"/>
+      <pathelement location="${mgmt.dist.libdir}/${jarname.mgmt}"/>
+      <pathelement location="${external.dist.libdir}/db-4.2.jar"/>
+      <pathelement location="${external.servicetags.libdir}/servicetags-api.jar"/>
+    </path>
+  </target>
+
+  <!-- PREPARE ************************************************************ -->
+
+  
+  <target name="adm_prepare" depends="adm_init">
+    <mkdir dir="${adm.build.basedir}"/>
+    <mkdir dir="${adm.build.classdir}"/>
+    <mkdir dir="${adm.build.pkgdir}"/>
+    <mkdir dir="${adm.build.native}"/>
+    <mkdir dir="${adm.dist.basedir}"/>
+    <mkdir dir="${adm.dist.libdir}"/>
+    <mkdir dir="${adm.dist.docdir}"/>
+    <mkdir dir="${adm.dist.sharedir}"/>
+  </target>
+
+
+
+  <!-- CONFIG ************************************************************* -->
+  <target name="config" depends="adm_prepare">
+    <ant antfile="build.xml" 
+         dir="${adm.config.srcdir}" 
+         target="adm_configs"/>
+  </target>
+
+  <!-- SERVICES ************************************************************ -->
+  <target name="services" if="compliantOS">
+    <copy todir="${adm.dist.svcdir}">
+      <fileset dir="${adm.services.srcdir}"/>
+    </copy>
+  </target>
+
+  <!-- COMPILE_JAVA ******************************************************* -->
+
+  <target name="adm_compile_java" depends="adm_prepare">
+
+    <javac classpathref="adm.build.classpath"
+           srcdir="${adm.java.srcdir}"
+           destdir="${adm.build.classdir}"
+           debug="${javac.debug}"
+           deprecation="${javac.deprecation}"
+           source="1.5"
+           optimize="${javac.optimize}"/>
+
+
+  </target>
+
+  <target name="properties" depends="adm_prepare">
+      <copy overwrite="yes" todir="${adm.build.classdir}">
+      <fileset dir="${server.dist.sharedir}">
+          <include name="AdminResources_*.properties"/>
+      </fileset>
+      </copy>
+  </target>
+  <!-- JAR *************************************************************** -->
+  <target name="adm_jar" depends="adm_compile_java,properties"
+          description="Build the adm only">
+    <jar jarfile="${adm.jar}">
+      <fileset dir="${adm.build.classdir}"/>
+<!-- may be wrong - check it -->
+      <zipfileset src="${common.dist.libdir}/${jarname.common}"/>
+<!-- may be wrong - end check -->
+    </jar>
+    <!-- moved this copy from former adm target  -->
+    <copy todir="${adm.dist.libdir}" file="${adm.jar}"/>
+  </target>
+
+  <!-- COMPILE_NATIVE ***************************************************** -->
+  <target name="compile_native">
+    <exec dir="${adm.srcdir}/native/editline" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="DIST=${adm.dist.basedir}"/>
+      <arg value="BUILDDIR=${adm.build.native}"/>
+      <arg value="LIBDIR=${adm.dist.libdir}"/>
+      <arg value="INCDIR=${adm.native.incdir}"/>
+      <arg value="INSTALLDIR=${adm.dist.libdir}"/>
+      <arg value="ADMJAR=${jarname.adm}"/>
+      <arg value="install"/>
+    </exec>
+  </target>
+
+
+
+
+
+
+  <!-- PKG **************************************************************** -->
+  <target name="pkg" depends="adm_jar, config, compile_native"
+          description="build the entire package">
+      <exec executable="${pkgmk.bin}" failonerror="yes">
+        <!-- arg value="" does not work here for some reason -->
+        <arg line="-o -d ${adm.build.pkgdir} -f ${adm.pkgdefs}/prototype -r ${adm.dist.basedir}"/>
+      </exec>
+
+      <exec executable="${pkgtrans.bin}" failonerror="yes">
+        <arg line="-s ${adm.build.pkgdir} ${sun.pkgname.adm}.pkg ${sun.pkgname.adm}"/>
+      </exec>
+  </target>
+
+  <!-- ************************************************************** -->
+  <target name="build_pkg" depends="pkg"
+    description="compile sources and create the solaris package" />
+
+  <!-- CLEAN ************************************************************** -->
+  <target name="clean" description="cleans workspace of all generated files">
+    <delete dir="${adm.build.basedir}"/>
+  </target>
+
+</project>

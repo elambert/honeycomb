@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="distribute">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF distribute performance test.</description>
+    </info>
+        
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+        
+        <loadproperties uri="storage://INPUT/test.properties"/>
+        
+        <property name="i" value="100000"/>
+        <property name="worker" value="10"/>
+    </local>
+    
+    <record type="txt" 
+            uri="storage://OUTPUT/perf.txt" 
+            append="false">
+    	<parallelloop property="agent" range="${agent.ids}">
+            <distribute property="iter" 
+                        iterations="${i}" 
+                        workers="${worker}">
+                <event name="dtf.echo"/>
+            </distribute>
+        </parallelloop>
+    </record>
+    
+    <query uri="storage://OUTPUT/perf.txt" 
+           type="txt" 
+           event="dtf.echo"
+           cursor="cursor"/>
+           
+    <record type="object" uri="property://dbperf"> 
+	    <stats cursor="cursor" event="stats"/>
+    </record> 
+    <local>
+   		<echo>
+              Events per second: ${dbperf.avg_occ}
+              Total of Events:   ${dbperf.tot_occ}
+              Total Duration:    ${dbperf.tot_dur}s
+        </echo> 
+    </local>
+
+</script>

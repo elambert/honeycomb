@@ -1,0 +1,14 @@
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+
+The StorageTek 5800 C API is supported on Windows, Redhat Linux, Solaris (sparc) and Solaris (x86). Included in the SDK are general header files, platform specific header files, platform specific C libraries and examples.
+
+HEADER FILES
+In order to build your own StorageTek 5800 C client application you will need to include three header files. Two of them (hc.h and hcclient.h) are platform independent and are located in the include directory. The third (hchost.h) is platform specific and is located in the <PLATFORM>/include directory.
+
+LIBRARY FILES
+You will need the C StorageTek 5800 client library files and the curl library files in order to run your client application. These are located in <PLATFORM>/lib. 
+
+EXAMPLES
+There are a number of commandline applications that show how to use the C API. These are located in the examples folder.

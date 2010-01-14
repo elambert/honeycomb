@@ -1,0 +1,77 @@
+/*
+ * Copyright © 2008, Sun Microsystems, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+
+import com.sun.honeycomb.delete.Constants;
+
+TIME = 1; // in minutes
+NB_LINKS = 12;
+count = 0;
+
+ECHO("Store object, add " + NB_LINKS + " MD objects to it, and check for BloomFilter collisions.");
+ECHO("Consider success after running in a loop for " + TIME + " minute(s) without failure.");
+
+long startTime = System.currentTimeMillis();
+
+while ((System.currentTimeMillis()-startTime)<TIME*60000) {
+
+//      ECHO("Store data object with MD link");
+      STORE(1);
+      DEREF(1, 0);
+      
+//      ECHO("Add more MD links");
+      for (i=2; i<NB_LINKS+1; i++) {
+          ADDM(1, i);
+      }
+
+      RETRIEVE(1, true);
+      RETRIEVE(0, true);
+      
+//      ECHO("Deleting all links");
+      for (i=1; i<NB_LINKS+1; i++) {
+          DELETE(i, true);
+      }
+      // LS(0);
+
+//      ECHO("Verify deleted status on disk");            
+      FRAGISDELETED(1, Constants.ALL_FRAGS, true);
+      FRAGISDELETED(0, Constants.ALL_FRAGS, true);    
+
+//      ECHO("Retrieve should fail");
+      RETRIEVE(1, false);
+      // Note: don't try a retrieve on data OID, it will succeed,
+      // because block cache doesn't get cleared from data blocks.
+      // RETRIEVE(0, false) is not a valid operation because
+      // a client doesn't know data OID and can't try retrieving it.
+
+      System.out.println("The test succeeded "+(++count)+" times");
+}

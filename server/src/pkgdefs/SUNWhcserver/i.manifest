@@ -1,0 +1,55 @@
+#!/bin/sh
+#
+# Copyright 2004 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+#ident	"@(#)i.manifest	1.5	04/12/09 SMI"
+#
+# i.manifest - smf(5) service manifest install class action script
+#
+
+repfile=$PKG_INSTALL_ROOT/etc/svc/repository.db
+export repfile
+
+#
+# If the repository does not yet exist, create it from the appropriate seed.  If
+# for some reason the seeds do not exist, svccfg(1M) will create the repository
+# automatically.
+#
+if [ ! -f $repfile ]; then
+	if [ -n "$SUNW_PKG_INSTALL_ZONENAME" -a \
+	    "$SUNW_PKG_INSTALL_ZONENAME" != "global" ]; then
+		[ -f $PKG_INSTALL_ROOT/lib/svc/seed/nonglobal.db ] && \
+		/usr/bin/cp $PKG_INSTALL_ROOT/lib/svc/seed/nonglobal.db \
+		    $repfile
+	else
+		[ -f $PKG_INSTALL_ROOT/lib/svc/seed/global.db ] && \
+		/usr/bin/cp $PKG_INSTALL_ROOT/lib/svc/seed/global.db \
+		    $repfile
+	fi
+	/usr/bin/chmod 0600 $repfile
+	/usr/bin/chown root:sys $repfile
+fi
+
+if [ ! -r $PKG_INSTALL_ROOT/etc/svc/volatile/repository_door ]; then
+	#
+	# smf(5) is not presently running for the destination environment.
+	# Since we presently cannot refresh without a running svc.startd(1M), we
+	# cannot consistently handle dependent placement.  Defer to next boot.
+	#
+	while read src dst; do
+		/usr/bin/cp -p $src $dst
+	done
+else
+	#
+	# Local package install.
+	#
+	while read src dst; do
+		/usr/bin/cp -p $src $dst
+
+		[ "$PKG_INSTALL_ROOT" = "" -o "$PKG_INSTALL_ROOT" = "/" ] && \
+		    SVCCFG_CHECKHASH=1 /usr/sbin/svccfg import $dst
+	done
+fi
+
+exit 0

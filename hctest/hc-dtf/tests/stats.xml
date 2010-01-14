@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="graph">
+	<info>
+		<author>
+			<name>Rodney Gomes</name>
+			<email>rodney.gomes@sun.com</email>
+		</author>
+		<description>Analyze the results of Honeycomb performance tests.</description>
+	</info>
+
+	<local>
+		<createstorage id="INPUT" path="${dtf.xml.path}/input" />
+		<createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+
+	    <loadproperties uri="storage://INPUT/hc.properties"/> 
+        
+        <property name="runid" value="notset"/>
+	</local>
+
+    <function name="calcStats">
+        <param name="operation.name" type="required"/>
+        <param name="operation.event" type="required"/>
+        <param name="operation.field" type="required"/>
+        <param name="operation.units" type="required"/>
+        
+        <param name="filesize" type="required"/>
+        <param name="client.stats.uri" type="required"/>
+       
+        <if>
+            <eq op1="${runid}" op2="notset"/>
+            <then>
+                <query uri="${client.stats.uri}"
+                       type="txt"
+                       event="${operation.event}"
+                       cursor="event_succeeded_cursor">
+                    <select>
+                        <field name="${operation.field}"/>
+                    </select>
+                    <where>
+                        <eq op1="succeeded" op2="true"/>
+                    </where>
+                </query> 
+                <query uri="${client.stats.uri}"
+                       type="txt"
+                       event="${operation.event}"
+                       cursor="event_failed_cursor">
+                    <select>
+                        <field name="${operation.field}"/>
+                    </select>
+                    <where>
+                        <and>
+                            <neq op1="succeeded" op2="true"/>
+                            <eq op1="runid" op2="${runid}"/>
+                        </and>
+                    </where>
+                </query> 
+            </then>
+            <else>
+                <query uri="${client.stats.uri}"
+                       type="txt"
+                       event="${operation.event}"
+                       cursor="event_succeeded_cursor">
+                    <select>
+                        <field name="${operation.field}"/>
+                    </select>
+                    <where>
+                        <and>
+                            <eq op1="succeeded" op2="true"/>
+                            <eq op1="runid" op2="${runid}"/>
+                        </and>
+                    </where>
+                </query>
+                <query uri="${client.stats.uri}"
+                       type="txt"
+                       event="${operation.event}"
+                       cursor="event_failed_cursor">
+                    <select>
+                        <field name="${operation.field}"/>
+                    </select>
+                    <where>
+                        <and>
+                            <neq op1="succeeded" op2="true"/>
+                            <eq op1="runid" op2="${runid}"/>
+                        </and>
+                    </where>
+                </query>  
+            </else>
+        </if>
+        
+        <record type="object" 
+                event="${operation.event}"
+                uri="property://result.failure">
+            <stats cursor="event_failed_cursor" event="${operation.event}" />
+        </record>
+        
+        <record type="object" 
+                event="${operation.event}"
+                uri="property://result.success">
+            <stats cursor="event_succeeded_cursor" event="${operation.event}" />
+        </record>
+        
+        <local>
+            <echo>
+            Performance stats for ${operation.name} of ${filesize} byte objects
+            ${result.success.tot_occ} succeeded ${operation.name}s
+            ${result.failure.tot_occ} failed ${operation.name}s
+            ${result.success.avg_occ} ops/s
+            ${result.success.${operation.field}.avg_val} ${operation.units}
+            Total Duration (s): ${result.success.tot_dur}</echo>
+        </local>
+    </function>
+
+    <if>
+        <eq op1="${hc.storewithmd}" op2="true"/>
+        <then>
+            <local>
+                <property name="delete.md.type" value="md"/>
+            </local>
+        </then>
+        <else>
+            <local>
+                <property name="delete.md.type" value="data"/>
+            </local>
+        </else>
+    </if>
+    
+    <if>
+        <eq op1="${hc.operation}" op2="delete"/>
+        <then>
+            <local>
+                <property name="stats.uri" 
+                          value="storage://OUTPUT/${hc.operation}_${delete.md.type}_perf_${hc.filesize}.txt"/>
+            </local>
+        </then>
+    </if>
+    
+    <if>
+        <eq op1="${hc.operation}" op2="query"/>
+        <then>
+         <local>
+                <property name="stats.uri" 
+                          value="storage://OUTPUT/${hc.operation}_${md.type}_perf.txt"/>
+            </local>
+        </then>
+    </if>
+    
+    <local>
+        <property name="stats.uri" 
+                  value="storage://OUTPUT/${hc.operation}_perf_${hc.filesize}.txt"/>
+    </local>
+    
+    <if>
+        <eq op1="${hc.operation}" op2="query"/>
+        <then>
+            <local>
+                <property name="field" value="results"/>
+                <property name="units" value="results/sec"/>
+            </local>
+        </then>
+    </if>
+    
+    <if>
+        <eq op1="${hc.operation}" op2="retrievemd"/>
+        <then>
+            <local>
+                <property name="field" value="fields"/>
+                <property name="units" value="fields/sec"/>
+            </local>
+        </then>
+    </if>
+    
+    <local>
+        <property name="field" value="size"/>
+        <property name="units" value="bytes/sec"/>
+    </local>
+    
+    <call function="calcStats">
+        <property name="operation.name"   value="${hc.operation}"/>
+        <property name="operation.event"  value="hc.${hc.operation}"/>
+        <property name="operation.field"  value="${field}"/>
+        <property name="operation.units"  value="${units}"/>
+        
+        <property name="filesize"         value="${hc.filesize}"/>
+        <property name="client.stats.uri" value="${stats.uri}"/>
+    </call>
+    
+</script>

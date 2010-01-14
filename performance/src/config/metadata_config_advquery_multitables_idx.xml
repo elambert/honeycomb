@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 
+
+  $Id:$
+
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+
+Use /opt/honeycomb/bin/metadata_merge_config.sh to add this config to
+the existing one -->
+
+<!-- This file contains the performance schema, used to pass the performance and
+blockstore suite tests. Merge accordingly before running those ! -->
+
+<metadataConfig>
+  <schema>
+
+    <namespace name="advquery_multitable_idx" writable="true" extensible="true">
+      <field name="test_start_timestamp" type="long" />
+      <field name="test_id" type="string" length="64" />
+      <field name="iteration" type="long" />
+      <field name="current_timestamp" type="long" />
+      <field name="client" type="string" length="64" />
+            
+      <field name="one" type="string" length="64" />
+      <field name="two" type="string" length="64" />
+      <field name="three" type="string" length="64" />
+      <field name="four" type="string" length="64" />
+      <field name="five" type="string" length="64" />
+      <field name="six" type="string" length="64" />
+      <field name="seven" type="string" length="64" />
+      <field name="eight" type="string" length="64" />
+      <field name="nine" type="string" length="64" />
+      <field name="ten" type="string" length="64" />
+      <field name="eleven" type="string" length="64" />
+      <field name="twelve" type="string" length="64" />
+      <field name="thirteen" type="string" length="64" />
+      <field name="fourteen" type="string" length="64" />
+      <field name="fifteen" type="string" length="64" />
+      <field name="sixteen" type="string" length="64" />
+      <field name="seventeen" type="string" length="64" />
+      <field name="eighteen" type="string" length="64" />
+      <field name="nineteen" type="string" length="64" />
+      <field name="twenty" type="string" length="64" />
+      <field name="twenty_one" type="string" length="64" />
+      <field name="twenty_two" type="string" length="64" />
+      <field name="twenty_three" type="string" length="64" />
+      <field name="twenty_four" type="string" length="64" />
+      <field name="twenty_five" type="string" length="64" />
+      
+    </namespace>
+  </schema>
+
+  <fsViews>
+
+    <fsView name="idxComplexQueryMulti" filename="${system.object_id}">
+      <attribute name="advquery_multitable_idx.one" />
+      <attribute name="advquery_multitable_idx.four"/>
+    </fsView>
+
+    <fsView name="idxComplex2QueryMulti" filename="${system.object_id}">
+      <attribute name="advquery_multitable_idx.seventeen"/>
+      <attribute name="advquery_multitable_idx.twenty_five"/>
+      <attribute name="advquery_multitable_idx.two"/>
+    </fsView>
+
+    <fsView name="idxComplex5QueryMulti" filename="${system.object_id}">
+      <attribute name="advquery_multitable_idx.one"/>
+      <attribute name="advquery_multitable_idx.two"/>
+      <attribute name="advquery_multitable_idx.three"/>
+      <attribute name="advquery_multitable_idxtwenty"/>
+      <attribute name="advquery_multitable_idx.fifteen"/>
+    </fsView>
+
+    <fsView name="idxComplex6QueryMulti" filename="${system.object_id}">
+      <attribute name="advquery_multitable_idx.one"/>
+      <attribute name="advquery_multitable_idx.four"/>
+      <attribute name="advquery_multitable_idx.two"/>
+      <attribute name="advquery_multitable_idx.five"/>
+      <attribute name="advquery_multitable_idx.six"/>
+      <attribute name="advquery_multitable_idx.three"/>
+      <attribute name="advquery_multitable_idx.twenty_five"/>
+    </fsView>
+  </fsViews>
+
+  <tables>
+      <table name="multi_advquery_one">
+          <column name="multi_advquery_multitable_idx.one"/>
+      </table>
+      <table name="multi_advquery_two">
+        <column name="advquery_multitable_idx.two"/>
+      </table>
+      <table name="multi_advquery_three">
+        <column name="advquery_multitable_idx.three"/>
+      </table>
+      <table name="multi_advquery_four">
+        <column name="advquery_multitable_idx.four"/>
+      </table>
+      <table name="multi_advquery_five">
+        <column name="advquery_multitable_idx.five"/>
+      </table>
+      <table name="multi_advquery_six">
+        <column name="advquery_multitable_idx.six"/>
+      </table>
+      <table name="multi_advquery_seven">
+        <column name="advquery_multitable_idx.seven"/>
+      </table>
+      <table name="multi_advquery_eight">
+        <column name="advquery_multitable_idx.eight"/>
+      </table>
+      <table name="multi_advquery_nine">
+        <column name="advquery_multitable_idx.nine"/>
+      </table>
+      <table name="multi_advquery_ten">
+        <column name="advquery_multitable_idx.ten"/>
+      </table>
+      <table name="multi_advquery_eleven">
+        <column name="advquery_multitable_idx.eleven"/>
+      </table>
+      <table name="multi_advquery_twelve">
+          <column name="advquery_multitable_idx.twelve"/>
+      </table>
+      <table name="multi_advquery_thirteen">
+        <column name="advquery_multitable_idx.thirteen"/>
+      </table>
+      <table name="multi_advquery_fourteen">
+        <column name="advquery_multitable_idx.fourteen"/>
+      </table>
+      <table name="multi_advquery_fifteen">
+        <column name="advquery_multitable_idx.fifteen"/>
+      </table>
+      <table name="multi_advquery_sixteen">
+        <column name="advquery_multitable_idx.sixteen"/>
+      </table>
+      <table name="multi_advquery_seventeen">
+        <column name="advquery_multitable_idx.seventeen"/>
+      </table>
+      <table name="multi_advquery_eighteen">
+        <column name="advquery_multitable_idx.eighteen"/>
+      </table>
+      <table name="multi_advquery_nineteen">
+        <column name="advquery_multitable_idx.nineteen"/>
+      </table>
+      <table name="multi_advquery_twenty">
+        <column name="advquery_multitable_idx.twenty"/>
+      </table>
+      <table name="multi_advquery_twenty_one">
+        <column name="advquery_multitable_idx.twenty_one"/>
+      </table>
+      <table name="multi_advquery_twenty_two">
+        <column name="advquery_multitable_idx.twenty_two"/>
+      </table>
+      <table name="multi_advquery_twenty_three">
+        <column name="advquery_multitable_idx.twenty_three"/>
+      </table>
+      <table name="multi_advquery_twenty_four">
+        <column name="advquery_multitable_idx.twenty_four"/>
+      </table>
+      <table name="multi_advquery_twenty_five">
+        <column name="advquery_multitable_idx.twenty_five"/>
+      </table>
+
+  </tables>
+
+</metadataConfig>

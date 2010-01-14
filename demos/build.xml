@@ -1,0 +1,125 @@
+<!--
+ $Id: build.xml 11627 2007-10-31 01:31:41Z ds158322 $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for honeycomb server component.
+--> 
+
+<project name="demos" default="photo-client">
+
+  <description>
+    Honeycomb demos component. Building this project results in the
+    Solaris packages
+  </description>
+
+  <!-- first, local, user specified .ant.properties files take precedence -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <!-- second, use the build.properties for this package -->
+  <property file="../demos/build.properties"/>
+  
+  <!-- lastly, use the top-level builds properties file -->
+  <property file="../build/build.properties"/>
+
+  <target name="prepare">
+    <tstamp/>
+    <mkdir dir="${demos.build.basedir}"/>
+    <mkdir dir="${demos.dist.basedir}"/>
+  </target>
+
+
+  <target name="photo-client" depends="prepare">
+    <ant dir="${basedir}/../demos/photo-client"
+      inheritAll="true"/>
+  </target>
+
+  <target name="media-upload" depends="prepare">
+    <ant dir="${basedir}/../demos/media-upload-app"
+      inheritAll="true"/>
+  </target>
+
+  <target name="mp3-upload" depends="prepare">
+    <ant dir="${basedir}/../demos/mp3-upload-app"
+      inheritAll="true"/>
+  </target>
+
+  <target name="client-fs" depends="prepare">
+    <ant dir="${basedir}/../demos/client-fs"
+      inheritAll="true"/>
+  </target>
+
+  <target name="all" depends="photo-client, mp3-upload, media-upload, client-fs"/>
+
+  <target name="mp3-upload-pkg" depends="prepare">
+    <ant dir="${basedir}/../demos/mp3-upload-app" target="pkg"
+      inheritAll="true"/>
+  </target>  
+
+
+  <target name="photo-client-pkg" depends="prepare">
+    <ant dir="${basedir}/../demos/photo-client" target="pkg"
+      inheritAll="true"/>
+  </target>
+
+  <target name="media-upload-pkg" depends="prepare">
+    <ant dir="${basedir}/../demos/media-upload-app" target="pkg"
+      inheritAll="true"/>
+  </target>
+
+  <target name="client-fs-pkg" depends="prepare">
+    <ant dir="${basedir}/../demos/client-fs"  target="pkg"
+      inheritAll="true"/>
+  </target>
+  
+  <target name="pkg" depends="photo-client-pkg, mp3-upload-pkg, media-upload-pkg, client-fs-pkg"/>
+
+  <target name="clean" depends="prepare">
+    <ant dir="${basedir}/../demos/client-fs"
+      target="clean"
+      inheritAll="true"/>
+    <ant dir="${basedir}/../demos/photo-client"
+      target="clean"
+      inheritAll="true"/>
+    <ant dir="${basedir}/../demos/mp3-upload-app"
+      target="clean"
+      inheritAll="true"/>
+    <ant dir="${basedir}/../demos/media-upload-app"
+      target="clean"
+      inheritAll="true"/>
+    <delete dir="${demos.dist.basedir}"/>
+    <delete dir="${demos.build.basedir}"/>
+  </target>
+
+</project>
+
+

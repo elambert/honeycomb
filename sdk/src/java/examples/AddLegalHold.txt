@@ -1,0 +1,18 @@
+
+NAME
+       AddLegalHold - add a legal hold to a previously stored object
+
+SYNOPSIS
+       java AddLegalHold <IP | HOST> <OID> <LEGAL_HOLD_STRING> [OPTIONS]
+
+DESCRIPTION
+       Add a legal hold to a stored object. LEGAL_HOLD_STRING describes
+       the legal hold to be placed against the object. Spaces can be included,
+       but the entire string must be placed within double or single quotes.
+
+OPTIONS
+       -h, --help
+              print this message
+
+EXAMPLES
+       java AddLegalHold server @SampleOID@ "Dogs vs. Cats" 

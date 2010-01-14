@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="util">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>Unit test utility functions.</description>
+    </info>
+   
+    <function name="checkRecordCount">
+    	<param name="recorder.location" type="required"/>
+    	<param name="recorder.type" type="required"/>
+    	<param name="record.count" type="required"/>
+    	<param name="event.name" type="required"/>
+    	
+        <query uri="${recorder.location}"
+               type="${recorder.type}" 
+               cursor="cursor1" 
+               event="${event.name}"/>
+               
+       	<try> 
+            <sequence>
+              	<nextresult cursor="cursor1"/>
+                <for property="i" range="1..1000">
+                	<nextresult cursor="cursor1"/>
+                </for>
+            </sequence>
+            <catch exception="${dtf.NoMoreResultsException}">
+       			<if>
+       				<neq op1="${i}" op2="${record.count}"/>
+       				<then>
+       					<local>
+       						<fail message="Did not just get back the expected ${record.count} elements, got ${i} elements."/>
+       					</local>
+       				</then>
+       				<else>
+       					<local>
+       						<echo>Counted ${record.count} elements correctly.</echo>
+       					</local>
+       				</else>	
+       			</if>	
+            </catch>
+        </try>
+    </function>
+    
+</script> 

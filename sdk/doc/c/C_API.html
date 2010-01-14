@@ -1,0 +1,957 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+  <head>
+<!--
+    Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+    Use is subject to license terms.
+-->
+    <title>C API</title>
+  </head>
+
+  <body>
+
+<h1>@HoneycombFullProductName@ Client C API</h1>
+A multi-platform, synchronous C API is provided,
+in which operations are accomplished in a few simple function
+calls. Multiple threads are supported, and operations block until they
+complete. A later release will provide a non-blocking C API.
+
+<p>
+
+    All functions in the @HoneycombProductName@ Client C API return an hc_err. Any
+    value other than HCERR_OK indicates failure. 
+<!-- In the case of the
+    Non-blocking functions, results using a handle after a result
+    other than HCERR_OK are not defined.
+-->
+
+
+<!--
+<h2>Changes Since Pre-Release</h2>
+Since earlier pre-release versions of this API, some of the important
+changes include:
+<ul>
+<li>The calling sequence of <code>hc_query_ez</code>,
+<code>hc_query_plus_ez</code> and <code>hc_unique_values_ez</code> has
+completely changed to have an explicit query result set.</li>
+<li>The calling sequence of the <code>read_from_data_source</code> and
+<code>write_to_data_destination</code> function callbacks have changed to
+abide by the @HoneycombProductName@ convention of returning an <code>hcerr_t</code>
+return value.
+</ul>
+-->
+
+<h2>Limitations</h2>
+This release of the @HoneycombProductName@ C API is subject to 
+the following limitations:
+<ul>
+
+<li>The only metadata types supported are long
+(<code>hc_long_t</code>), double (<code>hc_double_t</code>), and
+string (<code>hc_string_t</code>).
+Although parts of this document may refer to the byte
+<code>hc_byte_t</code> type, there is no internal support for this
+type.</li>
+
+<li>Changes to the metadata schema on the server are only detected by
+the client at the next call to <code>hc_session_create_ez</code>.</li>
+
+<li>The <code>hc_unique_values_ez</code> function has not been
+implemented and will return the error code
+<code>HCERR_NOT_IMPLEMENTED</code> as soon as it is invoked.</li>
+
+<li> The values returned by
+<code>hc_session_get_platform_result</code> will not be updated
+properly after calls to the functions <code>hc_retrieve_ez</code> and
+<code>hc_delete_ez</code>.</li> 
+</ul>
+
+<h2>Data Types</h2>    
+<p>
+
+
+<h4><a name="SystemRecord">System Record</a></h4>
+
+<code><pre>
+typedef struct hc_system_record_ {
+  hc_oid oid;
+  hc_digest_algo digest_algo;
+  hc_digest data_digest;
+  hc_long_t size;
+  hc_long_t creation_time;
+  hc_long_t deleted_time;
+  char shredMode;
+} hc_system_record_t;
+</pre></code>
+
+    All the @HoneycombProductName@ store operations return a System Record which
+    encapsulates information about the stored object. In particular,
+    the System Record contains the OID which can be used to retrieve
+    the stored Object data or Metadata.
+
+
+<h4>hc_type_t -- @HoneycombProductName@ Name-Value Metadata Type Specifier</h4>
+<code><pre>
+typedef enum hc_types_{
+  HC_UNKNOWN_TYPE = -1,
+  HC_STRING_TYPE,
+  HC_LONG_TYPE,
+  HC_DOUBLE_TYPE,
+  HC_BYTE_TYPE
+}
+hc_type_t;
+</pre></code>
+Specifies one of the @HoneycombProductName@ Metadata types that can go in the archive.
+    <p>
+<h4>hc_value_t --@HoneycombProductName@ Name-Value Metadata Data Value</h4>
+<code><pre>
+typedef struct hc_value_ {
+  hc_type_t     hcv_type;
+  union {
+    hc_string_t hcv_string;
+    hc_long_t   hcv_long;
+    hc_double_t hcv_double;
+    hc_byte_t   hcv_byte;
+  } hcv;
+} hc_value_t;
+</pre></code>
+This <i>tagged union</i> type can be used to hold a reference to any
+of the @HoneycombProductName@ data types.
+
+    <p>
+<h4>hc_schema_t -- @HoneycombProductName@ Name-Value Metadata Schema</h4>
+<code><pre>
+typedef void hc_schema_t;
+</pre></code>
+An opaque structure that holds the names and datatypes of each element in the archive's
+metadata schema. 
+
+    <p>
+<h4>hc_nvr_t -- @HoneycombProductName@ Name-Value-Record</h4>
+<code><pre>
+typedef void hc_nvr_t;
+</pre></code>
+Opaque structure to represent one metadata record. There is a count of
+metadata tuples, and parallel sets of names and of typed values for
+the tuples in this metadata record.
+
+    <p>
+<h4>hc_session_t -- Session from Thread to the @HoneycombProductName@</h4>
+<code><pre>
+typedef void hc_session_t;
+</pre></code>
+Opaque structure to represent the session from one thread to one @HoneycombProductName@. 
+It contains the schema used to interpret metadata store
+and and retrieve operations to this @HoneycombProductName@.
+
+<h2>Managing the @HoneycombProductName@ Sessions</h2>
+
+
+    A global session must be explicitly initialized and shut down. 
+    Memory allocators/deallocators are supplied in the initialization
+    function to control where memory allocation occurs. Most users
+    will supply the standard "malloc", "free", and "realloc" functions
+    for this functionality.
+
+<p>
+<b>Heap Memory Allocator</b>
+<code><pre>
+typedef void* (*allocator_t) (size_t size);
+</pre></code>
+
+<b>Heap Memory Deallocator</b>
+<code><pre>
+typedef void (*deallocator_t) (void* p);
+</pre></code>
+
+<b>Heap Memory Reallocator</b>
+<code><pre>
+typedef void (*reallocator_t) (void* p, size_t size);
+</pre></code>
+
+<h4>hc_init - Initialize A Global Session</h4>
+<code><pre>
+hcerr_t hc_init(allocator_t, deallocator_t, reallocator_t);
+</pre></code>
+This function must be called once per process to initialize the memory
+functions used in the @HoneycombProductName@ C client. It also initializes global
+session properties.
+
+<p>
+<h4>hc_cleanup - Terminate A Global Session</h4>
+<code><pre>
+void hc_cleanup();
+</pre></code>
+
+<h4>hc_session_create_ez</h4>
+<code><pre>
+hcerr_t hc_session_create_ez(char* host, int port, hc_session_t **sessionp)
+</pre></code>
+Must be called before calling any of the other methods in this API.
+It downloads a copy of the schema from this host. The schema is used
+to validate the name-value-type tuples that are added to metadata
+records.
+<ul>
+<li><code>host (in)</code>: name or IP address of the @HoneycombProductName@</li>
+<li><code>port (in)</code>: port number of the @HoneycombProductName@ (normally 8080)</li>
+<li><code>sessionp (out)</code>: updated to point to a session object</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_ILLEGAL_ARGUMENT</code>
+
+<p>
+<h4>hc_session_free</h4>
+<code><pre>
+hcerr_t hc_session_free(hc_session_t *session)
+</pre></code>
+Releases the session object.
+<ul>
+<li><code>session (in)</code>: the session object to free</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_NULL_SESSION, HCERR_INVALID_SESSION</code>
+
+<p>
+<h4>hc_session_get_status</h4>
+<code><pre>
+hcerr_t hc_session_get_status (hc_session_t *session, int32_t *response_codep,char **errstrp);
+</pre></code>
+Returns the HTTP response code and the error message string associated
+with the last request on this session.
+<ul>
+<li><code>session (in)</code>: the session object</li>
+<li><code>response_codep (out)</code>: updated to be HTTP response code</li>
+<li><code>errstr (out)</code>: updated to be error returned in response body if response code is not 200 (OK)</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_NULL_SESSION, HCERR_INVALID_SESSION</code>
+
+<p>
+<h4>hc_session_get_host</h4>
+<code><pre>
+hcerr_t hc_session_get_host (hc_session_t *session, char **hostp, int *portp);
+</pre></code>
+Returns the host name and port number associated with this session.
+<ul>
+<li><code>session (in)</code>: the session object</li>
+<li><code>hostp (out)</code>: updated to point to host name (readonly string)</li>
+<li><code>port (out)</code>: updated to be the port number </li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_NULL_SESSION, HCERR_INVALID_SESSION</code>
+
+<p>
+<h4>hc_session_get_schema</h4>
+<code><pre>
+hcerr_t hc_session_get_status (hc_session_t *session, hc_schema_t **schemap)
+</pre></code>
+Returns the current schema object associated with this session.
+<ul>
+<li><code>session (in)</code>: the session object</li>
+<li><code>schemap (out)</code>: updated to be the schema associated with the
+current session</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_NULL_SESSION, HCERR_INVALID_SESSION</code>
+
+<p>
+<h4>hc_session_get_platform_result</h4>
+<code><pre>
+hcerr_t hc_session_get_platform_result(hc_session_t *session, int32_t *connect_errnop, int32_t *platform_resultp);
+</pre></code>
+Returns low-level error codes associated with the current session
+<ul>
+<li><code>session (in)</code>: the session object</li>
+<li><code>connect_errnop (out)</code>: updated to be the OS's <b>errno</b>
+value associated with the last connect operation on the current
+session.</li>
+<li><code>platform_resultp (out)</code>: updated to be the error code
+reported by the underlying HTTP library (e.g. the Curl library)
+</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_NULL_SESSION, HCERR_INVALID_SESSION</code>
+<p>
+
+<h4>hc_session_get_archive</h4>
+<code><pre>
+hcerr_t hc_session_get_archive (hc_session_t *session, hc_archive_t **archivep);
+</pre></code>
+Returns the current "archive" object associated with this session. 
+NOTE: The archive object is not needed for the Synchronous C API but
+is made available for interfacing with the lower-level
+(non-documented) API.
+<ul>
+<li><code>session (in)</code>: the session object</li>
+<li><code>archivep (out)</code>: updated to be the archive object associated with the
+current session</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_NULL_SESSION, HCERR_INVALID_SESSION</code>
+<p>
+
+<h2>Manipulating the Metadata Schema</h2>
+
+When a session commences, the C API client downloads information about the
+metadata schema that is in use on the @HoneycombProductName@.
+
+<h4>hc_schema_get_type</h4>
+<code><pre>
+hcerr_t hc_schema_get_type(hc_schema_t *schema, char *name, hc_type_t* typep);
+</pre></code>
+Look up the type associated with a given name in the current metadata
+schema, or return an error if the name is not known.
+<ul>
+<li><code>schema (in)</code>: the schema to interrogate</li>
+<li><code>name (in)</code>: the attribute name to look up in the schema</li>
+<li><code>typep (out)</code>: updated to be the type associated with that
+name in the schema</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_SCHEMA, HCERR_ILLEGAL_ARGUMENT</code>
+
+<p>
+<h4>hc_schema_get_count</h4>
+<code><pre>
+hcerr_t hc_schema_get_count(hc_schema_t *hsp, hc_long_t *countp);
+</pre></code>
+Return the number of name-value pairs in the metadata schema.
+<ul>
+<li><code>schema (in)</code>: the schema to interrogate</li>
+<li><code>countp (out)</code>: Updated with the number of name/type pairs in
+the schema</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_SCHEMA</code>
+
+<p>
+<h4>hc_schema_get_type_at_index</h4>
+<code><pre>
+hcerr_t hc_schema_get_type_at_index(hc_schema_t *hsp, 
+                                    hc_long_t index,
+                                    char **namep, 
+                                    hc_type_t *typep);
+</pre></code>
+A simple way to iterate through the name-value pairs in a schema.
+<ul>
+<li><code>schema (in)</code>: the schema to interrogate</li>
+<li><code>index (in)</code>: Should range from 0 through 
+one less than the count returned
+in <code>hc_schema_get_count</code></li>
+<li><code>namep (out)</code>: updated to point to a string which is an
+attribute name of one attribute in the schema</li>
+<li><code>typep (out)</code>: updated to be the type associated with that
+name in the schema. If the server schema references a type that the
+client library does not support, then the type is returned as <code>HC_UNKNOWN_TYPE</code>.</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_SCHEMA, HCERR_ILLEGAL_ARGUMENT</code>
+
+<p>
+<h2>Manipulating Name-Value Records</h2>
+<h3>Overview</h3>
+To use the API for storing name-value records, you must
+<ul>
+<li>first call <code>hc_session_create_ez</code> to initialize the
+session and download the schema.</li>
+<li> create the metadata record with <code>hc_nvr_create</code></li>
+<li> fill the new metadata piece by piece with
+ <code>hc_nvr_add_metadata_TYPE</code> methods for each
+ @HoneycombProductName@ type.</li>
+<li> call either <code>hc_store_metadata_ez</code> or
+<code>hc_store_both_ez</code> to store the new metadata record
+<li>when done, free the metadata record by calling <code>hc_nvr_free</code>
+</ul>
+<p>
+Name value records are also returned as the result of queries that
+return metadata information, such as
+<code>hc_retrieve_metadata_ez</code>, <code>hc_query_plus_ez</code>,
+and <code>hc_unique_values_ez</code>. To use these name-value
+records, you must:
+<ul>
+<li>run the query to create an <code>hc_nvr_t</code> record, or in
+some cases a table of <code>hc_nvr_t</code> structures.
+<li>Use either name-based access (e.g. <code>hc_nvr_get_TYPE</code>)
+or index-based access (e.g. <code>hc_nvr_get_count</code> and
+<code>hc_nvr_get_value_at_index</code>).
+<li>The
+<code>hc_nvr_t</code> structure, just like one created by
+<code>hc_nvr_create</code>, can be freed by calling
+<code>hc_nvr_free</code>.
+</ul>
+Returns: <code> HCERR_OK, HCERR_NO_MORE_ATTRIBUTES, HCERR_ILLEGAL_ARGUMENT, HCERR_INVALID_NVR</code>
+
+    <p>
+<h3>Creating and Freeing Name-Value Records</h3>
+<h4>hc_nvr_create</h4>
+<code><pre>
+hcerr_t hc_nvr_create(hc_session_t *session, hc_long_t nslots, hc_nvr_t** nvrp)
+</pre></code>
+Create a name-value record with a designated initial size associated
+with a particular session. Metadata that is added to this name-value record
+must match the schema associated with the session.
+<ul>
+<li><code>session (in)</code>: the session with which this name-value
+record is associated</li>
+<li><code>nslots (in)</code>: number of slots for name-value-type tuples</li>
+<li><code>nvrp (out)</code>: updated with a pointer to a new name-value
+record of the designated size</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_ILLEGAL_ARGUMENT, HCERR_OOM</code>
+
+<p>
+<h4>hc_nvr_free</h4>
+<code><pre>
+hcerr_t hc_nvr_free(hc_nvr_t *nvr)
+</pre></code>
+Free a name-value record that was created by <code>hc_nvr_create</code>.
+<ul>
+<li><code>nvr (in)</code>: points to a name-value-record that should be
+freed.
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_NVR</code>
+<p>
+<h3>Building Name-Value Records</h3>
+<h4>hc_nvr_add_value</h4>
+<code><pre>
+hcerr_t hc_nvr_add_value(hc_nvr_t* nvr, char *name, hc_value_t value)
+</pre></code>
+Add a new metadata name-value-type tuple to a designated name-value
+record. The name-value record will automatically expand as needed.
+<ul>
+<li><code>nvr</code>: points to a name-value-record
+<li><code>name (in)</code>: name for the tuple
+<li><code>value (in)</code>: value for the tuple, in the type-tagged <code>hc_value_t</code> format
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_NVR, HCERR_ILLEGAL_ARGUMENT</code>
+
+<p>
+<h4>hc_nvr_add_metadata_long</h4>
+<code><pre>
+hcerr_t hc_nvr_add_long(hc_nvr_t* nvr, char *name, hc_long_t value)
+</pre></code>
+Add a new metadata name-value-type tuple to a designated name-value
+record, where type is known to be <code>hc_long_t</code>. The
+name-value record will automatically expand as needed.
+<ul>
+<li><code>nvr</code>: points to a name-value-record
+<li><code>name (in)</code>: name for the tuple
+<li><code>value (in)</code>: the <code>hc_long_t</code> value
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_NVR, HCERR_ILLEGAL_ARGUMENT</code>
+<p>
+
+<h4>hc_nvr_add_metadata_double</h4>
+<code><pre>
+hcerr_t hc_nvr_add_double(hc_nvr_t* nvr, char *name, hc_double_t value)
+</pre></code>
+Add a new metadata name-value-type tuple to a designated name-value
+record, where type is known to be <code>hc_double_t</code>. The
+name-value record will automatically expand as needed.
+<ul>
+<li><code>nvr</code>: points to a name-value-record
+<li><code>name (in)</code>: name for the tuple
+<li><code>value (in)</code>: the <code>hc_double_t</code> value
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_NVR, HCERR_ILLEGAL_ARGUMENT</code>
+
+<p>
+<h4>hc_nvr_add_metadata_string</h4>
+<code><pre>
+hcerr_t hc_nvr_add_string(hc_nvr_t* nvr, char *name, hc_string_t value)
+</pre></code>
+Add a new metadata name-value-type tuple to a designated name-value
+record, where type is known to be <code>hc_string_t</code>. The
+name-value record will automatically expand as needed. The string is
+copied into the structure.
+<ul>
+<li><code>nvr</code>: points to a name-value-record
+<li><code>name (in)</code>: name for the tuple
+<li><code>value (in)</code>: the <code>hc_string_t</code> value
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_NVR, HCERR_ILLEGAL_ARGUMENT</code>
+
+<p>
+<h4>hc_nvr_add_metadata_from_string</h4>
+<code><pre>
+hcerr_t hc_nvr_add_from_string(hc_nvr_t* nvr, char *name, char *value)
+</pre></code>
+Convenience method to add a new metadata name-value-type tuple to a
+designated name-value, where the value always starts out as a string.
+The correct metadata type for <code>name</code> is determined from the schema.
+The name-value record will automatically expand as needed. The string is
+copied into the structure.
+<ul>
+<li><code>nvr</code>: points to a name-value-record
+<li><code>name (in)</code>: name for the tuple
+<li><code>value (in)</code>: the string value to be added
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_NVR, HCERR_ILLEGAL_ARGUMENT</code>
+<p>
+<h3>Examining Name-Value Records</h3>
+
+<p>
+<h4>hc_nvr_get_count</h4>
+<code><pre>
+hcerr_t hc_nvr_get_count(hc_nvr_t *nvr, hc_long_t* retcount)
+</pre></code>
+Retrieve the number of metadata name/value tuples in this name-value record.
+<ul>
+<li><code>nvr (in)</code>: points to a name-value-record
+<li><code>retcount (out)</code>: updated to contain the count of name-value pairs.
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_NVR</code>
+
+<p>
+<h4>hc_nvr_get_value_at_index</h4>
+<code><pre>
+hcerr_t hc_nvr_get_value_at_index(hc_nvr_t *nvr, hc_long_t index, char **namep, hc_value_t *valuep)
+</pre></code>
+Iterate through the names and values in a name-value record. The
+returned names are readonly. Unpredictable results will occur if
+either the name or the value are referenced after hc_nvr_free or
+hc_nvr_convert_to_string_arrays is called on this name-value record.
+<ul>
+<li><code>nvr</code>: points to a name-value-record
+<li><code>index (in)</code>: the index to examine.
+<li><code>namep (out)</code>: updated to point to the attribute name at the specified index
+<li><code>valuep (out)</code>: updated with the hc_value_t type-tagged value at the specified index
+</ul>
+
+<p>
+<h4>hc_nvr_get_long</h4>
+<code><pre>
+hcerr_t hc_nvr_get_long(hc_nvr_t *nvr, char *name, hc_long_t* retlong)
+</pre></code>
+Retrieve the value (known to be of type hc_long_t) associated with an
+indicated attribute name in a name-value record. 
+<ul>
+<li><code>nvr</code>: points to a name-value-record
+<li><code>name (in)</code>: attribute name to look for
+<li><code>retlong (out)</code>: updated to contain the value (an hc_long_t value)
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_NVR,HCERR_ILLEGAL_VALUE_FOR_METADATA, HCERR_ILLEGAL_ARGUMENT</code>
+
+<p>
+<h4>hc_nvr_get_double</h4>
+<code><pre>
+hcerr_t hc_nvr_get_double(hc_nvr_t *nvr, char *name, hc_double_t* retdouble)
+</pre></code>
+Retrieve the value (known to be of type hc_double_t) associated with an
+indicated attribute name in a name-value record. 
+<ul>
+<li><code>nvr</code>: points to a name-value-record
+<li><code>name (in)</code>: attribute name to look for
+<li><code>retdouble(out)</code>: updated to contain the value (an hc_double_t value)
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_NVR, HCERR_ILLEGAL_VALUE_FOR_METADATA, HCERR_ILLEGAL_ARGUMENT</code>
+
+<p>
+<h4>hc_nvr_get_string</h4>
+<code><pre>
+hcerr_t hc_nvr_get_string(hc_nvr_t *nvr, char *name, hc_string_t* retstring)
+</pre></code>
+Retrieve the value (known to be of type hc_string_t) associated with an
+indicated attribute name in a name-value record. 
+<ul>
+<li><code>nvr</code>: points to a name-value-record
+<li><code>name (in)</code>: attribute name to look for
+<li><code>retstring (out)</code>: updated to contain the value (an hc_string_t value)
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_NVR, HCERR_ILLEGAL_VALUE_FOR_METADATA, HCERR_ILLEGAL_ARGUMENT</code>
+<p>
+
+<h3>Name-Value Records to and from String Arrays</h3>
+<p>
+<h4>hc_nvr_create_from_string_arrays</h4>
+<code><pre>
+hcerr_t hc_nvr_create_from_string_arrays(hc_session_t *session, hc_nvr_t** nvrp, char **names, char **values, hc_long_t nitems)
+</pre></code>
+Convenience method to create a name-value-record from parallel tables
+of string names and string values. The correct metadata type for each
+<code>name</code> is derived from the schema associated with
+this session. The name-value record will automatically expand as
+needed. The names and data values are copied into the
+<code>hc_nvr_t</code> structure, so the original <code>names</code>
+table and <code>values</code> table are left unchanged. 
+<ul>
+<li><code>session (in)</code>: the session with which this name-value
+record is associated</li>
+<li><code>nvrp (out)</code>: updated to point to a name-value-record
+<li><code>names (in)</code>: points to an array of string names
+<li><code>values (in)</code>: points to an array of string values
+<li><code>nitems (in)</code>: number of active elements in the paired arrays
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_NULL_SESSION, HCERR_INVALID_SESSION, HCERR_ILLEGAL_ARGUMENT</code>
+
+<p>
+<h4>hc_nvr_convert_to_string_arrays</h4>
+<code><pre>
+hcerr_t hc_nvr_convert_to_string_arrays(hc_nvr_t* nvr, char ***namesp, char ***valuesp, int *nitemsp)
+</pre></code>
+Convenience method to convert a name-value-record into parallel tables
+of string names and string values. This destructively modifies the
+name-value record and frees it, so do not call
+<code>hc_nvr_free</code> after calling this method.
+<p>
+When done, each string in the names and values tables should be freed
+with the designated deallocator (e.g. <code>free</code>), as well as
+the <code>names</code> and <code>values</code> tables themselves.
+<ul>
+<li><code>nvr (in)</code>: The name-value-record
+<li><code>namesp (out)</code>: updated to point to an array of string names
+<li><code>valuesp (out)</code>: updated to point to an array of string values
+<li><code>nitemsp (out)</code>: updated to the number of active elements in the paired arrays
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_NVR, HCERR_ILLEGAL_ARGUMENT</code>
+
+<p>
+<h2>Storing Data and Metadata</h2>
+    <h4>hc_store_both_ez</h4>
+<code><pre>
+hcerr_t hc_store_both_ez (hc_session_t *session,
+                          read_from_data_source data_source_reader,
+                          void *cookie,
+                          hc_nvr_t *nvr,
+                          hc_system_record_t *system_record)
+</pre></code>
+Store Object data and Metadata. Return a <a href="C_API.html#SystemRecord">system_record</a> descriptor.
+The status from this operation can be reclaimed via <code>hc_session_get_status</code>.
+<br>
+<ul>
+<li><code>session (in)</code>: the session for the host and port to talk to</li>
+<li><code>data_source_reader (in)</code>: function callback for source of data to be stored</li>
+<li><code>cookie (in)</code>: opaque data structure (cookie) to be provided to <code>data_source_reader</code></li>
+<li><code>nvr (in)</code>: pointer to name-value record with the metadata</li>
+<li><code>system_record (out)</code>: returned descriptor of stored metadata record</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_NULL_SESSION, HCERR_INVALID_SESSION, HCERR_INVALID_NVR, HCERR_ILLEGAL_ARGUMENT, HCERR_NO_SUCH_TYPE</code>
+
+    <p>
+<h4>read_from_data_source Function Type</h4>
+<code><pre>
+typedef long (*read_from_data_source) (void* cookie, char* buf, long buf_size);
+</pre></code>
+
+    Function pointers of <code>read_from_data_source</code> type are used to upload
+    object data. The function pointer and opaque cookie reference
+    (cookie) are supplied as arguments to
+    <code>hc_store_both_ez</code> and other functions that store
+    object data. The data source reader 
+    function will be called repeatedly, with the supplied cookie as an
+    argument, to gather the object data to upload into storage.
+    <p>
+
+    A <code>read_from_data_source</code> function should read up to
+    <code>buf_size</code> bytes from the data source indicated by
+    <code>cookie</code> into the buffer at location <code>buff</code>
+    and return the actual number of bytes read as the return value
+    from the function.
+    <p>
+    There are two special return codes. 
+    <ul>
+    <li>A return value of <code>0</code> indicates the end of file
+    condition. The data should be committed to the data store.</li>
+    <li>A return value of -1 indicates a desire to cancel the store. The
+	store operation should be aborted with an error code of
+	<code>HCERR_ABORTED_BY_CALLBACK</code>.
+    </ul>
+<p>
+<ul>
+<li><code>cookie</code>: opaque data structure (cookie) to identify
+this data cookie</li>
+<li><code>buf</code>: where to store the data</li>
+<li><code>buf_size</code>: number of available bytes of space in
+<code>buf</code></li>
+</ul>
+
+<p>
+<h4>hc_store_metadata_ez</h4>
+<code><pre>
+hcerr_t hc_store_metadata_ez(hc_session_t *session,
+                             hc_oid *oid,
+                             hc_nvr_t *nvr,
+                             hc_system_record_t *system_record);
+</pre></code>
+Add metadata record for specified OID. Return a <a href="C_API.html#SystemRecord">system_record</a>.
+<br>
+
+<ul>
+<li><code>session (in)</code>: the session for the host and port to talk to</li>
+<li><code>oid (in)</code>: identifier of Object Data to attach metadata record to</li>
+<li><code>nvr (in)</code>: pointer to name-value record with the metadata</li>
+<li><code>system_record (out)</code>: returned descriptor of stored metadata record</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_NULL_SESSION, HCERR_INVALID_SESSION, HCERR_INVALID_NVR, HCERR_INVALID_OID, HCERR_ILLEGAL_ARGUMENT</code>
+<h2>Deleting a Metadata Record</h2>
+<code><pre>
+hcerr_t hc_delete_ez(hc_session_t *session,
+                     hc_oid* oid);
+</pre></code>
+Deletes the metadata record for specified OID. When the last metadata record
+assciated with a Data Object is deleted, the underlying Data Object is also deleted.
+See <a href="../../doc/StorageTek_Client_API.html#Delete Semantics">Delete Semantics</a>.
+<br>
+<ul>
+<li><code>session (in)</code>: the session for the host and port to talk to</li>
+<li><code>oid (in)</code>: identifier of metadata record to be deleted</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_NULL_SESSION, HCERR_INVALID_SESSION, HCERR_INVALID_OID</code>
+<p>
+
+<h2>Retrieving Data</h2>
+
+<h4>hc_retrieve_ez</h4>
+<code><pre>
+hcerr_t hc_retrieve_ez(hc_session_t *session,
+                       write_to_data_destination data_writer, 
+                       void *cookie,
+                       hc_oid* oid);
+</pre></code>
+Retrieve data for specified OID.
+<ul>
+<li><code>session (in)</code>: the session for the host and port to talk to</li>
+<li><code>data_writer (in)</code>: function callback to store the retrieved data locally</li>
+<li><code>cookie (in)</code>: opaque data delivered to the
+          <code>data_writer</code> callback to identify this data cookie</li>
+<li><code>oid (in)</code>: identifier of metadata record to retrieve</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_NULL_SESSION, HCERR_INVALID_SESSION, HCERR_INVALID_OID</code>
+<p>
+
+<h4>hc_range_retrieve_ez</h4>
+<code><pre>
+hcerr_t hc_range_retrieve_ez(hc_session_t *session,
+                             write_to_data_destination data_writer, 
+                             void *cookie,
+                             hc_oid* oid,
+                             hc_long_t firstbyte, 
+                             hc_long_t lastbyte);
+
+</pre></code>
+Retrieve a specified range of data for a specified OID.
+<ul>
+<li><code>session (in)</code>: the session for the host and port to talk to</li>
+<li><code>data_writer (in)</code>: function callback to store the retrieved data locally</li>
+<li><code>cookie (in)</code>: opaque data delivered to the
+          <code>data_writer</code> callback to identify this data cookie</li>
+<li><code>oid (in)</code>: identifier of metadata record to retrieve</li>
+<li><code>firstbyte (in)</code>: First byte of data range to retieve</li>
+<li><code>lastbyte (in)</code>: Last byte of data range to retieve</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_NULL_SESSION, HCERR_INVALID_SESSION, HCERR_INVALID_OID, HCERR_ILLEGAL_ARGUMENT</code>
+<p>
+
+<h4>write_to_data_destination Function Type</h4>
+<code><pre>
+typedef long (*write_to_data_destination) (void *cookie, char *buff, long buff_len);
+</pre></code>
+
+    Function pointers of <code>write_to_data_destination</code> type
+    are used to download object data. The function pointer and opaque
+    cookie reference are supplied as arguments to
+    <code>hc_retrieve_ez</code>, and the function will be called with
+    the supplied cookie argument to deliver the downloaded data to a
+    local data storage function.
+    <p>
+
+    A <code>write_to_data_destination</code> function should write exactly
+    <code>buff_len</code> bytes to the data destination indicated by
+    <code>cookie</code>, reading the bytes from buffer at location <code>buff</code>.
+    It should return an <code>long</code> value indicating
+    the number of bytes actually processed. A return code that
+    differs from <code>buff_len</code> indicates that the transfer should be terminated.
+<ul>
+<li><code>cookie</code>: opaque data structure (cookie) to identify
+this data cookie</li>
+<li><code>buff</code>: where to copy the data from</li>
+<li><code>buff_len</code>: number of available bytes in
+<code>buff</code></li>
+</ul>
+<p>
+
+<p>
+<h2>Retrieving Metadata</h2>
+<h4>hc_retrieve_metadata_ez</h4>
+<code><pre>
+hcerr_t hc_retrieve_metadata_ez (hc_session_t *session,
+                                 hc_oid *oid, 
+                                 hv_nvr_t **nvrp);
+                                 
+</pre></code>
+
+Retrieve metadata record for specified OID. When finished, call
+<code>hc_nvr_free</code> to free the name-value-record.
+<br>
+
+<ul>
+<li><code>session (in)</code>: the session for the host and port to talk to</li>
+<li><code>oid (in)</code>: identifier of metadata record to retrieve</li>
+<li><code>nvrp (out)</code>: updated with a pointer to a dynamically
+allocated name-value record with the metadata</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_NULL_SESSION, HCERR_INVALID_SESSION, HCERR_INVALID_OID</code>
+<p>
+
+<h2>Querying the Metadata</h2>
+<h4>Query -- Query for OIDs</h4>
+<h4>hc_query_ez</h4>
+<code><pre>
+typedef void hc_query_result_set_t;  /* QueryResultSet */
+
+hcerr_t hc_query_ez (hc_session_t *session,
+                     char* query_string
+		     hc_query_result_set_t **rsetp);
+</pre></code>
+
+Set up to retrieve OIDs for metadata records matching a query.
+See <a href="../../doc/Query.html">Query</a> for a description of the query string.
+<br>
+
+<ul>
+<li><code>session (in)</code>: the session for the host and port to talk to</li>
+<li><code>query_string (in)</code>: query (where clause)</li>
+<li><code>rsetp (out)</code>: updated to point to the new query result set</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_NULL_SESSION, HCERR_INVALID_SESSION, HCERR_ILLEGAL_ARGUMENT</code>
+<p>
+
+<h4>hc_qrs_next_ez</h4>
+<code><pre>
+hcerr_t hc_qrs_next_ez(hc_query_result_set_t *rset, hc_oid *oid, int *finishedp);
+</pre></code>
+Fetch one OID from the QueryResultSet. Sets the int pointed to by
+<code>finishedp</code> to <code>1</code> when all of the query results
+have been reported.
+<ul>
+<li><code>rset (in)</code>: Current Result Set</li>
+<li><code>oid (out)</code>: points to an OID that is updated to the OID of a
+record matching the query, assuming <code>finished</code> is <code>0</code>.</li> 
+<li><code>finishedp (out)</code>: points to an int that is updated to 0 if
+there is more query data and to 1 if the QueryResultset is empty.</li> 
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_RESULT_SET, HCERR_ILLEGAL_ARGUMENT</code>
+
+<p>
+<h4>hc_qrs_free</h4>
+<code><pre>
+hcerr_t hc_qrs_free(hc_query_result_set_t *rsetp);
+</pre></code>
+Release the resources associated with this QueryResultSet.
+<ul>
+<li><code>rset</code>: a pointer to the QueryResultSet</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_RESULT_SET</code>
+<p>
+
+<h2>QueryPlus -- Query for Selected Metadata</h2>
+<h4>hc_query_plus_ez</h4>
+<code><pre>
+typedef void hc_query_plus_result_set_t;  /* QueryPlusResultSet */
+
+hcerr_t hc_query_plus_ez (hc_session_t *session,
+			   char* query_string,
+			   char* selects[],
+			   int n_selects,
+			   hc_query_plus_result_set_t **rsetp);
+</pre></code>
+
+Set up to retrieve name-value records for metadata records matching a query.
+<br>
+<ul>
+<li><code>session (in)</code>: the session for the host and port to talk to</li>
+<li><code>query_string (in)</code>: query (where clause)</li>
+<li><code>selects (in)</code>: points to an array of strings, each of which
+is the name of a field to retrieve from the metadata (select clause)</li>
+<li><code>n_selects (in)</code>: number of items in the select clause</li>
+<li><code>rsetp (out)</code>:updated to point to the new query plus result set<li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_NULL_SESSION, HCERR_INVALID_SESSION, HCERR_ILLEGAL_ARGUMENT</code>
+<br>
+See <a href="../../doc/Query.html">Query</a> for a description of the query string.
+<p>
+
+<h4>hc_qprs_next_ez</h4>
+<code><pre>
+hcerr_t hc_qprs_next_ez(hc_query_plus_result_set_t *rset, hc_nvr_t **nvrp, int *finishedp);
+</pre></code>
+Fetch one name-value record from the QueryPlusResultSet. Sets the int
+pointed to by <code>finishedp</code> to
+<code>1</code> when all of the query results have been reported.
+<ul>
+<li><code>rset (in)</code>: a pointer to the QueryPlusResultSet</li>
+<li><code>nvrp (out)</code>: updated to point to a name-value record with
+the metadata from one record matching the query, assuming <code>finished</code> is <code>0</code>.</li> 
+<li><code>finishedp (out)</code>: points to an int that is updated to 0 if
+there is more query data and to 1 if the QueryResultset is empty.</li> 
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_RESULT_SET</code>
+
+<p>
+<h4>hc_qprs_free</h4>
+<code><pre>
+hcerr_t hc_qprs_free(hc_query_plus_result_set_t *rsetp);
+</pre></code>
+Release the resources associated with this QueryPlusResultSet.
+<ul>
+<li><code>rsetp</code>: a pointer to the QueryPlusResultSet</li>
+</ul>
+Returns: <code> HCERR_OK, HCERR_BAD_REQUEST, HCERR_OOM, HCERR_INVALID_RESULT_SET</code>
+<p>
+
+<h2>Query Unique Values - get the unique values of one metadata field </h2>
+<h4>hc_unique_values_ez</h4>
+<code><pre>
+typedef void hc_unique_values_result_set_t;  /* UniqueValuesResultSet */
+
+hcerr_t hc_unique_values_ez (hc_session_t *session,
+                             char* query_string, 
+                             char* key,
+			     hc_unique_values_result_set_t **rsetp);			     
+</pre></code>
+Create a table of the unique values of the field named by
+<code>key</code> in the records that match the query in
+<code>query_string</code>. 
+<br>
+<ul>
+<li><code>session (in)</code>: the session for the host and port to talk to</li>
+<li><code>query_string (in)</code>: query (where clause)</li>
+<li><code>key (in)</code>: names of fields to select unique values of</li>
+<li><code>rsetp (out)</code>: updated to point to the new unique values result set</li>
+</ul>
+Returns: <code> HCERR_NOT_YET_IMPLEMENTED</code>
+<br>
+See <a href="../../doc/Query.html">Query</a> for a description of the query string.
+<p>
+
+<h4>hc_uvrs_next_ez</h4>
+<code><pre>
+hcerr_t hc_uvrs_next_ez(hc_unique_values_result_set_t *rset, hc_value_t *value, int *finishedp);
+</pre></code>
+Fetch one name-value record from the UniqueValuesResultSet. Sets <code>finished</code> to
+<code>1</code> when all of the query results have been reported.
+<ul>
+<li><code>rset</code>: a pointer to the UniqueValuesResultSet</li>
+<li><code>value</code>: points to an hc_value_t value that is updated
+with one of the unique values from the specified key that exists in
+some record  matching the query, assuming <code>finished</code> is
+<code>0</code>.</li>
+<li><code>finishedp</code>: points to an int that is updated to 0 if
+there is more query data and to 1 if the UniqueValuesResultset is empty.</li> 
+</ul>
+Returns: <code> HCERR_NOT_YET_IMPLEMENTED</code>
+
+<p>
+<h4>hc_uvrs_free</h4>
+<code><pre>
+hcerr_t hc_uvrs_free(hc_unique_values_result_set_t *rsetp);
+</pre></code>
+Release the resources associated with this UniqueValuesResultSet.
+<ul>
+<li><code>rset</code>: a pointer to the UniqueValuesResultSet</li>
+</ul>
+Returns: <code> HCERR_NOT_YET_IMPLEMENTED</code>
+
+<!--
+<h3>3.2  Non-blocking Access</h3>
+
+<a href="Non-blocking_C_API.html">Non-blocking C API</a>
+-->
+
+    <hr>
+<!-- Created: Fri Jan 13 15:27:03 PST 2006 -->
+<!-- hhmts start -->
+Last modified: Thu Sep  6 19:00:25 PDT 2007
+<!-- hhmts end -->
+  </body>
+</html>

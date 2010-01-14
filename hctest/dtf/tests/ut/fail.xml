@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="fail">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>Unit test for the fail tag.</description>
+    </info>
+
+	<local>
+    	<createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+	    <loadproperties uri="storage://INPUT/ut.properties"/>
+        
+        <lockcomponent id="DTFA">
+            <attrib name="type" value="DTFA"/>
+        </lockcomponent>
+	</local> 
+	
+    <try>
+    	<local>
+   			<fail message="Failure being generated!"/> 
+   		</local>
+   		<catch exception="${dtf.FailException}" property="message">
+   			<local>
+   				<echo>Caught exception: ${message}</echo>
+   			</local>
+   		</catch>
+   	</try>
+    
+    <try>
+        <component id="DTFA">
+   			<fail message="Text containing funny characters"/>
+   		</component>
+   		<catch exception="${dtf.FailException}" property="message">
+   			<local>
+   				<echo>Caught exception: ${message}</echo>
+   			</local>
+   		</catch>
+   	</try>
+</script>

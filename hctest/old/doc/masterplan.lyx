@@ -1,0 +1,481 @@
+#LyX 1.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 221
+\textclass article
+\language english
+\inputencoding auto
+\fontscheme default
+\graphics default
+\paperfontsize default
+\papersize Default
+\paperpackage a4
+\use_geometry 0
+\use_amsmath 0
+\use_natbib 0
+\use_numerical_citations 0
+\paperorientation portrait
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\defskip medskip
+\quotes_language english
+\quotes_times 2
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+
+\layout Title
+
+Honeycomb Test Plan
+\layout Standard
+
+
+\begin_inset LatexCommand \tableofcontents{}
+
+\end_inset 
+
+
+\layout Section
+
+Cluster Reinitialization
+\layout Subsection
+
+Stop Honeycomb Software
+\layout Paragraph
+
+On each node in the cluster, stop all the Honeycomb-related processes such
+ that no application errors get generated as the cluster is initialized
+ in the following steps.
+ On each node in the cluster, perform the following steps.
+\layout LyX-Code
+
+pkill -9 -f honeycomb
+\layout Subsection
+
+Re-initialize Disks
+\layout Paragraph
+
+Each disk should be destructively written over such that the partition table
+ and file systems must be recreated on startup.
+ This is essentially 
+\begin_inset Quotes eld
+\end_inset 
+
+wiping
+\begin_inset Quotes erd
+\end_inset 
+
+ the cluster.
+ However, the wipe is performed directly on the disks; not via the CLI `wipe`
+ command.
+ In this way, the tests begin from a known start state.
+ Wiping the disks is performed using the following command on each node
+ in the cluster.
+\layout LyX-Code
+
+for d in a b c d
+\layout LyX-Code
+
+do
+\layout LyX-Code
+
+  dd if=/dev/zero of=/dev/sd$d bs=1024 count=1024
+\layout LyX-Code
+
+done
+\layout Subsection
+
+Both of the Above
+\layout Standard
+
+Putting it all in one convenient script:
+\layout LyX-Code
+
+#!/bin/bash
+\layout LyX-Code
+
+for n in 01 02 03 04 05 06 07 08 09 10 11 12 ; do
+\begin_deeper 
+\layout LyX-Code
+
+ssh hcb1$n pkill -9 -f honeycomb
+\layout LyX-Code
+
+ssh hcb1$n pkill -9 -f java
+\layout LyX-Code
+
+for d in a b c d
+\begin_deeper 
+\layout LyX-Code
+
+ssh hcb1$n dd if=/dev/zero of=/dev/sd$d bs=1024    count=1024
+\end_deeper 
+\layout LyX-Code
+
+done
+\end_deeper 
+\layout LyX-Code
+
+done
+\layout Subsection
+
+Configuration and Installation
+\layout Paragraph
+
+Configuration information for a cluster is built via the normal build process.
+ The latest nightly build is located at hc-dev:/builds/nightly/latest/.
+ Within this directory, the files of interest are
+\layout LyX-Code
+
+images/bzImage
+\layout LyX-Code
+
+images/honeycomb-bin.tar.gz
+\layout LyX-Code
+
+images/initrd.gz
+\layout LyX-Code
+
+src/honeycomb/cluster/cluster_config.properties.dev<cluster #>
+\layout Paragraph
+
+An installation package consists of two files: bzImage and initrd.gz.
+ The initrd.gz file must first be prepared to include the latest honeycomb-bin.tar.
+gz bits and cluster_config.properties file for the cluster.
+ To package the initrd.gz, perform the following steps as root.
+\layout LyX-Code
+
+mkdir mnt
+\layout LyX-Code
+
+gunzip initrd.gz
+\layout LyX-Code
+
+mount -o loop initrd mnt
+\layout LyX-Code
+
+mkdir -p mnt/opt/honeycomb
+\layout LyX-Code
+
+cp honeycomb-bin.tar.gz mnt/opt/honeycomb
+\layout LyX-Code
+
+cd mnt/opt/honeycomb
+\layout LyX-Code
+
+tar xvfz honeycomb-bin.tar.gz
+\layout LyX-Code
+
+rm honeycomb-bin.tar.gz
+\layout LyX-Code
+
+cd ../../../
+\layout LyX-Code
+
+cp cluster_config.properties.dev<cluster#> mnt/opt/honeycomb/share/cluster_config.p
+roperties
+\layout LyX-Code
+
+umount mnt
+\layout LyX-Code
+
+gzip initrd
+\layout Paragraph
+
+Place the initrd.gz and bzImage files in the /tftpboot/ directory of the
+ cluster's service processor node.
+\layout Paragraph
+
+Finally, reboot each node in the cluster, e.g.
+ if the cluster is up,
+\layout LyX-Code
+
+ssh admin@devXXX-admin reboot
+\layout Standard
+
+Note that any nodes that are down will need to be rebooted by power-cycling.
+ TODO - add ref to tsv/console interface and redboot install and cmds.
+ Also note that it takes significant time to re-initialize the disks when
+ they have been wiped.
+ <<< TODO how long and what to watch for in the log >>>
+\layout Section
+
+Weekday Evening Tests
+\layout Paragraph
+
+Weekday evening tests are run on the same cluster each night to validate
+ that no regressions occurred as a result of the checkins for that day.
+\layout Paragraph
+
+Ideally, each run of the evening test should be performed
+\layout Itemize
+
+on a real-hardware system (HONs not RIGs)
+\layout Itemize
+
+on the same cluster, using the same clients
+\layout Itemize
+
+on a re-initialized cluster
+\layout Subsection
+
+Startup
+\layout Paragraph
+
+When a newly initialized cluster starts up, it automatically goes through
+ a set of initialization steps before the cluster is available for I/O.
+ The regression suite checks that several conditions are met.
+\layout Itemize
+
+Cluster Membership - Verify that a ring is successfully formed with a single
+ MASTER and VICEMASTER.
+ For any two adjacent nodes (eg.
+ hcb101 and hcb102), verify that at no time do the nodes connect to each
+ other and then subsequently disconnect.
+\layout Itemize
+
+Disk Init - Verify that each disk is successfully initialized and exported
+ to all other cluster nodes.
+\layout Itemize
+
+MASTER Services - Verify that the MASTER starts up all MASTER-specific services
+ and up's the MASTER-specific IP addresses.
+\layout Subsubsection
+
+Test Names
+\layout Standard
+
+<<< make this a single test? >>>
+\layout LyX-Code
+
+cmm-formation
+\layout LyX-Code
+
+diskinit-disk-partition
+\layout LyX-Code
+
+diskinit-disks-partition
+\layout LyX-Code
+
+diskinit-all-disks-partition
+\layout LyX-Code
+
+diskinit-directories
+\layout Subsection
+
+Store and Retrieve
+\layout Paragraph
+
+The second part of the evening test starts by cycling through a set of file
+ uploads and read-verifies.
+ File sizes are chosen specifically to exercise code which handles files
+ as their sizes cross meaningful boundaries: block, fragment, extent, etc.
+\layout Subsubsection
+
+Metadata
+\layout Paragraph
+
+Files are stored with a metadata attribute 
+\begin_inset Quotes eld
+\end_inset 
+
+test_id
+\begin_inset Quotes erd
+\end_inset 
+
+ which is set to a random, 32-byte string so that all files created by a
+ given test run can be retrieved by a query.
+ Other metadata are:
+\layout LyX-Code
+
+filename
+\layout LyX-Code
+
+filesize
+\layout LyX-Code
+
+storedate
+\layout LyX-Code
+
+client
+\layout LyX-Code
+
+sha1
+\layout LyX-Code
+
+\layout Subsubsection
+
+Test Names
+\layout LyX-Code
+
+io-write-<size>
+\layout LyX-Code
+
+io-read-<size>
+\layout LyX-Code
+
+io-write-<size>-<num>
+\layout LyX-Code
+
+io-read-<size>-<num>
+\layout LyX-Code
+
+<<<Currently all one test, short.grid >>>
+\layout Subsubsection
+
+Metrics
+\layout LyX-Code
+
+write-throughput
+\layout LyX-Code
+
+read-throughput
+\layout LyX-Code
+
+files-stored-per-second
+\layout LyX-Code
+
+files-read-per-second
+\layout LyX-Code
+
+\layout LyX-Code
+
+<<< current metrics:
+\layout LyX-Code
+
+client_hosts
+\layout LyX-Code
+
+cluster_nodes_start
+\layout LyX-Code
+
+cluster_nodes_end
+\layout LyX-Code
+
+wiped
+\layout LyX-Code
+
+total_files
+\layout LyX-Code
+
+bad_retrv
+\layout LyX-Code
+
+bad_md_retrv
+\layout LyX-Code
+
+md_msec_record
+\layout LyX-Code
+
+[exception counts]
+\layout LyX-Code
+
+total_store_rate
+\layout LyX-Code
+
+total_retrieve_rate
+\layout LyX-Code
+
+>>> 
+\layout LyX-Code
+
+<<< other stats that are currently just in 'notes' section:
+\layout LyX-Code
+
+min/max/average for ones above, per-process; could also do per-client-host
+\layout LyX-Code
+
+>>>
+\layout LyX-Code
+
+\layout Subsection
+
+Query
+\layout Subsubsection
+
+Key Metrics
+\layout Paragraph
+
+For all queries, we will track the following metrics.
+\layout Itemize
+
+First-result Latency as a function of Total Objects and Total Objects Matched
+\layout Itemize
+
+Result Throughput
+\layout Subsubsection
+
+Simple Exact Match
+\layout LyX-Code
+
+
+\begin_inset Quotes eld
+\end_inset 
+
+attr
+\begin_inset Quotes erd
+\end_inset 
+
+ = 
+\begin_inset Quotes eld
+\end_inset 
+
+value
+\begin_inset Quotes erd
+\end_inset 
+
+
+\layout Paragraph
+
+Queries will be tested for each supported type: string, long, double, blob.
+ 
+\layout Subsubsection
+
+Compound Exact Match
+\layout LyX-Code
+
+
+\begin_inset Quotes eld
+\end_inset 
+
+attr1
+\begin_inset Quotes erd
+\end_inset 
+
+ = 
+\begin_inset Quotes eld
+\end_inset 
+
+value1
+\begin_inset Quotes erd
+\end_inset 
+
+ AND 
+\begin_inset Quotes eld
+\end_inset 
+
+attr2
+\begin_inset Quotes erd
+\end_inset 
+
+ = 
+\begin_inset Quotes eld
+\end_inset 
+
+value2
+\begin_inset Quotes erd
+\end_inset 
+
+ ...
+\layout Subsection
+
+Failure Tolerance - No I/O
+\layout Subsubsection
+
+Node Reboot
+\layout Subsubsection
+
+Network Failures
+\layout Paragraph
+
+Automated network failures are simulated using iptables.
+\the_end

@@ -1,0 +1,79 @@
+$Id: switch-testing.txt 10858 2007-05-19 03:03:41Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+
+Charter Switch Testing
+
+Table of Contents
+
+1 Test Cases
+2 Test Software
+
+
+1 Test Cases
+
+--------------------------------------------------------------------------------
+Status:
+Bugs:
+Description:
+Test 0
+make sure everything works with no failures. Boot the cluster nodes in several 
+different orders, and make sure that in each case after all the nodes are up 
+they all get traffic.
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Status:
+Bugs:
+Description:
+Though not exclusively switch related, see how the cluster behaves when clients
+are attempting to write/read as it's starting up.  It would be nice to 
+gracefully deny requests until the cluster is sufficiently ready.  No data
+should be corrupted.
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Status:
+Bugs:
+Description:
+Test 1: fail a non-master node; make sure all client nodes still get service 
+(possibly after a brief interruption, 10s - 15s). Bring the node back up; make 
+sure all nodes are getting traffic (again, possibly after a brief interruption).
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Status:
+Bugs:
+Description:
+Test 2: fail a master node. Repeat Test 1. The service interruption  may be 
+longer (20s - 30s). Bring the node back up; rinse; repeat.
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Status:
+Bugs:
+Description:
+Test 3: fail the active switch. Again, make sure all client nodes still get 
+service.
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Status:
+Bugs:
+Description:
+Test 4
+    i) fail a node
+   ii) cause a switch failover
+  iii) fail the master node
+   iv) bring the node from step i up
+Do all nodes still get traffic?
+--------------------------------------------------------------------------------
+
+2 Test Software
+
+There are a couple of shell-scripts in /opt/honeycomb/bin: irules.sh and 
+imask.sh. These print the current state of the switch masks and rules in a 
+reasonably human-readable form. They're useful if some node is not getting any 
+traffic. Also, there are messages in the syslog each time a node comes up or 
+goes down, or a switch fails over.
+
+It's probably useful to have a way of telling StoreRetrieve to re-try on 
+failure instead of choking. Perhaps print the interval for which it couldn't 
+talk to HC.

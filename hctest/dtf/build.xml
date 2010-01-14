@@ -1,0 +1,305 @@
+<?xml version="1.0" ?>
+<project default="build">
+
+
+        <property file="build.properties"/>
+
+
+	<taskdef resource="net/sf/antcontrib/antlib.xml">
+	  <classpath>
+	    <pathelement location="external/lib/ant-contrib-1.0b3.jar"/>
+	  </classpath>
+	</taskdef>
+	
+	<target name="build" depends="init, compile, dist" 
+		    description="build dtf">
+		<echo>
+			Building DTF
+        </echo>
+	</target>
+
+	<target name="init" description="initialize target">
+		<mkdir dir="${dtf.build.dir}"/>
+		<mkdir dir="${dtf.build.dir}/${dtf.classes.dir}"/>
+		<mkdir dir="${dtf.build.dir}/${dtf.dist.dir}"/>
+		<mkdir dir="${dtf.build.dir}/${dtf.dist.dir}/lib"/>
+		<mkdir dir="${dtf.build.dir}/${dtf.dist.dir}/tests"/>
+
+		<path id="dtf.classpath">
+			<fileset id="dtf.fileset" dir="${dtf.ext.lib.dir}">
+				<include name="**/*.jar"/>
+			</fileset>
+			<fileset file="${dtf.build.dir}/${dtf.dist.dir}/lib/dtf.jar"/>
+		</path>
+    </target>
+
+	<target name="compile" description="Compilation target">
+		<javac srcdir="${dtf.src.dir}/java"
+		   	   destdir="${dtf.build.dir}/${dtf.classes.dir}"
+		       target="${dtf.target.java}"
+		       source="${dtf.source.java}"
+			   debug="on"
+			   debuglevel="lines,vars,source"
+			   encoding="ISO-8859-1">
+			<classpath refid="dtf.classpath"/>
+		</javac>
+		
+		<copy todir="${dtf.build.dir}/${dtf.classes.dir}">
+			<fileset dir="src">
+				<include name="xsl/**"/>
+			</fileset>
+		</copy>
+		
+	</target>
+
+	<target name="distplugins" description="distribution target">
+		<!-- Handle plugins in plugin directory -->
+		<for list="${dtf.plugins}" delimiter=":" param="plugin.location">
+			<sequential>
+				<basename property="plugin.name" file="@{plugin.location}"/>
+				<ant antfile="@{plugin.location}/build.xml" 
+					 target="build" 
+					 dir="@{plugin.location}">
+					<property name="dtf.jar" 
+						      value="${dtf.build.dir}/${dtf.dist.dir}/lib/${dtf.jar.filename}"/>
+					<property name="build.dir" 
+						      value="${dtf.build.dir}/${plugin.name}"/>
+				</ant>
+
+				<echo>Merging plugin DTD with DTF DTD</echo>
+				<java classname="com.sun.dtf.plugin.PluginMerger" 
+    			 	  failonerror="true" fork="true">
+					<arg value="${dtf.build.dir}/${plugin.name}/dist"/>
+					<arg value="${dtf.dtd.filename}"/>
+					<arg value="${dtf.build.dir}/${dtf.dist.dir}"/>
+					<sysproperty key="dtf.properties" 
+						         value="src/config/dtf.properties"/>
+					<classpath refid="dtf.classpath"/>
+					<classpath>
+						<pathelement location="${dtf.build.dir}/${dtf.dist.dir}/lib/${dtf.jar.filename}"/>
+					</classpath>
+				</java>
+			
+				<!-- we only copy lib directory and tests directory the other
+				     files put here by the plugin better be source files to 
+				     be picked up by the javadoc otherwise they're not part
+				     of the final distribution being built. -->
+				<echo>Copying plugin ${plugin.name} to ${dtf.dist.dir}</echo>
+				<copy todir="${dtf.build.dir}/${dtf.dist.dir}">
+					<fileset dir="${dtf.build.dir}/${plugin.name}/dist">
+						<include name="**/lib/**"/>
+					</fileset>
+				</copy>
+				
+				<copy todir="${dtf.build.dir}/${dtf.dist.dir}/tests/${plugin.name}">
+					<fileset dir="@{plugin.location}/tests"/>
+				</copy>
+
+				<copy todir="${dtf.build.dir}/${dtf.dist.dir}">
+					<fileset dir="${dtf.build.dir}/${plugin.name}/dist/bin"/>
+				</copy>
+			</sequential>
+		</for>
+	</target>
+	
+	<target name="dist" description="distribution target">
+		<jar jarfile="${dtf.build.dir}/${dtf.dist.dir}/lib/${dtf.jar.filename}" 
+			 basedir="${dtf.build.dir}/${dtf.classes.dir}" 
+		 	 includes="**/**"/>
+
+		<copy todir="${dtf.build.dir}/${dtf.dist.dir}/lib">
+			<fileset refid="dtf.fileset"/>	
+		</copy>
+
+		<copy todir="${dtf.build.dir}/${dtf.dist.dir}" overwrite="true">
+			<fileset dir="${dtf.src.dir}/scripts"/>
+			<fileset file="${dtf.src.dir}/config/dtf.properties"/>
+			<fileset file="dtf.dtd"/>
+		</copy>
+
+		<copy todir="${dtf.build.dir}/${dtf.dist.dir}/tests">
+			<fileset dir="tests"/>
+		</copy>
+		
+		<copy tofile="${dtf.build.dir}/${dtf.dist.dir}/build.xml" file="run.xml"/>
+		
+		<!-- put the current copy of ant for distribution -->
+		<unzip src="${dtf.ant.zip}" dest="${dtf.build.dir}/${dtf.dist.dir}"/>
+		
+		<!-- clean up stupid docs in apache (not necesary for distribution) -->
+		<delete>
+			<fileset dir="${dtf.build.dir}/${dtf.dist.dir}" includes="**/apache*/docs/**"/>
+		</delete>
+
+		<antcall target="distplugins"/>
+		
+		<!-- permissions fixing... ugly ugly... -->
+		<chmod perm="555" includes="**/ant,**/antRun,*.sh" dir="${dtf.build.dir}/${dtf.dist.dir}"/>
+	</target>
+
+	<target name="clean" description="clean target">
+		<for list="${dtf.plugins}" delimiter=":" param="plugin.location">
+    		<sequential>
+    			<basename property="plugin.name" file="@{plugin.location}"/>
+    			<echo>Plugin cleaning ${plugin.name}</echo>
+    			<ant antfile="@{plugin.location}/build.xml" 
+    				 target="clean" 
+    			  	 dir="@{plugin.location}">
+    				<!-- @todo: hack with ../.. for now this works... -->
+    				<property name="build.dir" 
+    					      value="${dtf.build.dir}/${plugin.name}"/>
+    			</ant>
+    		</sequential>
+		</for>
+		<delete dir="${dtf.build.dir}" failonerror="false"/>
+	</target>
+	
+	<target name="results" depends="init">
+		<ant target="tohtml" antfile="build.xml">
+			<property name="dtf.xsl.filename" value="src/xsl/report.xsl"/>
+			<property name="dtf.xsl.in.dir" value="${dtf.build.dir}/${dtf.dist.dir}/tests"/>
+			<property name="dtf.xsl.out.dir" value="${dtf.build.dir}/${dtf.dist.dir}/tests"/>
+			<property name="dtf.xsl.out.filename" value="results.html"/>
+			<property name="dtf.include.pattern" value="**/*results*.xml"/>
+			<property name="dtf.exclude.pattern" value=""/>
+		</ant>
+	</target>
+
+	<target name="inventory" depends="init">
+		<ant target="tohtml" antfile="build.xml">
+			<property name="dtf.xsl.filename" value="src/xsl/inventory.xsl"/>
+			<property name="dtf.xsl.in.dir" value="${dtf.build.dir}/${dtf.dist.dir}/tests"/>
+			<property name="dtf.xsl.out.dir" value="${dtf.build.dir}/${dtf.dist.dir}/tests"/>
+			<property name="dtf.xsl.out.filename" value="inventory.html"/>
+			<property name="dtf.include.pattern" value="**/*.xml"/>
+			
+			<!-- exclude results output --> 
+			<property name="dtf.exclude.pattern" value="**/suite-*"/>
+		</ant>
+	</target>
+	
+	<target name="tohtml" 
+		    depends="init" 
+		    description="applies a specified stylesheet to a new files.xml that contains a bunch of xml files.">
+
+		<!-- generate an xml list of the files that exist in the
+		     the specified directory of test cases -->
+		<echo file="files.xml" append="false">&lt;files&gt;</echo>
+		<for param="file">
+			<path>
+				<fileset dir="${dtf.xsl.in.dir}">
+					<include name="${dtf.include.pattern}"/>
+					<exclude name="${dtf.exclude.pattern}"/>
+				</fileset>
+			</path>
+			<sequential>
+				<echo>Handling: @{file} </echo>
+<echo file="files.xml" append="true">
+    &lt;file&gt;@{file}&lt;/file&gt;
+</echo>
+			</sequential>
+		</for>
+		<echo file="files.xml" append="true">&lt;/files&gt;</echo>
+
+		<!-- apply stylesheet to files.xml -->
+		<xslt in="files.xml" 
+			  style="${dtf.xsl.filename}" 
+			  out="${dtf.build.dir}/${dtf.dist.dir}/${dtf.xsl.out.dir}/${dtf.xsl.out.filename}">
+			<xmlcatalog id="DTFXMLCatalog">
+				<dtd publicid="-//DTF/DTF XML Script V1.0//EN" 
+					 location="${dtf.build.dir}/${dtf.dist.dir}/${dtf.dtd.filename}"/>
+			</xmlcatalog>
+			<factory name="net.sf.saxon.TransformerFactoryImpl"/>
+		</xslt>
+		<delete file="files.xml"/>
+	</target>
+
+	<target name="applyxsl" 
+		    depends="init" 
+		    description="applies a specified stylesheet to existing testcaes outputting results to the output directory">
+		<!-- copy all non xml files over to new location. This will move all 
+		     of the external resources :) -->	
+		<copy todir="${dtf.build.dir}/${dtf.dist.dir}/${dtf.xsl.out.dir}">
+			<fileset dir="${dtf.xsl.in.dir}">
+				<exclude name="**/*.xml"/>
+			</fileset>	
+		</copy>
+	
+		<xslt style="${dtf.xsl.filename}" 
+			  includes="**/*.xml"
+			  extension=".xml"
+			  basedir="${dtf.xsl.in.dir}"
+			  destdir="${dtf.build.dir}/${dtf.dist.dir}/${dtf.xsl.out.dir}">
+			<xmlcatalog id="DTFXMLCatalog">
+				<dtd publicid="-//DTF/DTF XML Script V1.0//EN" 
+					 location="${dtf.build.dir}/${dtf.dist.dir}/${dtf.dtd.filename}" />
+			</xmlcatalog>
+		</xslt>
+	</target>
+
+	<target name="doc"
+		    depends="init,build" 
+		    description="Generate both Java and DTF XML documentation.">
+		<mkdir dir="${dtf.build.dir}/${dtf.dist.dir}/doc/html"/>
+
+		<!-- DTF XML DOCS -->
+		<javadoc destdir="${dtf.build.dir}/${dtf.dist.dir}/doc/html/dtf"
+			     access="private">
+			<arg line="-dtfdtd ${dtf.build.dir}/${dtf.dist.dir}/dtf.dtd"/>
+			
+			<doclet name="com.sun.dtf.javadoc.DTFDoclet"
+				    path="${dtf.build.dir}/${dtf.dist.dir}/lib/${dtf.jar.filename}"/>
+			
+    		<fileset dir="${dtf.src.dir}" defaultexcludes="true">
+        		<include name="**/**/*.java"/>
+        		<exclude name="**/**/DTFDoclet.java"/>
+    		</fileset>
+
+			<fileset dir="${dtf.build.dir}" defaultexcludes="true">
+        		<include name="**/**/*.java"/>
+    		</fileset>
+			
+			<classpath>
+				<fileset dir="${dtf.build.dir}/${dtf.dist.dir}/lib">
+					<include name="**/*.jar"/>
+				</fileset>	
+			</classpath>
+		</javadoc> 
+	
+		<!-- JAVA API DOCS -->
+		<!--
+		<javadoc destdir="${dtf.build.dir}/${dtf.dist.dir}/doc/html/api">
+		
+			<arg line="-tag dtf.tag:a"/>
+			<arg line="-tag dtf.tag.desc:a"/>
+		
+			<arg line="-tag dtf.author:a"/>
+			<arg line="-tag dtf.since:a"/>
+		
+			<arg line="-tag dtf.attr:a"/>
+			<arg line="-tag dtf.attr.desc:a"/>
+			
+			<arg line="-tag dtf.event:a"/>
+			<arg line="-tag dtf.event.attr:a"/>
+			<arg line="-tag dtf.event.attr.desc:a"/>
+			
+			<arg line="-tag dtf.tag.example:a"/>
+			
+    		<fileset dir="${dtf.src.dir}" defaultexcludes="true">
+        		<include name="**/actions/**/*.java"/>
+    		</fileset>
+			
+			<fileset dir="${dtf.build.dir}" defaultexcludes="true">
+        		<include name="**/actions/**/*.java"/>
+    		</fileset>
+			
+			<classpath>
+				<fileset dir="${dtf.build.dir}/${dtf.dist.dir}/lib">
+					<include name="**/*.jar"/>
+				</fileset>	
+			</classpath>
+		</javadoc> 
+		-->
+	</target>
+	
+</project>

@@ -1,0 +1,204 @@
+#!/bin/bash
+#
+# $Id: LaunchOfotoStores 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+PING_CLNTS=false
+
+RUNDIR=/mnt/test/ofoto/tmp
+EXE=/mnt/test/ofoto/bin/store
+
+USAGE="$0 <cluster-dataVIP> <n_dirs> <tag> <clnts_per_host> <clnt1> <clnt2> ..."
+
+if test $# -lt 5 ; then
+    echo $USAGE
+    exit 1
+fi
+
+################################## same for all Launch scripts:
+
+PROG=$0
+HOST=$1
+N_DIRS=$2
+TAG=$3
+CLNTS_PER_HOST=$4
+shift; shift; shift; shift
+
+MAX_START=$(( 256 - $N_DIRS ))
+DIR_INC=$(( $N_DIRS - 1 ))
+FILE_TAG=store_$TAG
+
+host_up()
+{
+    if test -z "$1" ; then
+        echo "host_up() - need arg"
+        exit 1
+    fi
+
+    if test ! "$PING_CLNTS" == "true" ; then
+        return 0
+    fi
+
+    host=$1
+    if test -z "$2" ; then
+        wait=0
+    else
+        wait=1
+    fi
+
+    echo Checking availability of $host..
+
+    while [ 1 ] ; do
+
+        RES=`ping -c 1 $host`
+        RESNUM=$wait
+
+        R2=`echo $RES | grep 'is alive'`
+        if ! test "$R2" == "" ; then
+            break
+        fi
+        R2=`echo $RES | grep '^rtt' | awk '{print $1}'`
+        if test "$R2" == "rtt" ; then
+            break
+        fi
+        if test $RESNUM -eq 0 ; then
+            echo "    " $host is unavailable
+            return 1
+        fi
+        echo "  $host doesn't ping - sleep 5"
+        sleep 5
+
+    done
+    echo "    " $host is available
+    return 0
+}
+
+# wait for HOST to be up
+#host_up $HOST retry
+
+################################# end of basic Launch
+
+# see which clients are up
+N_CLNT=0
+while test $# -gt 0 ; do
+    host_up $1
+    if test $? -eq 0 ; then
+        CLNTS[$N_CLNT]=$1
+        N_CLNT=$(( $N_CLNT + 1 ))
+    fi
+    shift
+done
+
+if test $N_CLNT -eq 0 ; then
+    echo "NO CLIENTS UP - EXITING"
+    echo
+    exit 1
+fi
+
+echo 
+
+# launch a job to each client
+START=`date`
+echo ==== $START STARTING RUN
+echo
+c=0
+total_threads=0
+i=0
+j=-1
+while test $c -lt $N_CLNT ; do
+
+    CL=${CLNTS[$c]}
+
+    # scrub logs
+    echo ssh root@${CL} "rm -f $RUNDIR/${FILE_TAG}_*"
+    ssh root@${CL} "rm -f $RUNDIR/${FILE_TAG}_*"
+
+    first=1
+    quit=0
+    cc=0
+    while test $cc -lt $CLNTS_PER_HOST ; do
+
+        # range calc
+        i=$(( $j + 1 ))
+        if test $i -ge $MAX_START ; then
+            echo out of range at $i
+            quit=1
+            break
+        fi
+        j=$(( $i + $DIR_INC ))
+
+        # launch
+        cmd="cd $RUNDIR ; $EXE $HOST $i $j $TAG 1 > $RUNDIR/${FILE_TAG}_${CL}_${i}_$j 2>&1"
+        echo "ssh root@${CL} $cmd &"
+        ssh root@${CL} $cmd &
+        # give 1st thread on host time to create files
+        if test $first -eq 1 ; then
+            sleep 1
+            first=0
+        fi
+        cc=$(( $cc + 1 ))
+        total_threads=$(( $total_threads + 1 ))
+    done
+    if test $quit -eq 1 ; then
+        break
+    fi
+    c=$(( $c + 1 ))
+done
+echo WAITING..
+i=0
+while test $i -lt $total_threads ; do
+    wait
+    echo got one..
+    i=$(( $i + 1 ))
+done
+
+FINISH=`date`
+
+
+# collect results
+/bin/rm -f *.fill *.check
+i=0
+while test $i -lt $c ; do
+    echo "scp root@${CLNTS[$i]}:$RUNDIR/${FILE_TAG}_* ."
+    scp root@${CLNTS[$i]}:"$RUNDIR/${FILE_TAG}_*" .
+    i=$(( $i + 1 ))
+done
+
+errors=`grep ERROR ${FILE_TAG}_* | wc -l`
+
+echo
+echo "==== $FILE_TAG START  $START"
+echo "==== $FILE_TAG FINISH $FINISH" 
+echo "==== ERRORS: $errors"
+echo "==== Total stores: ($total_threads client_threads) * (4 files) * $N_DIRS ^ 6"

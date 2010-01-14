@@ -1,0 +1,187 @@
+<!--
+ $Id: build.xml 11485 2007-09-07 22:54:01Z sm152240 $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for honeycomb server component.
+--> 
+<project name="perf" default="alljars">
+  <description>
+  </description>
+
+  <!-- second, use the build.properties for this package -->
+  <property file="build.properties"/>
+
+  <!-- lastly, use the top-level builds properties file -->
+  <property file="${basedir}/../build/build.properties"/>
+
+  <!-- access ENV variables as ${env.XXX} -->
+  <!-- ie.  ${env.USER} -->
+  <property environment="env"/>
+
+  <path id="perftestsuite.build.classpath">
+    <pathelement location="${client.dist.libdir}/${jarname.client}"/>
+    <pathelement location="${test.dist.libdir}/${jarname.test}"/>
+    <fileset dir="${external.slide.libdir}" includes="**/*.jar"/>
+  </path>
+  
+  <path id="profiler.build.classpath">
+    <pathelement location="${server.dist.libdir}/${jarname.server}"/>
+  </path>
+  
+  <path id="advquery.build.classpath">
+    <pathelement location="${client.dist.libdir}/${jarname.client}"/>
+    <pathelement location="${test.dist.libdir}/${jarname.test}"/>
+    <pathelement location="${perf.dist.libdir}/${jarname.perftest}"/>
+ </path>
+
+  <!-- PREPARE ************************************************************ -->
+  <target name="prepare">
+    <condition property="compliantOS">
+      <os name="SunOS"/>
+    </condition>
+    <mkdir dir="${perf.build.basedir}"/>
+    <mkdir dir="${perf.build.classdir}"/>
+    <mkdir dir="${perf.build.classdir.testsuite}"/>
+    <mkdir dir="${perf.build.classdir.profiler}"/>
+    <mkdir dir="${perf.build.classdir.advquery}"/>
+    <mkdir dir="${perf.build.objdir}"/>
+    <mkdir dir="${perf.build.objdir.webdav}"/>
+    <mkdir dir="${perf.dist.basedir}"/>
+    <mkdir dir="${perf.dist.bindir}"/>
+    <mkdir dir="${perf.dist.libdir}"/>
+    <mkdir dir="${perf.dist.pkgdir}"/>
+  </target>
+
+  <!-- COMPILE_JAVA ******************************************************* -->
+  <target name="compile_java" depends="prepare">
+  
+    <javac classpathref="perftestsuite.build.classpath"
+           srcdir="${perf.java.srcdir.testsuite}"
+           destdir="${perf.build.classdir.testsuite}"
+           debug="${javac.debug}"
+           deprecation="${javac.deprecation}"
+           source="${javac.source}"
+           optimize="${javac.optimize}"/>
+
+    <javac classpathref="profiler.build.classpath"
+           srcdir="${perf.java.srcdir.profiler}"
+           destdir="${perf.build.classdir.profiler}"
+           debug="${javac.debug}"
+           deprecation="${javac.deprecation}"
+           source="${javac.source}"
+           optimize="${javac.optimize}"/>
+  </target>
+
+<!-- COMPILE_ADVQUERY ******************************************* -->
+<target name="compile_advquery" depends="prepare,jar">
+    <javac classpathref="advquery.build.classpath"
+        srcdir="${perf.java.srcdir.advquery}"
+        destdir="${perf.build.classdir.advquery}"
+        debug="${javac.debug}"
+        deprecation="${javac.deprecation}"
+        source="1.5"
+        optimize="${javac.optimize}">
+        <compilerarg value="-Xlint"/>
+    </javac>
+  </target>
+<!-- JAR ******************************************************* -->
+  <target name="jar" depends="compile_java,webdav">
+  
+    <jar jarfile="${perf.dist.libdir}/${jarname.perftest}">
+      <fileset dir="${perf.build.classdir.testsuite}"/>
+    </jar>
+    
+    <jar jarfile="${perf.dist.libdir}/${jarname.profiler}">
+      <fileset dir="${perf.build.classdir.profiler}"/>
+    </jar>
+  </target>   
+
+<!-- ADVQUERYJAR *************************************************** -->
+  <target name="advqueryjar" depends="compile_advquery,jar">
+    <jar jarfile="${perf.dist.libdir}/${jarname.advquery}">
+      <fileset dir="${perf.build.classdir.advquery}"/>
+    </jar>      
+  </target>
+
+<!-- ALLJARS ******************************************************* -->
+  <target name="alljars" depends="jar,advqueryjar">   
+  </target>   
+
+  <!-- webdav ******************************************************* -->
+  <target name="webdav">
+     <exec dir="${perf.native.webdavdir}" executable="${make.bin}" failonerror="true">
+       <arg value="BUILDDIR=${perf.build.objdir.webdav}"/>
+       <arg value="BINDIR=${perf.dist.bindir}"/>
+     </exec>
+  </target>   
+
+  <!-- PROFILER ************************************************************ -->
+  <target name="profiler" depends="prepare">
+    <copy todir="${perf.dist.bindir}">
+      <fileset dir="${perf.src.profilerdir}"/>
+    </copy>
+  </target>
+
+  <!-- PARSER ************************************************************ -->
+  <target name="parser" depends="prepare">
+    <copy todir="${perf.dist.bindir}">
+      <fileset dir="${perf.src.scriptsdir}"/>
+    </copy>
+  </target>
+
+  <!-- PKG **************************************************************** -->
+  <target name="pkg" depends="profiler,jar,parser,webdav,advqueryjar" description="build the solaris package">
+    <exec executable="${pkgmk.bin}" failonerror="yes">
+        <arg line="-o -d ${perf.dist.pkgdir} -f ${perf.pkgdefs}/prototype -r ${perf.dist.basedir}"/>
+    </exec>
+    <exec executable="${pkgtrans.bin}" failonerror="yes">
+        <arg line="-s ${perf.dist.pkgdir} ${sun.pkgname.perf}.pkg ${sun.pkgname.perf}"/>
+    </exec>
+  </target>
+
+  <!-- ************************************************************** -->
+  <target name="build_pkg" depends="pkg"
+    description="compile sources and create the solaris package" />
+
+  <!-- CLEAN ************************************************************** -->
+  <target name="clean"
+          description="cleans workspace of all generated files">
+    <delete dir="${perf.build.basedir}"/>
+    <delete dir="${perf.dist.pkgdir}/${sun.pkgname.perf}"/>
+    <delete file="${perf.dist.pkgdir}/${sun.pkgname.perf}.pkg"/>
+    <exec dir="${perf.native.webdavdir}" executable="${make.bin}" failonerror="true">
+      <arg value="clean" />
+    </exec>
+  </target>
+
+</project>

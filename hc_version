@@ -1,0 +1,34 @@
+ST5800 1.1 release [1.1-12017]
+Built by ds158322 on dhcp-usfo07-88-34 on Tue Jun 10 17:26:59 PDT 2008
+client (svn 12019)
+common (svn 12019)
+mgmt (svn 12019)
+filesystem (svn 12019)
+md_caches (svn 12019)
+md_clustra (svn 12019)
+server (svn 12019)
+M      src/java/com/sun/honeycomb/oa/erasure/ReedSolomonAlgorithm.java
+M      build.xml
+ndmp (svn 12019)
+M      src/java/com/sun/honeycomb/ndmp/DataServer.java
+test (svn 12019)
+hctest (svn 12019)
+M      src/java/com/sun/honeycomb/ndmp/Client.java
+unit_tests (svn 12019)
+whitebox (svn 12019)
+external (svn 12019)
+M      build.xml
+platform (svn 12019)
+suitcase (svn 12019)
+M      build.xml
+client_c (svn 12019)
+sdk (svn 12019)
+M      build.xml
+performance (svn 12019)
+adm (svn 12019)
+admingui (svn 12019)
+emulator (svn 12019)
+A      src/config/OpenSourceCopyright.txt
+M      build.xml
+itest (svn 12019)
+extractor (svn 12019)

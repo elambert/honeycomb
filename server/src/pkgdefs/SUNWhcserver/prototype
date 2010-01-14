@@ -1,0 +1,167 @@
+#
+# $Id: prototype 11918 2008-03-16 18:15:23Z ks202890 $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# This required package information file contains a list of package contents.
+# The 'pkgmk' command uses this file to identify the contents of a package
+# and their location on the development machine when building the package.
+# Can be created via a text editor or through use of the 'pkgproto' command.
+ 
+#!search <pathname pathname ...>        # where to find pkg objects
+#!include <filename>                    # include another 'prototype' file
+#!default <mode> <owner> <group>        # default used if not specified on entry
+#!<param>=<value>                       # puts parameter in pkg environment
+
+i pkginfo
+i depend
+i preinstall
+i postinstall
+i preremove
+i i.manifest
+i r.manifest
+i SUNWhcserver.pl
+
+d none /opt 0777 bin bin
+d none /opt/honeycomb 777 bin honeycomb
+d none /opt/honeycomb/doc 777 bin bin
+d none /opt/honeycomb/bin 777 bin bin
+d none /opt/honeycomb/sbin 777 bin bin
+f none /opt/honeycomb/bin/pwrctl=bin/pwrctl 755 bin bin
+f none /opt/honeycomb/version=version 444 bin bin
+f none /opt/honeycomb/sbin/setup_admin_account.pl=bin/setup_admin_account.pl 755 root sys
+f none /opt/honeycomb/sbin/node_config_editor.sh=bin/node_config_editor.sh 555 bin bin
+f none /opt/honeycomb/sbin/mntiso.sh=bin/mntiso.sh 755 bin bin
+f none /opt/honeycomb/sbin/mntjs.sh=bin/mntjs.sh 755 bin bin
+f none /opt/honeycomb/sbin/umntiso.sh=bin/umntiso.sh 755 bin bin
+f none /opt/honeycomb/sbin/umntjs.sh=bin/umntjs.sh 755 bin bin
+f none /opt/honeycomb/sbin/setuid=bin/setuid 4755 root sys 
+
+f none /opt/honeycomb/bin/console=bin/console 755 bin bin
+f none /opt/honeycomb/bin/nodemgr_mailbox.sh=bin/nodemgr_mailbox.sh 755 bin bin
+
+f none /opt/honeycomb/bin/internal_portmap.sh=bin/internal_portmap.sh 755 bin bin
+f none /opt/honeycomb/bin/external_portmap.sh=bin/external_portmap.sh 755 bin bin
+f none /opt/honeycomb/bin/ifconfig_internal.sh=bin/ifconfig_internal.sh 755 bin bin
+f none /opt/honeycomb/bin/ifconfig_script.sh=bin/ifconfig_script.sh 755 bin bin
+f none /opt/honeycomb/bin/honeycomb_net_filesystem=bin/honeycomb_net_filesystem 755 bin bin
+f none /opt/honeycomb/bin/node_verification=bin/node_verification 755 bin bin
+f none /opt/honeycomb/bin/node_configuration=bin/node_configuration 755 bin bin
+f none /opt/honeycomb/bin/node_common.sh=bin/node_common.sh 644 bin bin
+f none /opt/honeycomb/bin/disk_replacement=bin/disk_replacement 755 bin bin
+f none /opt/honeycomb/bin/format_common.sh=bin/format_common.sh 755 bin bin
+f none /opt/honeycomb/bin/diskmap=bin/diskmap 755 bin bin
+f none /opt/honeycomb/bin/update_bootmenu=bin/update_bootmenu 755 bin bin
+f none /opt/honeycomb/bin/irules.sh=bin/irules.sh 755 bin bin
+f none /opt/honeycomb/bin/irule=bin/irule 755 bin bin
+f none /opt/honeycomb/bin/zrule2=bin/zrule2 755 bin bin
+f none /opt/honeycomb/bin/sendarp=bin/sendarp 755 bin bin
+f none /opt/honeycomb/bin/imask.sh=bin/imask.sh 755 bin bin
+f none /opt/honeycomb/bin/start_webdav.sh=bin/start_webdav.sh 755 bin bin
+f none /opt/honeycomb/bin/hcsh=bin/hcsh 755 bin bin
+f none /opt/honeycomb/bin/dmidecode.pl=bin/dmidecode.pl 755 bin bin
+f none /opt/honeycomb/bin/honeycomb_config_network.pl=bin/honeycomb_config_network.pl 755 bin bin
+f none /opt/honeycomb/bin/bios=bin/bios 644 bin bin
+f none /opt/honeycomb/bin/dimm=bin/dimm 644 bin bin
+f none /opt/honeycomb/bin/cpu=bin/cpu 644 bin bin
+f none /opt/honeycomb/bin/mb=bin/mb 644 bin bin
+f none /opt/honeycomb/bin/wipe.sh=bin/wipe.sh 755 bin bin
+f none /opt/honeycomb/bin/disklabel.sh=bin/disklabel.sh 755 bin bin
+f none /opt/honeycomb/bin/parse_log.pl=bin/parse_log.pl 755 bin bin
+f none /opt/honeycomb/bin/handle_attach_detach.pl=bin/handle_attach_detach.pl 755 bin bin
+f none /opt/honeycomb/bin/handle_online_offline.pl=bin/handle_online_offline.pl 755 bin bin
+f none /opt/honeycomb/bin/offline_mirrors.pl=bin/offline_mirrors.pl 755 bin bin
+f none /opt/honeycomb/bin/online_mirrors.pl=bin/online_mirrors.pl 755 bin bin
+f none /opt/honeycomb/bin/attach_mirrors.pl=bin/attach_mirrors.pl 755 bin bin
+f none /opt/honeycomb/bin/detach_mirrors.pl=bin/detach_mirrors.pl 755 bin bin
+f none /opt/honeycomb/bin/getdevid.pl=bin/getdevid.pl 755 bin bin
+f none /opt/honeycomb/bin/list_mbox_alerts.sh=bin/list_mbox_alerts.sh 755 bin bin
+f none /opt/honeycomb/bin/metadata_config.sh=bin/metadata_config.sh 755 bin bin
+f none /opt/honeycomb/bin/monitor_ntpserver.sh=bin/monitor_ntpserver.sh 755 bin bin
+f none /opt/honeycomb/bin/platform.sh=bin/platform.sh 755 bin bin
+d none /opt/honeycomb/lib 755 bin bin
+f none /opt/honeycomb/lib/honeycomb-server.jar=lib/honeycomb-server.jar 0655 bin bin
+f none /opt/honeycomb/lib/libjsyslog.so=lib/libjsyslog.so 755 bin bin
+f none /opt/honeycomb/lib/libjcontract.so=lib/libjcontract.so 755 bin bin
+f none /opt/honeycomb/lib/libjmbox.so=lib/libjmbox.so 755 bin bin
+f none /opt/honeycomb/lib/liboamath.so=lib/liboamath.so 755 bin bin
+f none /opt/honeycomb/lib/libnativeadler32.so=lib/libnativeadler32.so 755 bin bin
+f none /opt/honeycomb/lib/libnativesha1.so=lib/libnativesha1.so 755 bin bin
+f none /opt/honeycomb/lib/libstatfs.so=lib/libstatfs.so 755 bin bin
+f none /opt/honeycomb/lib/libsysstat.so=lib/libsysstat.so 755 bin bin
+f none /opt/honeycomb/lib/libjkstat.so=lib/libjkstat.so 755 bin bin
+f none /opt/honeycomb/lib/libjava-exec.so=lib/libjava-exec.so 755 bin bin
+f none /opt/honeycomb/lib/libhcnfs.so=lib/libhcnfs.so 755 bin bin
+f none /opt/honeycomb/lib/servicetags-api.jar=lib/servicetags-api.jar 755 bin bin
+d none /opt/honeycomb/share 755 bin bin
+f none /opt/honeycomb/share/node_config.xml=share/node_config.xml 0655 bin bin
+f none /opt/honeycomb/share/logging.properties=share/logging.properties 0655 bin bin
+f none /opt/honeycomb/share/AdminResources_en.properties=share/AdminResources_en.properties 0655 bin bin
+f none /opt/honeycomb/share/AdminResources_fr.properties=share/AdminResources_en.properties 0655 bin bin
+f none /opt/honeycomb/share/AdminResources_gr.properties=share/AdminResources_en.properties 0655 bin bin
+f none /opt/honeycomb/share/AdminResources_ja.properties=share/AdminResources_en.properties 0655 bin bin
+f none /opt/honeycomb/share/AdminResources_sc.properties=share/AdminResources_en.properties 0655 bin bin
+f none /opt/honeycomb/share/metadata_config_factory.xml=share/metadata_config_factory.xml 0644 bin bin
+f none /opt/honeycomb/share/metadata_config_factory_legacy_101.xml=share/metadata_config_factory_legacy_101.xml 0644 bin bin
+f none /opt/honeycomb/share/metadata_config_template.xml=share/metadata_config_template.xml 0644 bin bin
+f none /opt/honeycomb/share/cluster_config.properties=share/cluster_config.properties 0644 bin bin
+f none /opt/honeycomb/share/ipmi-pass=share/ipmi-pass 0644 bin bin
+d none /opt/honeycomb/config 774 internal honeycomb
+s none /opt/honeycomb/config/config_defaults.properties=../share/cluster_config.properties bin bin
+s none /opt/honeycomb/config/ipmi-pass=../share/ipmi-pass bin bin
+d none /opt/honeycomb/etc 755 bin bin
+d none /opt/honeycomb/etc/init.d 755 bin bin
+f none /opt/honeycomb/etc/init.d/honeycomb=etc/init.d/honeycomb 755 bin bin
+d none /var 755 root sys
+d none /var/svc 755 root sys
+d none /var/svc/manifest 755 root sys
+d none /var/svc/manifest/application 755 root sys
+f manifest /var/svc/manifest/application/honeycomb-configuration.xml=services/honeycomb-configuration.xml 0444 root sys
+f manifest /var/svc/manifest/application/honeycomb-server.xml=services/honeycomb-server.xml 0444 root sys
+f manifest /var/svc/manifest/application/honeycomb-verification.xml=services/honeycomb-verification.xml 0444 root sys
+f manifest /var/svc/manifest/application/honeycomb-net-filesystem.xml=services/honeycomb-net-filesystem.xml 0444 root sys
+f manifest /var/svc/manifest/application/honeycomb-config-network.xml=services/honeycomb-config-network.xml 0444 root sys
+d none /opt/honeycomb/home 755 bin bin
+d none /opt/honeycomb/home/admin 700 admin honeycomb
+d none /opt/honeycomb/home/admin/.ssh 700 admin honeycomb
+d none /opt/honeycomb/home/internal 755 internal honeycomb
+d none /opt/honeycomb/home/internal/.ssh 755 internal honeycomb
+f none /opt/honeycomb/sbin/analyze=bin/analyze 0555 bin bin
+f none /opt/honeycomb/sbin/sucker=bin/sucker 0555 bin bin
+f none /opt/honeycomb/sbin/dump=bin/dump 0555 bin bin
+f none /opt/honeycomb/sbin/run_sucker.sh=bin/run_sucker.sh 0555 bin bin
+f none /opt/honeycomb/doc/README.sucker=doc/README.sucker 0644 root root
+
+d none /root 0755 root sys
+f none /root/.profile=bin/dot.profile 0644 root root
+f none /root/.bashrc=bin/dot.bashrc 0644 root root

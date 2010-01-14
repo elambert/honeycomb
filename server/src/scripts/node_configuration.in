@@ -1,0 +1,474 @@
+#!/bin/sh
+#
+# $Id: node_configuration.in 11541 2007-09-26 21:27:17Z sc1444 $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+# Common functions
+. /opt/honeycomb/bin/platform.sh
+. /opt/honeycomb/bin/node_common.sh
+
+CFGADM="/usr/sbin/cfgadm"
+
+# Set coreadm and dumpadm core locations
+# Jumpstart now sets these up (this would be too late here!)
+# Just adding these directories for dev folks w/o full install
+config_cores() {
+    if [ ! -d /var/adm/core ]; then 
+        mkdir /var/adm/core
+    fi 
+    if [ ! -d /var/adm/crash ]; then 
+        mkdir /var/adm/crash
+    fi
+}
+
+# check if the disk is in "configured" state
+# Accepts disk in the format c?t?d?
+check_disk_configured() {
+   case "$1" in
+       "c0t0d0") SATA_STR="sata0/0";;
+       "c0t1d0") SATA_STR="sata0/1";;
+       "c1t0d0") SATA_STR="sata1/0";;
+       "c1t1d0") SATA_STR="sata1/1";;
+              *) logger -p user.notice "Invalid disk $1 specified";
+                 return 1;
+   esac
+   CONFIGURED=`$CFGADM| grep $SATA_STR | awk '{print $4}'`
+   # if the disk we are looking for is configured use it 
+   if [ ${CONFIGURED}xx = "configured"xx ]
+   then
+       logger -p user.notice "Disk $SATA_STR is in configured state"
+       return 0;
+   else 
+       return 1;
+   fi
+    
+}
+
+# is the argument a number?
+# return 0 if it is, non-zero otherwise
+is_number() {
+    # expr will return > 1 if the expression is not a number
+    expr "$1" + 1 >/dev/null 2>&1
+    if [ $? -lt 2 ] ; then
+	return 0
+    else
+	return 1
+    fi
+}
+
+# return the disk index for the current crash configuration.
+# returns 255 if there's no such configuration (we'd like to
+# return -1, but the shell has issues w/that)
+current_crash_config() {
+    if [ ! -f $DUMP_CONFIG ]
+    then
+       logger -p user.notice "Dump configuration file $DUMP_CONFIG is missing."
+	return 255;
+    fi
+
+    if egrep DISK_INDEX $DUMP_CONFIG >/dev/null
+    then
+	index=`egrep DISK_INDEX $DUMP_CONFIG | sed 's/DISK_INDEX=//'`
+	if is_number $index
+	then
+	    return $index
+	fi
+    fi
+
+    logger -p user.notice "Dump configuration file $DUMP_CONFIG is malformed."
+    return 255
+}
+
+# check the disk index and ensure it is in configured state, else
+# use a different disk. Return 1 if no disk is in configured state.
+# Sets the DISK_INDEX to a available disk.
+validate_disk_for_dump() {
+    # list of disks to check; we always start at disk 3
+    # because we want the dump disk to be different than
+    # the boot disk if possible.
+    disks="3 2 1 0"
+
+    # If there's a disk currently configured for dump
+    # make sure we consider it first.
+    # We need to do this in order to be able to save an
+    # existing a crash dump from it.
+
+    current_crash_config
+    cur_dump_disk=$?
+
+    if [ $cur_dump_disk -ne 255 ] ; then
+	# put the current dump disk at the head of the list
+	# (after first removing it from the list so we don't
+	# list it twice)
+	disks=`echo $disks | sed s/$cur_dump_disk//`
+	disks="$cur_dump_disk $disks"
+    fi
+
+    for DISK_INDEX in $disks ; 
+    do
+        case $DISK_INDEX in
+        0) DISK_ID="c0t0d0";;
+        1) DISK_ID="c0t1d0";;
+        2) DISK_ID="c1t0d0";;
+        3) DISK_ID="c1t1d0";;
+        *) DISK_ID="c0t0d0";; # should never happen
+        esac
+
+	check_disk_configured $DISK_ID
+	if [ $? -ne 0 ]
+	then
+	    logger -p user.notice \
+		"Disk $DISK_ID not configured, can't be used for crash dump"
+	    continue
+	fi
+
+	check_our_disk_label $DISK_ID
+	if [ $? -ne 0 ]
+	then
+	    logger -p user.notice \
+		"Disk $DISK_ID can't be used for crash dump"
+	    continue
+	fi
+
+	logger -p user.notice "Disk $DISK_ID may be used for crash dump"
+	return 0;
+    done
+
+    logger -p user.notice "No disk available for use for crash dump"
+    return 1;
+}
+
+#
+# Dumpadm automatically uses swap as dump device but we have
+# partition layout setup to use < 512mb for that and we will
+# loose dump because it is too small. That aside, on disk failures
+# Solaris will not automatically reconfigure swap on to a different disk
+#
+# http://docs.sun.com/app/docs/doc/817-5093/6mkisoq7v?a=view
+# Indicates we need 1g for dumpdevice for physical memory of 4g.
+#
+# Dumpadm.conf will be setup on the ramdisk to use c1t0d0s6
+# Here we configure to use a UFS dumpfile. ZFS does not support dumping on
+# a file yet, Whenever that happens we need to move this functionality
+# to use Zfs, that gives mirroring for free.
+# We use boot partition to configure the dump device instead of data
+# partition to avoid any risks with using dump device on it.
+
+BASEDIR="/boot/images"
+CRASHDIR="/var/adm/crash"
+config_crashdump() {
+    # Remove the old dump file if present.  This is the dumpfile we are no
+    # longer using because we cannot dump to ZFS.
+    rm -f $CRASHDIR/honeycomb-dump-file
+
+    validate_disk_for_dump
+    if [ $? -ne 0 ]
+    then
+	# no disk to use
+        return
+    else 
+       # write the new index to dumpadm
+       echo "DISK_INDEX=$DISK_INDEX" > $DUMP_CONFIG 
+       echo "DUMPFILE=${DUMPFILE:=dumpfile}" >> $DUMP_CONFIG 
+    fi
+    DUMPCREATED=0
+    x=`mount $BASEDIR/$DISK_INDEX 2>&1`
+    rc=$?
+    if [ $rc -ne 0 ]
+    then 
+        # if not already mounted
+        if echo "$x" | grep -v busy > /dev/null
+        then
+            msg="Failed to mount $BASEDIR/$DISK_INDEX, not able to save dump"
+            logger -p user.notice "$msg"
+            logger -p user.notice "Mount failed as: $x"
+            return;
+        fi
+    fi
+
+    if [ ! -f $BASEDIR/$DISK_INDEX/${DUMPFILE:=dumpfile} ]; then
+        mkfile 1g $BASEDIR/$DISK_INDEX/$DUMPFILE 
+        rc=$?
+        if [ $rc -ne 0 ]
+        then
+            msg="Failed to create the dump file, crash dump will not work"
+            logger -p user.notice "$msg"
+            return;
+        fi
+        DUMPCREATED=1
+    fi
+    if [ $DUMPCREATED -eq 1 ]
+    then
+        logger -p user.notice \
+	    "Dump file recently created, nothing to savecore"
+    else
+        logger -p user.notice \
+	    "Trying to savecore $BASEDIR/$DISK_INDEX/$DUMPFILE"
+        save_core
+    fi   
+    # configure the dumpadm to use this dumpfile
+    /usr/sbin/dumpadm -d $BASEDIR/$DISK_INDEX/$DUMPFILE -s /var/adm/crash
+    if [ $? -ne 0 ]
+    then
+        logger -p user.notice "Failed to configure dumpadm"
+        return;
+    fi
+}
+
+# returns the index matching the tag=3 for swap device on the disk.
+#
+# See prtvtoc help for the tag details. 	
+# The data in the Tag column indicates the type of  par-
+# tition, as follows:
+#
+# Name   Number
+#
+# SWAP   0x03
+# Although it mentions it is in hex but the output is not.
+#
+#
+# Input dev_name with 's0' appended.
+# Output: slice no.
+get_swap_slice_no() {
+    x=`echo $1 | perl -lane 'my @a=\`prtvtoc /dev/dsk/@F | grep -v "*"\`; \
+          foreach (@a) { my @fields = split(/\s+/); \
+              if ($fields[2] eq 3)  \
+              { \
+                 print  $fields[1]; \
+                 break; \
+              } \
+          }'`
+    echo $x
+}
+# Check the label is present and enabled.
+# Do not use it even if it is unlabeled.
+check_our_disk_label() {
+
+    DL="/opt/honeycomb/bin/disklabel.sh"
+
+    if ($DL 2>&1 | grep "$1" | egrep -i 'foreign|disable|No label' > /dev/null)
+    then 
+         logger -p user.notice "Not enabling swap on disabled disk $1"
+         return 1
+    else
+         return 0
+    fi
+}
+
+# Swap on the swap slice (usually 6th slice) of any working disk. 
+swap_add() {
+    DISK="/dev/dsk"
+    check_disk_configured "$1"
+    if [ $? -ne 0 ]
+    then
+         logger -p user.notice \
+	     "$1 is not configured, could not enable swap on it"
+         return
+    fi
+    check_our_disk_label "$1"
+    if [ $? -ne 0 ]
+    then
+         logger -p user.notice \
+	     "$1 no label, disabled, or foreign, not enabling swap on it"
+         return
+    fi
+    SLICE=`get_swap_slice_no ${1}s0` 
+    if [ "$SLICE" = "" ]
+    then 
+        logger -p user.notice "Failed to get slice on $DISK/$1"
+        logger -p user.notice "Swap will not be configured"
+        return
+    fi
+    x=`/usr/sbin/swap -a $DISK/${1}s${SLICE} 2>&1`
+    if [ $? -ne 0 ]
+    then
+        logger -p user.notice "Failed to add swap on $DISK/$1"
+        logger -p user.notice "Swap output:"
+        logger -p user.notice "$x"
+    fi
+}
+
+config_swap() {
+    DISKLIST=`get_disks`
+    
+    # Enable swap on all valid disks
+    for i in $DISKLIST
+    do 
+        swap_add $i
+    done
+    # print the Final output of all swap devices
+    logger -p user.notice "Swap configuration: "
+    swap -l | logger -p user.notice
+}
+
+# dumplog outputs several pieces of information from a crash dump into the 
+# regular log before it is deleted by the savecore function.
+dumplog() {
+    CRASHNUM=$1
+
+    CMDFILE="/tmp/mdbcommands"
+
+    CWD=`pwd`
+    cd $CRASHDIR
+    
+    echo "::echo ::ps" > $CMDFILE
+    echo "::ps" >> $CMDFILE
+    echo "::echo ::status" >> $CMDFILE
+    echo "::status" >> $CMDFILE
+    echo ::echo "'\$C'" >> $CMDFILE
+    echo "\$C" >> $CMDFILE
+    echo "::echo ::cpuinfo -v" >> $CMDFILE
+    echo "::cpuinfo -v" >> $CMDFILE
+    echo ::echo "'$<msgbuf'" >> $CMDFILE
+    echo '$<msgbuf' >> $CMDFILE
+    echo "::echo ::memstat" >> $CMDFILE
+    echo "::memstat" >> $CMDFILE
+
+    cat $CMDFILE | mdb $CRASHNUM -k > /tmp/mdb.out
+
+    LSINFO=`ls -l vmcore.$CRASHNUM`
+
+    logger -p user.notice \
+	"Logging crash dump information from dump $CRASHNUM : $LSINFO" 
+    logger -p user.notice -t "*MDB OUTPUT*:" -f /tmp/mdb.out
+
+    cd $CWD  	
+}
+
+# Save core will create the core files if there was a crash recently
+# if server is not running the dump will be configured on swap and savecore
+# on svc-dumpadm will create the core files. If the system crashed
+# with server, this will save the cores.
+
+# Keep 3 core dumps
+MAXCORES=3
+# Keep 2 GB (in KB) free in /var/adm/ so we can still log
+MINFREE=2097152
+
+save_core() {
+
+    if [ -x /usr/bin/savecore ]
+    then
+	echo $MINFREE > $CRASHDIR/minfree
+
+	logger -p user.notice "Running savecore $BASEDIR/$DISK_INDEX/$DUMPFILE"
+        SAVEOUT=`/usr/bin/savecore -v -f $BASEDIR/$DISK_INDEX/$DUMPFILE 2>&1`
+        rc=$?
+        if [ $rc -ne 0 ]
+        then 
+            logger -p user.notice "/usr/bin/savecore failed with $rc"
+	else
+	    if [ "$SAVEOUT" = "savecore: dump already processed" ]; then
+		logger -p user.notice "Nothing to savecore"
+	    else
+        # dump logs for this new core file
+		CORENUM=`ls -1t $CRASHDIR/unix* | head -1 | awk -F. '{print $2}'`
+		dumplog $CORENUM		 
+	    fi
+        fi
+
+	NUMCORES=`ls $CRASHDIR/unix* 2> /dev/null | wc -l`
+	while [ "$NUMCORES" -gt "$MAXCORES" ]; do
+	   OLDUNIX=`ls -1t $CRASHDIR/unix* | tail -1`
+           DUMPNUM=`echo $OLDUNIX | awk -F. '{print $2}'`
+	   OLDCORE=$CRASHDIR/vmcore.$DUMPNUM
+	   # delete the oldest
+	   logger -p user.notice \
+	       "Deleting old core files $OLDUNIX and $OLDCORE"
+	   rm -f $OLDUNIX
+	   rm -f $OLDCORE
+           NUMCORES=`ls $CRASHDIR/unix* 2> /dev/null | wc -l`
+	done
+
+    else
+        logger -p user.notice "/usr/bin/savecore missing, could not copy dump"
+    fi
+}
+
+# Check kernel parameters to see if honeycomb should be disabled
+check_nohoneycomb() {
+    kp="`prtconf -v /devices | sed -n '/server-run/{;n;p;}' | cut -f2 -d \'`"
+    
+    if [ "$kp" = "false" ]; then
+	touch /tmp/nohoneycomb
+    fi
+}
+
+# Add permissions to /config
+config_permissions() {
+    chown internal:honeycomb /config
+    chmod 775 /config
+}
+
+# Edit logadm configuration for proper log rotation
+config_logs() {
+
+    # Get the size of the /var/adm
+    LOGSIZE=`df -k /var/adm | tail -1 | cut -f13 -d' '`
+
+    # Get the rotation size to be 5GB less than the slice size
+    ROTATESIZE=`echo "$LOGSIZE - 5000000" | bc`
+
+    echo "Configuring logadm"
+    logadm -s 500m -S $ROTATESIZE"k" -z 2 -a \
+	'kill -HUP `cat /var/run/syslog.pid`' \
+	-w /var/adm/messages -t '$file.$n' \
+	-f /etc/logadm.conf 
+    if [ $? != 0 ]; then
+	echo "Failed to configure logadm"
+	exit 1
+    fi
+}
+
+# Main
+clear_tmp
+config_permissions
+config_cores
+
+# Sync /boot/images/[0-3]
+sync_bootslices
+
+# Dump config after the boot slices are synced to prevent creation
+# of dumpfile again if exists. Also we want the boot slice with dumpfile to
+# be mounted.
+config_crashdump
+
+# Configure log rotation
+config_logs
+
+# Check kernel parameters to see if we should start honeycomb
+check_nohoneycomb
+
+config_swap

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="component">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF component performance test.</description>
+    </info>
+
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input" />
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+        <loadproperties uri="storage://INPUT/test.properties" />
+
+        <property name="agents" value="1"/>
+        <property name="threads" value="1"/>
+    </local>
+
+    <result type="xml" uri="storage://OUTPUT/component_results.xml">
+        <testsuite name="component_perf_test">
+
+            <for property="agent" range="1..${agents}">
+                <local>
+                    <lockcomponent id="AGENT${agent}">
+                        <attrib name="type" value="${agent.type}" />
+                    </lockcomponent>
+                </local>
+            </for>
+
+            <record type="txt" 
+                    uri="storage://OUTPUT/remote_event.txt"
+                    event="dtf.perf"
+                    append="false">
+                <parallelloop property="agent" range="1..${agents}">
+                    <component id="AGENT${agent}">
+                        <loop property="thread" range="1..${threads}" type="parallel">
+                            <loop range="1..${iterations}" property="iter">
+                                <event name="dtf.perf.echo">
+                                    <attribute name="iteration" value="iter"/>
+                                    <attribute name="agent" value="${agent}"/>
+                                </event>
+                            </loop>
+                        </loop>
+                    </component>
+                </parallelloop>
+            </record>
+
+        </testsuite>
+
+        <query uri="storage://OUTPUT/remote_event.txt" 
+               type="txt"
+               event="dtf.perf.echo"
+               cursor="cursor" />
+
+        <record type="object" uri="property://dbperf">
+            <stats cursor="cursor" event="stats" />
+        </record>
+        <local>
+            <echo>
+                Remote Events with ${agents} agent(s) with ${threads} thread(s)
+                Events per second: ${dbperf.avg_occ}
+                Total of Events:   ${dbperf.tot_occ}
+                Total Duration:    ${dbperf.tot_dur}s
+            </echo>
+        </local>
+
+    </result>
+</script>

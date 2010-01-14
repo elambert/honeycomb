@@ -1,0 +1,68 @@
+<!--
+    $Id: build.xml 10854 2007-05-19 02:52:12Z bberndt $
+
+    Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+    Use is subject to license terms.
+-->
+<project name="mgmt" default="jar">
+
+  <property name="hc.root" value="${basedir}/../.."/>
+  <property name="build.dir" value="${hc.root}/build"/>
+  <property name="mgmt.build.anttasks" value="${build.dir}/mgmt/ant"/>
+  <property name="mgmt.dist.libdir" value="${build.dir}/mgmt/dist/lib"/>
+  <property name="mgmt.compiler.jar" value="${mgmt.dist.libdir}/mofCompiler.jar"/>
+  <property name="mgmt.lib" value="${hc.root}/build/mgmt/dist/lib"/>
+  <property name="mgmt.xjc.jar" value="${mgmt.lib}/jaxb-xjc.jar:${mgmt.lib}/jsr173_api.jar"/>
+  <property name="mgmt.jaxb.jar" value="${build.dir}/mgmt/jaxb/jaxb-hcplugin.jar"/>
+  <property name="external.libdir" value="${hc.root}/external/lib"/>
+
+  <property name="generated.dir" value="${basedir}/generated"/>
+
+  <target name="prepare">
+    <tstamp/>
+    <taskdef name="compileMof" classname="MOFCompiler" classpath="${mgmt.build.anttasks}"/>
+    <taskdef name="xjc" classname="com.sun.tools.xjc.XJCTask" classpath="${mgmt.xjc.jar}:${mgmt.jaxb.jar}"/>
+    <mkdir dir="${generated.dir}/classes"/>
+    <mkdir dir="dist"/>
+  </target>
+  
+  <target name="mof" depends="prepare">
+    <compileMof mofCompilerJar="${mgmt.compiler.jar}"
+                moffile="mof/test.mof"
+                outputDir="${generated.dir}/src"
+                clientXsdFile="${generated.dir}/client.xsd"
+                serverXsdFile="${generated.dir}/server.xsd"
+                rootPackage="com.sun.honeycomb.mgmttest"/>
+    <xjc schema="${generated.dir}/client.xsd"
+         destdir="${generated.dir}/src"
+         package="com.sun.honeycomb.mgmttest.client"
+         extension="true">
+      <arg value="-Xhc"/>
+    </xjc>
+    <xjc schema="${generated.dir}/server.xsd"
+         destdir="${generated.dir}/src"
+         package="com.sun.honeycomb.mgmttest.server"
+         extension="true"/>
+  </target>
+
+  <target name="compile" depends="prepare, mof">
+    <javac classpath="${mgmt.lib}/honeycomb-mgmt.jar:${mgmt.lib}/jaxb-api.jar:${mgmt.lib}/jaxb-ri.jar:${mgmt.lib}/saaj-api.jar:${mgmt.lib}/wiseman-client.jar:${mgmt.lib}/wiseman.jar:${mgmt.lib}/jsr173_api.jar:${external.libdir}/jetty-4.2.20.jar"
+           srcdir="${generated.dir}/src:${basedir}/src"
+           destdir="${generated.dir}/classes"
+           debug="true"/>
+  </target>
+
+  <target name="jar" depends="prepare, compile">
+    <jar jarfile="dist/mgmt-test.jar">
+      <fileset dir="${generated.dir}/classes"/>
+      <zipfileset src="${mgmt.lib}/jaxb-api.jar"/>
+      <zipfileset src="${mgmt.lib}/jaxb-impl.jar"/>
+      <zipfileset src="${mgmt.lib}/saaj-api.jar"/>
+      <zipfileset src="${mgmt.lib}/saaj-impl.jar"/>
+      <zipfileset src="${mgmt.lib}/wiseman.jar"/>
+      <zipfileset src="${mgmt.lib}/wiseman-client.jar"/>
+      <zipfileset src="${mgmt.lib}/jsr173_api.jar"/>
+    </jar>
+  </target>
+
+</project>

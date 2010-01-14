@@ -1,0 +1,476 @@
+// !$*UTF8*$!
+/*
+ * Copyright © 2008, Sun Microsystems, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 42;
+	objects = {
+
+/* Begin PBXApplicationTarget section */
+		29B97326FDCFA39411CA2CEA /* TaskStepperBench */ = {
+			isa = PBXApplicationTarget;
+			buildConfigurationList = C006216908B266460004B710 /* Build configuration list for PBXApplicationTarget "TaskStepperBench" */;
+			buildPhases = (
+				29B97327FDCFA39411CA2CEA /* Headers */,
+				29B97328FDCFA39411CA2CEA /* Resources */,
+				29B9732BFDCFA39411CA2CEA /* Sources */,
+				043355C9FE30361CC02AAC07 /* JavaArchive */,
+				29B9732DFDCFA39411CA2CEA /* Frameworks */,
+				D8FDEFDE09D91B1300B66FCD /* Copy Jars */,
+			);
+			buildSettings = {
+				FRAMEWORK_SEARCH_PATHS = "";
+				HEADER_SEARCH_PATHS = "";
+				INSTALL_PATH = "$(HOME)/Applications";
+				JAVA_SOURCE_SUBDIR = .;
+				LIBRARY_SEARCH_PATHS = "";
+				OTHER_CFLAGS = "";
+				OTHER_LDFLAGS = "";
+				PREBINDING = NO;
+				PRECOMPILE_PREFIX_HEADER = YES;
+				PREFIX_HEADER = TaskStepperBench_Prefix.h;
+				PRODUCT_NAME = TaskStepperBench;
+				SECTORDER_FLAGS = "";
+				WARNING_CFLAGS = (
+					"-Wmost",
+					"-Wno-four-char-constants",
+					"-Wno-unknown-pragmas",
+				);
+				WRAPPER_EXTENSION = app;
+			};
+			dependencies = (
+			);
+			name = TaskStepperBench;
+			productInstallPath = "$(HOME)/Applications";
+			productName = TaskStepperBench;
+			productReference = 17587328FF379C6511CA2CBB /* TaskStepperBench.app */;
+			productSettingsXML = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<!DOCTYPE plist PUBLIC \"-//Apple Computer//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+<plist version=\"1.0\">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>English</string>
+	<key>CFBundleExecutable</key>
+	<string>TaskStepperBench</string>
+	<key>CFBundleIconFile</key>
+	<string></string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>TaskStepperBench</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>0.1</string>
+	<key>Java</key>
+	<dict>
+		<key>JVMVersion</key>
+		<string>1.4+</string>
+	</dict>
+	<key>NSJavaNeeded</key>
+	<string>YES</string>
+	<key>NSJavaPath</key>
+	<array>
+		<string>TaskStepperBench.jar</string>
+		<string>honeycomb-server.jar</string>
+	</array>
+	<key>NSJavaRoot</key>
+	<string>Contents/Resources/Java</string>
+	<key>NSMainNibFile</key>
+	<string>MainMenu</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+</dict>
+</plist>
+";
+		};
+/* End PBXApplicationTarget section */
+
+/* Begin PBXBuildFile section */
+		080E96DCFE201CFB7F000001 /* MainMenu.nib in Resources */ = {isa = PBXBuildFile; fileRef = 29B97318FDCFA39411CA2CEA /* MainMenu.nib */; };
+		089C165EFE840E0CC02AAC07 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 089C165CFE840E0CC02AAC07 /* InfoPlist.strings */; };
+		1058C7A3FEA54F0111CA2CBB /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
+		29B9732CFDCFA39411CA2CEA /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 29B97316FDCFA39411CA2CEA /* main.m */; settings = {ATTRIBUTES = (); }; };
+		32DBCF7C0370BD5C00C91783 /* TaskStepperBench_Prefix.h in Headers */ = {isa = PBXBuildFile; fileRef = 32DBCF7B0370BD5C00C91783 /* TaskStepperBench_Prefix.h */; };
+		D8FDEF5109D90D1200B66FCD /* honeycomb-server.jar in Frameworks */ = {isa = PBXBuildFile; fileRef = D8FDEF5009D90D1200B66FCD /* honeycomb-server.jar */; settings = {ATTRIBUTES = (); }; };
+		D8FDEF5609D9117E00B66FCD /* Controller.java in Sources */ = {isa = PBXBuildFile; fileRef = D8FDEF5509D9117E00B66FCD /* Controller.java */; };
+		D8FDEF6709D912D700B66FCD /* Task.java in Sources */ = {isa = PBXBuildFile; fileRef = D8FDEF6609D912D700B66FCD /* Task.java */; };
+		D8FDEFE409D91B2E00B66FCD /* honeycomb-server.jar in Copy Jars */ = {isa = PBXBuildFile; fileRef = D8FDEF5009D90D1200B66FCD /* honeycomb-server.jar */; };
+		D8FDF00609D91C1800B66FCD /* TaskStepperGlue.java in Sources */ = {isa = PBXBuildFile; fileRef = D8FDF00509D91C1800B66FCD /* TaskStepperGlue.java */; };
+		D8FDF01909D91D5100B66FCD /* GUICallback.java in Sources */ = {isa = PBXBuildFile; fileRef = D8FDF01809D91D5100B66FCD /* GUICallback.java */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXBuildStyle section */
+		4A9504D3FFE6A4CB11CA0CBA /* Debug */ = {
+			isa = PBXBuildStyle;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				OPTIMIZATION_CFLAGS = "-O0";
+				PREBINDING = NO;
+				ZERO_LINK = YES;
+			};
+			name = Debug;
+		};
+		4A9504D4FFE6A4CB11CA0CBA /* Release */ = {
+			isa = PBXBuildStyle;
+			buildSettings = {
+				COPY_PHASE_STRIP = YES;
+				GCC_ENABLE_FIX_AND_CONTINUE = NO;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				PREBINDING = NO;
+				ZERO_LINK = NO;
+			};
+			name = Release;
+		};
+/* End PBXBuildStyle section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		D8FDEFDE09D91B1300B66FCD /* Copy Jars */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 15;
+			files = (
+				D8FDEFE409D91B2E00B66FCD /* honeycomb-server.jar in Copy Jars */,
+			);
+			name = "Copy Jars";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		089C165DFE840E0CC02AAC07 /* English */ = {isa = PBXFileReference; fileEncoding = 10; lastKnownFileType = text.plist.strings; name = English; path = English.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = /System/Library/Frameworks/Cocoa.framework; sourceTree = "<absolute>"; };
+		13E42FCC07B3F16300E4EEF1 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = /System/Library/Frameworks/CoreData.framework; sourceTree = "<absolute>"; };
+		17587328FF379C6511CA2CBB /* TaskStepperBench.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; path = TaskStepperBench.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		29B97316FDCFA39411CA2CEA /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		29B97319FDCFA39411CA2CEA /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/MainMenu.nib; sourceTree = "<group>"; };
+		29B97324FDCFA39411CA2CEA /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = /System/Library/Frameworks/AppKit.framework; sourceTree = "<absolute>"; };
+		29B97325FDCFA39411CA2CEA /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = /System/Library/Frameworks/Foundation.framework; sourceTree = "<absolute>"; };
+		32DBCF7B0370BD5C00C91783 /* TaskStepperBench_Prefix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TaskStepperBench_Prefix.h; sourceTree = "<group>"; };
+		D8FDEF5009D90D1200B66FCD /* honeycomb-server.jar */ = {isa = PBXFileReference; lastKnownFileType = archive.jar; name = "honeycomb-server.jar"; path = "../../build/server/dist/lib/honeycomb-server.jar"; sourceTree = SOURCE_ROOT; };
+		D8FDEF5509D9117E00B66FCD /* Controller.java */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.java; path = Controller.java; sourceTree = "<group>"; };
+		D8FDEF6609D912D700B66FCD /* Task.java */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.java; path = Task.java; sourceTree = "<group>"; };
+		D8FDF00509D91C1800B66FCD /* TaskStepperGlue.java */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.java; path = TaskStepperGlue.java; sourceTree = "<group>"; };
+		D8FDF01809D91D5100B66FCD /* GUICallback.java */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.java; path = GUICallback.java; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		29B9732DFDCFA39411CA2CEA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1058C7A3FEA54F0111CA2CBB /* Cocoa.framework in Frameworks */,
+				D8FDEF5109D90D1200B66FCD /* honeycomb-server.jar in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		080E96DDFE201D6D7F000001 /* honeycomb */ = {
+			isa = PBXGroup;
+			children = (
+				D8FDEF5009D90D1200B66FCD /* honeycomb-server.jar */,
+			);
+			name = honeycomb;
+			sourceTree = "<group>";
+		};
+		1058C7A0FEA54F0111CA2CBB /* Linked Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */,
+			);
+			name = "Linked Frameworks";
+			sourceTree = "<group>";
+		};
+		1058C7A2FEA54F0111CA2CBB /* Other Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				29B97324FDCFA39411CA2CEA /* AppKit.framework */,
+				13E42FCC07B3F16300E4EEF1 /* CoreData.framework */,
+				29B97325FDCFA39411CA2CEA /* Foundation.framework */,
+			);
+			name = "Other Frameworks";
+			sourceTree = "<group>";
+		};
+		19C28FACFE9D520D11CA2CBB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				17587328FF379C6511CA2CBB /* TaskStepperBench.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		29B97314FDCFA39411CA2CEA /* TaskStepperBench */ = {
+			isa = PBXGroup;
+			children = (
+				D8FDEF5709D9119A00B66FCD /* Java sources */,
+				080E96DDFE201D6D7F000001 /* honeycomb */,
+				29B97315FDCFA39411CA2CEA /* Other Sources */,
+				29B97317FDCFA39411CA2CEA /* Resources */,
+				29B97323FDCFA39411CA2CEA /* Frameworks */,
+				19C28FACFE9D520D11CA2CBB /* Products */,
+			);
+			name = TaskStepperBench;
+			sourceTree = "<group>";
+		};
+		29B97315FDCFA39411CA2CEA /* Other Sources */ = {
+			isa = PBXGroup;
+			children = (
+				32DBCF7B0370BD5C00C91783 /* TaskStepperBench_Prefix.h */,
+				29B97316FDCFA39411CA2CEA /* main.m */,
+			);
+			name = "Other Sources";
+			sourceTree = "<group>";
+		};
+		29B97317FDCFA39411CA2CEA /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				29B97318FDCFA39411CA2CEA /* MainMenu.nib */,
+				089C165CFE840E0CC02AAC07 /* InfoPlist.strings */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+		};
+		29B97323FDCFA39411CA2CEA /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				1058C7A0FEA54F0111CA2CBB /* Linked Frameworks */,
+				1058C7A2FEA54F0111CA2CBB /* Other Frameworks */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		D8FDEF5709D9119A00B66FCD /* Java sources */ = {
+			isa = PBXGroup;
+			children = (
+				D8FDEF5509D9117E00B66FCD /* Controller.java */,
+				D8FDEF6609D912D700B66FCD /* Task.java */,
+				D8FDF00509D91C1800B66FCD /* TaskStepperGlue.java */,
+				D8FDF01809D91D5100B66FCD /* GUICallback.java */,
+			);
+			name = "Java sources";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		29B97327FDCFA39411CA2CEA /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				32DBCF7C0370BD5C00C91783 /* TaskStepperBench_Prefix.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXJavaArchiveBuildPhase section */
+		043355C9FE30361CC02AAC07 /* JavaArchive */ = {
+			isa = PBXJavaArchiveBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXJavaArchiveBuildPhase section */
+
+/* Begin PBXProject section */
+		29B97313FDCFA39411CA2CEA /* Project object */ = {
+			isa = PBXProject;
+			buildConfigurationList = C006216D08B266460004B710 /* Build configuration list for PBXProject "TaskStepperBench" */;
+			buildSettings = {
+			};
+			buildStyles = (
+				4A9504D3FFE6A4CB11CA0CBA /* Debug */,
+				4A9504D4FFE6A4CB11CA0CBA /* Release */,
+			);
+			hasScannedForEncodings = 1;
+			mainGroup = 29B97314FDCFA39411CA2CEA /* TaskStepperBench */;
+			projectDirPath = "";
+			targets = (
+				29B97326FDCFA39411CA2CEA /* TaskStepperBench */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		29B97328FDCFA39411CA2CEA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				080E96DCFE201CFB7F000001 /* MainMenu.nib in Resources */,
+				089C165EFE840E0CC02AAC07 /* InfoPlist.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		29B9732BFDCFA39411CA2CEA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				29B9732CFDCFA39411CA2CEA /* main.m in Sources */,
+				D8FDEF5609D9117E00B66FCD /* Controller.java in Sources */,
+				D8FDEF6709D912D700B66FCD /* Task.java in Sources */,
+				D8FDF00609D91C1800B66FCD /* TaskStepperGlue.java in Sources */,
+				D8FDF01909D91D5100B66FCD /* GUICallback.java in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		089C165CFE840E0CC02AAC07 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				089C165DFE840E0CC02AAC07 /* English */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		29B97318FDCFA39411CA2CEA /* MainMenu.nib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				29B97319FDCFA39411CA2CEA /* English */,
+			);
+			name = MainMenu.nib;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		C006216A08B266460004B710 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_MODEL_TUNING = G5;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				INSTALL_PATH = "$(HOME)/Applications";
+				JAVA_SOURCE_SUBDIR = .;
+				PRECOMPILE_PREFIX_HEADER = YES;
+				PREFIX_HEADER = TaskStepperBench_Prefix.h;
+				PRODUCT_NAME = TaskStepperBench;
+				WRAPPER_EXTENSION = app;
+				ZERO_LINK = YES;
+			};
+			name = Debug;
+		};
+		C006216B08B266460004B710 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = (
+					ppc,
+					i386,
+				);
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_MODEL_TUNING = G5;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLES = YES;
+				INSTALL_PATH = "$(HOME)/Applications";
+				JAVA_SOURCE_SUBDIR = .;
+				PRECOMPILE_PREFIX_HEADER = YES;
+				PREFIX_HEADER = TaskStepperBench_Prefix.h;
+				PRODUCT_NAME = TaskStepperBench;
+				WARNING_CFLAGS = (
+					"-Wmost",
+					"-Wno-four-char-constants",
+					"-Wno-unknown-pragmas",
+				);
+				WRAPPER_EXTENSION = app;
+			};
+			name = Release;
+		};
+		C006216E08B266460004B710 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				PREBINDING = NO;
+				SDKROOT = /Developer/SDKs/MacOSX10.4u.sdk;
+			};
+			name = Debug;
+		};
+		C006216F08B266460004B710 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				PREBINDING = NO;
+				SDKROOT = /Developer/SDKs/MacOSX10.4u.sdk;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		C006216908B266460004B710 /* Build configuration list for PBXApplicationTarget "TaskStepperBench" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C006216A08B266460004B710 /* Debug */,
+				C006216B08B266460004B710 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C006216D08B266460004B710 /* Build configuration list for PBXProject "TaskStepperBench" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C006216E08B266460004B710 /* Debug */,
+				C006216F08B266460004B710 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 29B97313FDCFA39411CA2CEA /* Project object */;
+}

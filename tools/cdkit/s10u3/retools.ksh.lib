@@ -1,0 +1,540 @@
+
+# @(#) retools.ksh.lib 1.22@(#)
+
+typeset -r HALF_SEP='#######################################'
+typeset -r SEPERATOR="$HALF_SEP$HALF_SEP"
+integer BLKS_PER_CYL=640 
+typeset -r SLEEP_TIME=300
+#typeset -r FASTFS=${FASTFS:=fastfs.$(uname -p)}
+
+typeset OPT_DEBUG=${OPT_DEBUG:-false}
+
+PrintErr() {
+	echo "$@" >&2
+}
+
+
+_TmpFile() {
+	typeset -r vuniq=$(/usr/bin/date '+%m''%d''%H''%M''%S').$RANDOM.$RANDOM
+	typeset -r prefix=${1}.${vuniq}
+	[ -z "$!" ] && echo "/tmp/${prefix}.$$" || echo "/tmp/${prefix}.$!"
+}
+
+_Tracing() {
+	typeset -r command=$*
+	integer error=0
+	echo "[$command] ..."
+	eval $command || {
+		error=$?
+		PrintErr "[$command] - FAILED(return=$error)"
+	}
+	return $error
+}
+
+
+_AskYesOrNoQuestion() {
+	typeset -r question="$@"
+	typeset answer=
+	while (( 1 )) ; do
+		print -n "$question (y/n) ? " > /dev/tty
+		read answer
+		if [[ $answer = [yYnN] ]] ; then
+			break
+		fi
+	done
+	# convert the character to uppercase.
+	typeset -u uppercase=$answer
+	echo $uppercase
+}
+
+
+silence() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+	typeset -r cmd=$*
+	typeset -r cmd_name=$(basename $1)
+	typeset -r tmplog=$(_TmpFile t.$cmd_name)
+	typeset error=0
+	eval $cmd > $tmplog 2>&1 || error=$?
+	[ $error -ne 0 ] && {
+		cat $tmplog >&2
+		PrintErr "[$cmd] - FAILED(return=$error)"
+	}
+	rm -f $tmplog
+	return $error
+}
+
+trace() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+	typeset -r cmd=$@
+	echo "[$cmd] ..."
+	silence $cmd	|| return $?
+	return 0
+}
+
+
+#
+# WARNING - "$command" is being run in a subprocess, do not set
+# any global environment variables within the "$command".  The
+# variable changes will disappear upon completion of the process.
+#
+_LogCommand() {
+
+	_CheckResult() {
+		typeset -r log=$1
+		typeset -r lastline=$(grep -v '^+' $log | tail -1) 
+		return ${lastline#RETURN=*}
+	}
+
+	typeset -r logfile=$1
+	shift 1
+	typeset -r cmd=$@
+
+	{
+		integer error=0
+		echo "$SEPERATOR"
+		echo "START TIME: $(date)"
+		_Tracing $cmd	|| error=$?
+		echo "END TIME: $(date)"
+		echo "RETURN=$error"
+	} 2>&1 | tee $logfile
+	_CheckResult $logfile
+	return $?
+}
+
+
+_LogCommandToFile() {
+
+        _CheckResult() {
+                typeset -r log=$1
+                typeset -r lastline=$(grep -v '^+' $log | tail -1)
+                return ${lastline#RETURN=*}
+        }
+
+        typeset -r logfile=$1
+        shift 1
+        typeset -r cmd=$@
+
+        {
+                integer error=0
+                echo "$SEPERATOR"
+                echo "START TIME: $(date)"
+                _Tracing $cmd   || error=$?
+                echo "END TIME: $(date)"
+                echo "RETURN=$error"
+        } > $logfile 2>&1
+        _CheckResult $logfile
+        return $error
+}
+
+
+Parallel() {
+
+	# process commands and output to tmp area in parallel
+	# when all commands are done, print all output
+
+	integer count=0
+	typeset line=
+	read line
+	# parallel processing requires unique values
+	# use input string cksum from first command set since it is 
+	# unique for each call
+	typeset vuniq=$(echo "$line" | cksum | awk '{print $1}')
+	typeset -r prefix=/tmp/prlll.$$.${vuniq}
+
+	# go through loop once with first command that was fetched
+	(
+		echo "$SEPERATOR"
+		echo "COMMAND: '$line'"
+		eval "$line"
+		echo "EXIT=$?"
+	) > $prefix.$count 2>&1 &
+
+	# loop through rest of commands
+	while read line ; do
+		count=count+1
+		(
+			echo "$SEPERATOR"
+			echo "COMMAND: '$line'"
+			eval "$line"
+			echo "EXIT=$?"
+		) > $prefix.$count 2>&1 &
+	done
+
+	# wait for background processes to complete before displaying output
+	wait 
+
+	integer cnt=0
+	integer error=0
+	while (( $cnt <= $count )) ; do
+		typeset logfile=$prefix.$cnt
+		[ "$(tail -1 $logfile)" != 'EXIT=0' ] && error=error+1
+		cat $logfile
+		rm -f $logfile
+		cnt=cnt+1
+	done
+	echo "$SEPERATOR"
+
+	return $error
+}
+
+
+_IsSuperUser() {
+	[ -w /etc/passwd ] && return 0 || return 1
+}
+
+
+_StripComments() {
+	typeset -r file_with_comments=$1
+	[ ! -r "$file_with_comments" ] && {
+		PrintErr "Failed to read $file_with_comments"
+		return 1
+	}
+
+	typeset line=
+	while read line ; do
+		[ -z "$line" ] && continue
+		[[ "$line" = '#'* ]] && continue
+		[[ "$line" != *[a-zA-Z]* ]] && continue
+		echo $line
+	done < $file_with_comments
+}
+
+
+_PadFile() {
+
+	_FileSizeInBlk() {
+		typeset -r file=$1
+
+		integer size=-1
+		typeset bogus=
+		\ls -l $file | read bogus bogus bogus bogus size bogus || {
+			echo "Failed to get size of file: $file" >&2
+			echo '-1'
+			return 1
+		}
+
+		if (( $size < 0 )) ; then
+			echo "-1"
+			return 1
+		else 
+			if (( ($size % 512) > 0 )) ; then
+				echo "File size should be a multiple of" \
+					"512 byte" >&2
+				echo "-1"
+				return 1
+			else
+				size=size/512
+				echo $size
+				return 0
+			fi
+		fi
+	}
+	
+	typeset -r FILE=$1
+	integer blks=0
+	blks=$(_FileSizeInBlk $FILE)
+	if (( $blks >= 0 )) ; then
+		integer pad_size="( (blks+$BLKS_PER_CYL-1) / $BLKS_PER_CYL) * \
+			$BLKS_PER_CYL - blks"
+		if (( $pad_size > 0 )) ; then
+			dd if=/dev/zero bs=512 count=$pad_size >> $FILE
+			return $?
+		fi
+		return 0
+	else
+		return 1
+	fi
+}
+
+
+FastfsOn() {
+
+	typeset -r fsname=$1
+	typeset -r fspath=$2
+	typeset -r logfile=/tmp/fastfs.$fsname.log
+	integer count=1
+	integer error=0
+
+	if [ -f "$logfile" ] ; then
+		integer count=$(cat $logfile )
+		count=count+1
+	else
+		$FASTFS -f $fspath || error=$?
+	fi
+
+	[ $error -ne 0 ] && {
+		PrintErr "ERROR: FastfsOn returns $error"
+		return $error
+	}
+
+	echo $count > $logfile
+	$FASTFS $fspath
+
+	return 0
+}
+
+
+FastfsOff() {
+
+	typeset -r fsname=$1
+        typeset -r fspath=$2
+        typeset -r logfile=/tmp/fastfs.$fsname.log
+	integer error=0
+
+        if [ ! -f "$logfile" ] ; then
+		PrintErr "WARNING: Fast file system mode has not been"\
+			"turned on for $fspath. The current mode is: "
+		$FASTFS $fspath
+		return 0
+	else	
+                integer count=$( cat $logfile )
+                count=count-1
+        fi
+
+	if [ $count -eq 0 ] ; then
+		sync
+        	$FASTFS -s $fspath || error=$?
+        	sync
+		lockfs -fa
+		rm $logfile
+		[ $error -ne 0 ] && {
+                	PrintErr "ERROR: FastfsOff returns $error"
+                	return $error
+        	}
+	elif [ $count -gt 0 ] ; then
+		echo $count > $logfile
+		echo "Currently there are still $count processes"\
+			"using the fast mode on $fspath"
+	else
+		PrintErr "WARNING: count in $logfile is $count"
+	fi
+
+	$FASTFS $fspath || return $?
+
+	return 0
+}
+
+
+ExclusiveLock() {
+	typeset -r lock_name=$1
+	typeset -r lock_file=/tmp/${lock_name}.lock
+	shift 1
+	_isValidLock() {
+		typeset process_id=
+		process_id=$(< $lock_file)	|| return $?
+		ps -ef | grep -v grep | grep " $process_id " > /dev/null 2>&1
+		return $?
+	}
+	Create() {
+		while (( 1 )) ; do
+			if [ -f "$lock_file" ] ; then
+				_isValidLock && {
+					echo "[$(date)] waiting for" \
+						"$SLEEP_TIME seconds ..."
+					sleep $SLEEP_TIME
+					continue
+				}
+			fi
+			echo "LOCK CREATE ==> $lock_file $(date)"
+			echo $$ > $lock_file
+			break
+		done
+		return 0
+	}
+	Delete() {
+		echo "LOCK DELETE ==> $lock_file $(date)"
+		rm -f $lock_file
+		return 0
+	}
+	$@
+	return $?
+}
+
+
+SplitListAndExecuteFunction() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r content_list=$1
+	integer n_split=$2
+	shift 2
+	typeset -r cmd_n_options=$@
+
+	# Nothing to do when the content_list is empty!!!
+	[ ! -s "$content_list" ] && return 0
+
+	# WARNING: DO NOT MISS OUT THE DOT AND THE END
+	typeset -r prefix="$(_TmpFile split)."
+	integer count=$(cat $content_list | wc -l)
+	integer each_count="((count+n_split-1)/n_split)"
+
+	split -l$each_count $content_list $prefix	|| return $?
+
+	integer error=0
+	typeset file=
+	for file in ${prefix}* ; do
+		echo $cmd_n_options $file
+	done | Parallel || error=$?
+
+	rm -f ${prefix}*
+
+	return $error
+}
+
+
+SplitDirectoryAndExecuteFunction() {
+
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r dir=$1
+	integer n_split=$2
+	shift 2
+	typeset -r cmd_n_options=$@
+
+	typeset -r content_list=$(_TmpFile sdaef)
+
+	(
+		cd $dir						|| return $?
+
+		\ls -1 > $content_list				|| return $?
+		SplitListAndExecuteFunction $content_list \
+			$n_split $cmd_n_options 		|| return $?
+		return 0
+	)
+	integer error=$?
+
+	rm -f $content_list
+	return $error
+}
+
+
+_DuplicateContentsFromList() {
+
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r type=$1
+	shift 1
+	typeset -r src=$1
+	typeset -r dest=$2
+	typeset -r file_list=$3
+
+	if [ ! -d "$src" ] ; then
+		PrintErr "Cannot open directory $src"
+		return 1
+	fi
+	if [ ! -r "$file_list" ] ; then
+		PrintErr "Cannot read file list $file_list"
+		return 1
+	fi
+
+	# Nothing to do when the file_list is empty!!!
+	[ ! -s "$file_list" ] && return 0
+
+	[ ! -d "$dest" ] && {
+		mkdir -p $dest	|| return $?
+	}
+
+	(
+		cd $src		|| return $?
+		typeset cpio_option='-pdum'
+		[ "$type" == "link" ] && cpio_option="${cpio_option}l"
+		find $(< $file_list) -print | cpio $cpio_option $dest
+		return $?
+	)
+	return $?
+}
+
+
+SplitDirAndDupContentsInParallel() {
+
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r n_split=$1
+	typeset -r type=$2
+	shift 2
+	typeset -r src=$1
+	typeset -r dest=$2
+
+	SplitDirectoryAndExecuteFunction $src $n_split \
+		_DuplicateContentsFromList $type $src $dest
+	return $?
+}
+
+
+SplitListAndDupContentsInParallel() {
+
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r n_split=$1
+	typeset -r type=$2
+	shift 2
+	typeset -r src=$1
+	typeset -r dest=$2
+	typeset -r list=$3
+
+	SplitListAndExecuteFunction $list $n_split \
+		_DuplicateContentsFromList $type $src $dest
+	return $?
+}
+
+
+_UNSAFE_ListPkgsWithNames() {
+
+	typeset -r pkgdir=$1
+	shift 1
+	typeset -r pkgs=$*
+
+	cd $pkgdir				|| return $? 
+
+	typeset pkglist=
+	integer error=0
+
+	typeset pkg=
+	for pkg in $pkgs ; do
+		if [ -d "$pkg" ] ; then
+			pkglist="$pkglist $pkg"
+		else
+			typeset arch_pkgs=$(\ls -d ${pkg}.* 2>/dev/null)
+			if [ -z "$arch_pkgs" ] ; then
+				PrintErr "ERROR: Cannot find $pkg"
+				error=error+1
+			else
+				pkglist="$pkglist $arch_pkgs"
+			fi
+		fi
+	done
+
+	[ $error -ne 0 ] 			&& return $error
+
+	echo $pkglist
+
+	return 0
+}
+
+
+GetMajorRelease() {
+	[ "$OPT_DEBUG" == 'true' ] && set -x
+	typeset -r release=$1
+	typeset major_rel=${release%%_*}
+	[[ "$major_rel" == [sn]*s ]] && major_rel=${major_rel%s}
+	[[ "$major_rel" == [sn]*x ]] && major_rel=${major_rel%x}
+	[ -z "$major_rel" ] && major_rel="INVALID_MAJOR_REL"
+	echo $major_rel
+}
+
+GetProjectName() {
+	[ "$OPT_DEBUG" == 'true' ] && set -x
+
+	typeset -r release=$1
+
+	typeset integ_dock=/net/paradise/export/integrate_dock/$(GetMajorRelease ${release})
+	typeset project_file=$integ_dock/${release%_*}/config/project_name
+
+	if [ ! -f "$project_file" ] ; then
+		typeset project_file=$integ_dock/${release}/config/project_name
+		if [ ! -f "$project_file" ] ; then
+			echo ""
+			return
+		fi
+	fi
+	cat $project_file
+}

@@ -1,0 +1,201 @@
+
+<?xml version="1.0"?> <!-- -*-xml-*- -->
+
+<!-- Node configuration for Honeycomb 
+
+  $Id: node_config.xml.in 11888 2008-03-05 01:22:28Z lf70604 $
+
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+
+-->
+
+
+<node javabin="@JAVA@"
+      package="@PACKAGE@"
+      classpath="@CLASSPATH@"
+      libdir="@LIBDIR@:@LIBDIR@/md_caches"
+      logconf="@LOGCONF@"
+      jvmagent="cm.jvm_agent.CMAgent"
+      nodemgr="cm.node_mgr.NodeMgr"
+      heartbeat="60">
+
+    <jvm name="NODE-SERVERS" params="node manager jvm">
+        <!--
+        The node servers jvm runs both the node manager and CMM.  
+        CMM is not a service itself, but a special part of the node manager jvm.
+
+        The node manager jvm is a direct client of CMM, which means that CMM
+        calls a callback to the node manager each time membership has changed.
+        Each time CMM calls the node manager to signify a change, the node
+        manager in turn publishes CMM information to the mboxd service as part of 
+        the node manager's mailbox.  The only other service which is a direct 
+        client of CMM is the switch spreader service.  Other services poll the
+        Node Manager mailbox to get the current state of the mailbox, calculate
+        any diffs, and react.
+        Note: the above is not really accurate. Each JVM runs a jvm agent which
+        exports an API to register for CMM events. The node manager uses it as well 
+        as the spreader service but this mechanism is not restricted to
+        only theses services (actually the mbox service also uses CMM events). 
+        The node manager in fact polls CMM to detect changes in the cluster. 
+        -->
+
+        <!-- A <service> can take string options. Options are case-independent
+        and comma-separated. -->
+
+#ifdef TEST
+
+        <group runlevel="1">
+            <service name="ErrInj_NODE"
+                     class="cm.err_inj.ErrInj"/>
+        </group>
+#endif
+    </jvm>
+
+    <jvm name="PLATFORM-SERVERS"
+         rss="96MB"
+         params="-server -Dsun.io.useCanonCaches=false -Xms64m -Xmx96m @EMMA_OPT_RT_CONTROL_PORT_PLATFORM_SERVERS@ @EMMA_OPT_COVERAGE_FILE_PLATFORM_SERVERS@">
+        <group runlevel="1">
+            <!--
+             The mboxd service is responsible for managing and propagating a collection
+             of mailboxes, each of which is a logical grouping of information.
+             Clients of the mboxd service extend an interface and register with the mboxd 
+             client api. The clients are publishing updated information to their mailbox 
+             every n seconds or so, by convention.
+            -->
+            <service name="Mboxd"
+                     class="cm.ipc.Mboxd"/>
+        </group>
+        <group runlevel="1">
+            <service name="DiskMonitor"
+                     class="diskmonitor.DiskMonitor" shutdownTimeout="60000"/>
+        </group>
+        <group runlevel="1">
+            <service name="PlatformService"
+                     class="platform.HAPlatform"/>
+        </group>
+        <group runlevel="1">
+          <service name="AlerterClient"
+                   class="alert.AlerterClient"/>
+        </group>
+#ifdef TEST
+
+        <group runlevel="1">
+            <service name="ErrInj_NODE"
+                     class="cm.err_inj.ErrInj"/>
+        </group>
+#endif
+    </jvm>
+
+    <jvm name="LAYOUT-SERVERS"
+         rss="64MB"
+         params="-server -Dsun.io.useCanonCaches=false -Xms32m -Xmx64m @EMMA_OPT_RT_CONTROL_PORT_LAYOUT_SERVERS@ @EMMA_OPT_COVERAGE_FILE_LAYOUT_SERVERS@">
+
+        <group runlevel="3">
+            <service name="Layout"
+                     class="layout.LayoutService"/>
+        </group>
+        <group runlevel="1">
+            <service name="OAServer" class="oa.OAServer"/>
+        </group>
+#ifdef TEST
+
+        <group runlevel="1">
+            <service name="ErrInj_CONFIG"
+                     class="cm.err_inj.ErrInj"/>
+        </group>
+#endif
+    </jvm>
+
+    <jvm name="API-SERVERS" 
+         rss="64MB"
+         params="-server -Dsun.io.useCanonCaches=false -Xms32m -Xmx64m -XX:MaxDirectMemorySize=512m -XX:+DisableExplicitGC -XX:NewRatio=1 @EMMA_OPT_RT_CONTROL_PORT_API_SERVERS@ @EMMA_OPT_COVERAGE_FILE_API_SERVERS@">
+
+        <group runlevel="7">
+            <service name="Protocol" 
+                     class="protocol.server.ProtocolService"/>
+        </group>
+
+#ifdef TEST
+
+        <group runlevel="1">
+            <service name="ErrInj_API"
+                     class="cm.err_inj.ErrInj"/>
+        </group>
+#endif
+    </jvm>
+  
+    <jvm name="IO-SERVERS"
+         rss="64MB"
+         params="-server -Dsun.io.useCanonCaches=false -Xms32m -Xmx64m -XX:NewRatio=1 @EMMA_OPT_RT_CONTROL_PORT_IO_SERVERS@ @EMMA_OPT_COVERAGE_FILE_IO_SERVERS@">
+
+        <group runlevel="4">
+            <service name="MetaData"
+                     class="emd.server.MDService"/>
+        </group>
+
+#ifdef TEST
+
+        <group runlevel="1">
+            <service name="ErrInj_IO"
+                     class="cm.err_inj.ErrInj"/>
+        </group>
+#endif
+    </jvm>
+
+    <jvm name="DATADOCTOR"
+         rss="96MB"
+         params="-server -Dsun.io.useCanonCaches=false -Xms64m -Xmx96m -XX:NewRatio=1 @EMMA_OPT_RT_CONTROL_PORT_DATADOCTOR@ @EMMA_OPT_COVERAGE_FILE_DATADOCTOR@">
+
+        <group runlevel="7">
+            <service name="DataDoctor"
+                     class="datadoctor.DataDoctor"/>
+        </group>
+    </jvm>
+
+    <jvm name="MASTER-SERVERS" 
+         rss="64MB"
+         params="-server -Dsun.io.useCanonCaches=false -Xms32m -Xmx64m @EMMA_OPT_RT_CONTROL_PORT_MASTER_SERVERS@ @EMMA_OPT_COVERAGE_FILE_MASTER_SERVERS@">
+
+        <group location="master-node"
+               runlevel="3">
+            <service name="AlerterService"
+                     class="alert.AlerterServer"/>
+            <service name="SwitchSpreader"
+                     class="spreader.SpreaderService"/>
+            <service name="TimeKeeper"
+                     class="time.Time"/> 
+            <service name="MultiCell"
+                   class="multicell.MultiCell"/>
+	    <service name="ServiceTags"
+		   class="admin.mgmt.servicetags.ServiceTagsService"/>
+        </group>
+        <group location="master-node"
+               runlevel="4">
+            <service name="AlertMail"
+                     class="alert.cli.AlertMail"/>          
+        </group>
+        <group location="master-node" runlevel="5">
+            <service name="NDMP" 
+                     class="ndmp.NDMPService"/>
+        </group>
+    </jvm>
+
+        <jvm name="ADMIN-SERVERS" 
+         rss="16MB"
+         params="-server -Dsun.io.useCanonCaches=false -Xms32m -Xmx64m @EMMA_OPT_RT_CONTROL_PORT_ADMIN_SERVERS@ @EMMA_OPT_COVERAGE_FILE_ADMIN_SERVERS@">
+
+        <group location="master-node"
+               runlevel="4">
+            <!-- The AdminServer (CLI) is kept alive until the end on shutdown
+            (option="keepAlive") It does run in its own JVM to avoid being
+            killed during failure escalation -->
+
+            <service name="MgmtServer"
+                     options="keepAlive"
+                     class="admin.mgmt.server.MgmtServer"/>
+
+        </group> 
+    </jvm>
+</node>
+

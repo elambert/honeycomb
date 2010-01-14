@@ -1,0 +1,118 @@
+#
+# $Id: configure.in 10855 2007-05-19 02:54:08Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+AC_PREREQ(2.50)
+
+AC_INIT(src/node_mgr/main.c)
+AC_CANONICAL_TARGET
+
+AM_INIT_AUTOMAKE(hccm,0.1)
+AM_CONFIG_HEADER(config.in)
+#AM_MAINTAINER_MODE
+AM_PROG_LIBTOOL
+
+AC_PREFIX_DEFAULT('/opt/honeycomb')
+
+AC_SUBST(testdir,'$(prefix)/tests')
+AC_SUBST(testbindir,'$(testdir)/bin')
+AC_SUBST(testetcdir,'$(testdir)/etc')
+
+AC_SUBST(mdtestdir,'$(testdir)/md')
+AC_SUBST(AM_CFLAGS, '-Wall -pedantic -I$(top_srcdir)/src/trace -I$(top_srcdir)/src/common -I$(top_srcdir)/src/CMM')
+AC_SUBST(DEFAULT_CONFIG_FILE, '\"$(prefix)/share/hccm/node_config.xml\"')
+AC_SUBST(DISKSERVER_MNTPATH, '\"/hc_disks\"')
+AC_SUBST(DEFAULT_PORT, '4445')
+AC_SUBST(HCDISK_ADM_PORT, '4450')
+AC_SUBST(MBOXD_PORT, '4446')
+AC_SUBST(MBOXD_GROUP, '225.0.0.37')
+AC_SUBST(MBOXD_MAXSIZE, '32768')
+
+# Look for the location of jni.h
+
+JAVA_INCLUDE="notfound"
+
+AC_CHECK_FILE($JAVA_HOME/include/jni.h,
+    AC_SUBST(JAVA_INCLUDE, [${JAVA_HOME}/include]))
+
+AC_PATH_PROG(JAVAC, 'javac', [notfound])
+
+if test $JAVA_INCLUDE = "notfound"
+then
+    if test $JAVAC = "notfound"
+    then        
+    	AC_MSG_ERROR('Couldn't find any javac program')
+    fi
+    AC_SUBST(JAVA_INCLUDE, [`cd \`dirname $JAVA\`/../include; pwd`])
+
+    AC_CHECK_FILE(${JAVA_INCLUDE}/jni.h,,
+	    AC_MSG_ERROR([Couldn't find the jni.h file in ${JAVA_INCLUDE}]))
+fi
+
+# Set the java location
+
+JAVA="notfound"
+
+AC_ARG_WITH([java],
+    AC_HELP_STRING([--with-java=location], [Location of the java program on the target machine]),
+    AC_SUBST(JAVA, ${withval}))
+
+if test $JAVA = "notfound"
+then
+    AC_PATH_PROG(JAVA, [java])
+fi
+
+if test $JAVA = "notfound"
+then
+    AC_MSG_ERROR([Couldn't find the java program])
+fi
+
+AC_OUTPUT(Makefile 
+    src/Makefile 
+    src/trace/Makefile 
+    src/node_mgr/Makefile 
+    src/mailbox/Makefile
+    src/services/Makefile
+    src/services/disk/Makefile
+    src/services/ifconfig/Makefile
+    src/services/system/Makefile
+    src/CMM/Makefile
+    src/CMM/lib/Makefile
+    src/CMM/tools/Makefile
+    src/common/Makefile
+    src/tcp_abort/Makefile
+    src/htdocs/Makefile
+    md_tests/Makefile
+)

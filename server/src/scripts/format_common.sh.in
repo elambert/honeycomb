@@ -1,0 +1,366 @@
+#!/bin/sh
+#
+# $Id$
+#
+# Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# Library to hold all the format related functions.
+# 
+# Disk format and partition temp file 
+FORMATDAT=/tmp/hc_format.dat
+
+
+# Set partition sizes
+#
+# Format the jumpstart with the same layout to be used in newdisk.
+# Slice s3 - config stuff in /config.
+# Slice s4 - The honeycomb data partition.
+# Slice s5 - The /var/adm stuff.
+# Slice s6 - Swap.
+# Ensure that the s3 and s4 are slightly greater than the older format
+# we used so newdisk with the following format works.
+# The disk geometry we currently support is:
+#     512 bytes/sector
+#      63 sectors/track
+#     255 tracks/cylinder
+#   60798 accessible cylinders
+# This is the output of the partition print of the format command.
+# partition> p
+# Current partition table (original):
+# Total disk cylinders available: 60798 + 2 (reserved cylinders)
+#
+#
+# Part      Tag    Flag     Cylinders         Size            Blocks
+#   0 unassigned    wm      69 -  1338        9.73GB    (1270/0/0)   20402550
+#   1       home    wm       1 -     2       15.69MB    (2/0/0)         32130
+#   2     backup    wm       0 - 60797      465.74GB    (60798/0/0) 976719870
+#   3 unassigned    wm    1339 -  1467     1011.91MB    (129/0/0)     2072385
+#   4 unassigned    wm    1468 - 58245      434.94GB    (56778/0/0) 912138570
+#   5 unassigned    wm   58246 - 60796       19.54GB    (2551/0/0)   40981815
+#   6       swap    wu       3 -    68      517.72MB    (66/0/0)      1060290
+#   7 unassigned    wm   60797 - 60797        7.84MB    (1/0/0)         16065
+#   8       boot    wu       0 -     0        7.84MB    (1/0/0)         16065
+#   9 unassigned    wm       0                0         (0/0/0)             0
+#
+#
+# Set the SI_PROFILE to use hardcoded cylinder
+# values to get the layout as described above.
+S0_START=69
+S0_NUM_CYL=1270
+S3_START=1339
+S3_NUM_CYL=129
+S4_START=1468
+S4_NUM_CYL=56778
+S5_START=58246
+S5_NUM_CYL=2551
+# S6 is the swap slice
+S6_START=3
+S6_NUM_CYL=66
+S7_START=60797
+S7_NUM_CYL=1
+
+
+# Ensure that we always format the disk with the following
+# geometry. Reject anything else.
+known_usable_cyl=60798
+known_usable_hd=255
+known_usable_sec=63
+
+# Output messages to stdout and the log
+log() {
+    logger -t format_common -p local0.info "$*"
+}
+
+do_exit() {
+   log "do_exit $1";
+   exit $1
+}
+
+# Run a command
+runcmd() {
+   log "Running: $*"
+   output=`$* 2>&1`
+
+   if [ $? != 0 ]; then
+        log "Failed:  $output"
+        do_exit 1
+   fi
+
+   log "output: $output"
+}
+
+# input: disk name in the form cXtXdX
+# output: written to file  /tmp/geom.$disk
+geom() {
+    disk=$1
+    prtvtoc_rdsk=/dev/rdsk/$disk"p0"
+
+#  prtvtoc /dev/rdsk/c0t0d0p0 | egrep 'sectors\/track|accessible|tracks'
+# *      63 sectors/track
+# *     255 tracks/cylinder
+# *   60798 accessible cylinders
+
+    prtvtoc $prtvtoc_rdsk | egrep 'sectors\/track|tracks|accessible' \
+            > /tmp/geom.$disk 
+    ret_status=$?
+    return $ret_status
+}
+
+# determine number of blocks in the disk
+# input: disk name in the form cXtXdX
+# output: via disk_size_ret global variable
+disk_size() {
+
+    # get the disk geometry string
+    geom $1
+    if [ $? -ne 0 ]; then
+	disk_size_ret=0
+	return 1;
+    fi
+
+    # extract the values
+
+    cyl=`cat /tmp/geom.$1|grep 'accessible' | awk '{ print $2 }'`
+    hd=`cat /tmp/geom.$1|grep 'tracks' | awk '{ print $2 }'`
+    sec=`cat /tmp/geom.$1|grep 'sectors' | awk '{ print $2 }'`
+
+    if [ $cyl -ne $known_usable_cyl ]
+    then 
+        echo "Cylinder size of the formatted disk should be $known_usable_cyl"
+        return 1
+    fi
+    if [ $hd -ne $known_usable_hd ]
+    then 
+        echo "Track size of the formatted disk should be $known_usable_hd"
+        return 1
+    fi
+    if [ $sec -ne $known_usable_sec ]
+    then 
+        echo "Sector size of the formatted disk should be $known_usable_sec"
+        return 1
+    fi
+    # disk size = cyls * heads * sectors
+    disk_size_ret=`expr $cyl \* $hd \* $sec`
+
+    # rm the geom file created
+    rm -f /tmp/geom.$1 > /dev/null 2>&1
+
+    return 0
+}
+
+#
+# Set up the disk format information.
+# The jumpstart mechanism uses a default label that uses the 
+# following geometry :
+#    512 bytes/sector
+#     63 sectors/track
+#    255 tracks/cylinder
+#  60798 accessible cylinders
+#
+# We use the same format for newdisk as well. This ensures
+# we have a fixed format for new disk and jumpstart.  
+
+init_disk_format_info() {
+cat <<EOF >$FORMATDAT
+#
+# SUN_ST5800_500 GB drive
+#
+disk_type = "SUN_ST5800_500GB" \\
+	 : ctlr = SCSI : ncyl = $known_usable_cyl : acyl = 2 : pcyl = 60800 \\
+	 : nhead = $known_usable_hd : nsect = $known_usable_sec : rpm = 7200
+
+# Note: there must be a backup line and the 7th field must
+# be the size of the entire disk.  If not, disk replacement
+# will fail.
+partition = "original"                               \\
+	 : disk = "SUN_ST5800_500GB" : ctlr = SCSI         \\
+	 : 0 =  $S0_START, 20402550                        \\
+	 : 1 =  home, wm, 1, 32130                         \\
+	 : 2 =  backup, wm, 0, 976719870                   \\
+	 : 3 =  $S3_START, 2072385                         \\
+	 : 4 =  $S4_START, 912138570                       \\
+	 : 5 =  $S5_START, 40981815                        \\
+	 : 6 =  swap, wu, 3, 1060290                       \\
+	 : 7 =  $S7_START, 16065                           \\
+	 : 8 =  0, 16065
+
+EOF
+}
+
+# determine the expect disk size from the format partition table
+# output: via expected_disk_size_ret global variable
+expected_disk_size() {
+
+    # There must be a "backup" line in the partition portion
+    # of the format.dat file.  That line must have the size of the
+    # "backup" partition -- the partition that overlaps all the other
+    # partitions -- in the 7th field.
+
+    if [ ! -f $FORMATDAT ]; then
+       log "expected_disk_size called before $FORMATDAT set up"
+       return 1;
+    fi
+
+    grep backup $FORMATDAT >/dev/null
+    if [ $? -ne 0 ]; then
+	log "can't determine proper size of disk from $FORMATDAT"
+	expected_disk_size_ret=0
+	return 1;
+    fi
+
+    expected_disk_size_ret=`grep -v '^#' $FORMATDAT|grep backup|awk '{ print $7 }'`
+    
+    return 0;
+}
+
+# Setup disk for newdisk.
+initial_disk_setup() {
+    init_disk=$1
+    init_rdisk="/dev/rdsk/"$init_disk"p0"
+
+    # A disk may have zpool slices attached.  Get rid of them.
+    $OFFLINE_MIRRORS $init_rdisk
+
+    make_disk_unused $init_disk
+
+    # Wipe of solaris labels
+    runcmd dd if=/dev/zero of=$init_rdisk bs=1024k count=1000
+
+    # Create the disk label and partition table
+    runcmd fdisk -B $init_rdisk
+    
+    # disk needs to be big enough
+    disk_size $init_disk
+    if [ $? -ne 0 ]; then
+	log "newdisk: can't determine the size of $init_disk"
+	do_exit 9
+    fi
+
+    if [ $disk_size_ret -lt $expected_disk_size_ret ] ; then
+	log "newdisk: disk $init_disk is too small ($disk_size_ret < $expected_disk_size_ret)"
+        log "Will not use this disk. Please supply a bigger disk"
+        # wipe and exit.
+        runcmd dd if=/dev/zero of=$init_rdisk bs=1024k count=10000
+        do_exit 10
+    fi
+
+    # warn if the disk is too big, but drive on.
+    if [ $disk_size_ret -gt $expected_disk_size_ret ] ; then
+	log "newdisk: disk $init_disk is bigger than expected ($disk_size_ret), will right-size"
+    fi
+}
+
+format_hc_disk() {
+    format_disk=$1
+    format_rdisk="/dev/rdsk/"$format_disk"p0"
+    # create a format command file which chooses the default (0)
+    # partition table and labels the disk
+
+    rm -f $formatcmds
+    cat >$formatcmds <<EOF
+    type
+    1
+    partition
+    select
+    0
+    label
+EOF
+
+    NOINUSE_CHECK="true"
+    export NOINUSE_CHECK
+
+    # format the disk and write the partition table
+    # NB: disk type name must not have embedded spaces
+    # xxx for some reason format returns bad status, so we can't 
+    # use runcmd
+    format -d $format_disk -t SUN_ST5800_500GB -f $formatcmds -x $FORMATDAT
+
+    # Wipe the Honeycomb disk label
+    wipe_disklabel $format_disk
+
+}
+# ensure that the disk is not in use
+# input: disk name in the form cXtXdX
+make_disk_unused() {
+    disk=$1
+
+    # find mounted file systems and unmount them.
+    mount | grep $disk | {
+    while read mount_line; do
+        mntpt=`echo $mount_line | awk '{ print $1 }'`
+        umount -f $mntpt
+    done }
+
+    dumpadm | egrep $disk 2>&1 >/dev/null
+    if [ $? -ne 0 ]; then
+        dumpadm -d swap
+    fi
+}
+
+
+fdisk=/tmp/fdisk.$$
+formatcmds=/tmp/formatcmds.$$
+
+# Initialize a new disk
+newdisk() {
+    disk=$1
+    rdisk="/dev/rdsk/"$disk"p0"
+    slice0="/dev/dsk/"$disk"s0"
+    slice2=$disk"s2"
+    slice3=$disk"s3"
+    rslice4="/dev/rdsk/"$disk"s4"
+    slice4_underscore="dev_dsk_${disk}s4"
+    slice5=$disk"s5"
+    slice6="/dev/dsk/"$disk"s6"
+    slice7=$disk"s7"
+
+    # Prevent the "format" and "newfs" cmds from complaining about
+    # partitions which are allegedly in use by setting an
+    # undocumented environment variable.
+
+    NOINUSE_CHECK="true"
+    export NOINUSE_CHECK
+
+    # Size the disk.
+    initial_disk_setup $disk
+
+    # format it using the format.dat created.
+    format_hc_disk $disk
+
+    # newfs the boot slice
+    runcmd newfs $slice0 < /dev/null
+
+    # corrupt the data slice, since there may have been
+    # a valid fs there.  A corrupt fs will cause a
+    # newfs in initDisk() later.
+    runcmd dd if=/dev/zero of=$rslice4 bs=1024k count=10
+
+    # signal to disk replacement that the data partition should
+    # have a file system constructed on it.
+    newfs_signal=/config/newfs_data_slice_${slice4_underscore}
+    log "marking disk as needing newfs by touching ${newfs_signal}"
+    touch ${newfs_signal}
+
+    # Add the appropriate disk slices to the zfs pool
+    $ONLINE_MIRRORS $rdisk
+
+    # Update swap (and dump, if necessary)
+    $ONLINE_OFFLINE "dumpswap_online" $rdisk
+
+    # Find a source disk and install its valid grub bits and
+    # boot slice contents onto the new disk
+    find_install_grub_and_boot_slice $disk $slice0
+
+    # Mark that we made config updates
+    UPDATED_CONFIG=1
+}
+
+
+# Wipe the Honeycomb disklabel from block 63 on the given disk
+wipe_disklabel() {
+    wipedisk="/dev/rdsk/"$1"p0"
+    echo "Wiping the Honeycomb disklabel from $wipedisk..."
+    dd if=/dev/zero of=$wipedisk bs=512 count=1 seek=62
+}
+

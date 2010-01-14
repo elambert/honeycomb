@@ -1,0 +1,548 @@
+# Non-cluster-specific properties
+# $Id: cluster_config.properties.in 11886 2008-03-05 00:02:03Z tt107269 $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# These are properties that are identical across all local (dev+test)
+# clusters. Cluster-specific properties are in the clusters/XXX.conf
+# file; the build process merges the two together to form the complete
+# cluster_config.properties file.
+#
+# The production installation process appends the results of prompting
+# the administrator for cluster-specific configuration to the end of
+# this file.
+
+# Directory that all honeycomb files are installed under
+honeycomb.prefixPath = /opt/honeycomb
+
+# The 8 bit incarnation number for the cell.
+honeycomb.cell.incarnation = 0x01
+
+# CM configuration
+#
+
+# check quorum?
+honeycomb.cm.quorum.do_check = true
+
+# how many disks must be online? (in percent)
+# Current settings: 9 disks on a 16 nodes, 5 disks on 8 nodes cluster
+honeycomb.cm.quorum.threshold = 86
+
+# check unhealed disk failures?
+honeycomb.cm.unhealedfailures.do_check = true
+
+# allow a single node to form a cluster by itself.
+honeycomb.cm.cmm.singlemode = false
+
+#
+# Static CMM table
+# Format: <NodeId> <IP address> <Eligible>
+#
+honeycomb.cm.cmm.nodes = \
+  101 10.123.45.101 true, \
+  102 10.123.45.102 true, \
+  103 10.123.45.103 true, \
+  104 10.123.45.104 true, \
+  105 10.123.45.105 true, \
+  106 10.123.45.106 true, \
+  107 10.123.45.107 true, \
+  108 10.123.45.108 true, \
+  109 10.123.45.109 true, \
+  110 10.123.45.110 true, \
+  111 10.123.45.111 true, \
+  112 10.123.45.112 true, \
+  113 10.123.45.113 true, \
+  114 10.123.45.114 true, \
+  115 10.123.45.115 true, \
+  116 10.123.45.116 true
+
+
+#
+# Internal Network
+#
+
+# SMTP internal server address
+honeycomb.cell.smtp.server_internal = 10.123.45.1
+
+# Internal admin VIP
+honeycomb.cell.vip_internal_admin = 10.123.45.200
+
+# Optional external logger address
+honeycomb.cell.external_logger = 10.123.45.100
+
+#
+# Configuration for NFS
+#
+
+# Extra flags to use for internal NFS mounts
+honeycomb.cell.nfs.options = -o vers=4,hard,proto=tcp,intr,noxattr,forcedirectio
+
+# Error simulation for internal NFS mounts
+honeycomb.cell.nfs.simulate.error.rate = 0.0
+
+#
+# Configuration for Layout
+#
+
+# Used when growing a cell from 8 to 16 nodes
+honeycomb.layout.expansion_status = none
+
+# NodeIds of nodes added during cluster expansion
+honeycomb.layout.expansion_nodeids = 109 110 111 112 113 114 115 116
+
+# number of data fragments
+honeycomb.layout.datafrags = 5
+
+# number of parity fragments
+honeycomb.layout.parityfrags = 2
+
+# how long to wait before removing an offline disk from the disk mask 
+honeycomb.layout.diskmask.graceperiod = 300000
+
+# Redundancy used by MD to populate the caches
+# (E_m in the design)
+# Should be between 1 and m+1
+honeycomb.md.redundancy = 2
+
+#
+# DataDoctor config parameters
+# note: cycle goals are expressed in SECONDS
+#
+
+# recover lost fragments
+honeycomb.datadoctor.recover_lost_frags_cycle = 43200
+
+# remove duplicate fragments
+honeycomb.datadoctor.remove_dup_frags_cycle = 43200
+
+# populate md system cache
+honeycomb.datadoctor.populate_sys_cache_cycle = 43200
+
+# populate md extended cache
+honeycomb.datadoctor.populate_ext_cache_cycle = 43200
+
+# slosh fragments during cluster expansion
+honeycomb.datadoctor.slosh_frags_cycle = 43200
+
+# remove temp fragments
+honeycomb.datadoctor.remove_temp_frags_cycle = 86400
+
+# use checksums to verify fragment integrity
+honeycomb.datadoctor.scan_frags_cycle = 604800
+
+# if too many unique unhealed disks, possible data loss
+honeycomb.datadoctor.possible_data_loss = false
+
+#
+# OA client configuration parameters
+#
+
+# DAAL 
+honeycomb.oa.daal = com.sun.honeycomb.oa.daal.hcnfs.HcNfsDAAL
+honeycomb.oa.daal.mgmt = com.sun.honeycomb.oa.daal.hcnfs.HcNfsMgmt
+
+# Algorithm to use for checksumming the data in fragments
+# Valid values
+# NONE - No checksums
+# ADLER32 - 32bit Adler checksums
+honeycomb.oa.client.checksumalgorithm = ADLER32
+
+# 30 seconds until we know right number and timeout is made to actually work
+honeycomb.oa.readtimeout = 30000
+
+honeycomb.client.cache = true;
+honeycomb.protocol.port = 8080
+# honeycomb.protocol.eval = true
+honeycomb.protocol.testparameters = true
+honeycomb.protocol.jettylog = true
+# honeycomb.protocol.sendStackTrace = true
+
+# Max idle time before a stay-open HTTP/1.1 connection is closed (seconds)
+honeycomb.protocol.maxidletime = 30
+
+#
+# Sizing parameters (no. of threads etc.) that need to be tuned
+#
+
+# The max number of OA thread pools to create
+honeycomb.oa.pools.max = 10
+
+# The max. number of protocol server (Jetty) threads.
+honeycomb.protocol.jetty.maxthreads = 20
+
+# The minThreads value is used to control how Jetty degrades under
+# extreme load. Once there are fewer than minThreads available in the
+# thread pool, low resource timeouts will be applied.
+honeycomb.protocol.jetty.minthreads = 4
+
+# MDServer threads
+honeycomb.mdserver.threads = 32
+
+# The HADB "Governor" -- max simultaneous HADB requests per node
+honeycomb.hadbhook.governor.max_concurrent = 6
+
+# CMAgent dispatcher threads: num_threads should be 1 + num_CPUs
+honeycomb.cm.cmagent.num_threads = 2
+
+# Max number of active CMAgent dispatcher threads
+honeycomb.cm.cmagent.max_threads = 8
+
+#
+# Configuration for the Management Console (CLI) service
+#
+
+honeycomb.hcsh.cmd.package = com.sun.honeycomb.ui.cli.commands
+honeycomb.hcsh.cmd.package.adm = com.sun.honeycomb.adm.cli.commands
+
+
+#
+# Configuration for the switch manager
+#
+
+# The timeout for switch communication re-tries (milliseconds)
+honeycomb.switch_mgr.zrule.timeout = 5000
+
+# The max number of re-tries (remember, tries = 1 + retries)
+honeycomb.switch_mgr.zrule.retries = 4
+
+# Poll interval (in ms) for checking for switch and node failures
+honeycomb.switch_mgr.poll_interval = 10000
+
+# Should the switch manager mind disk quorum?
+honeycomb.switch_mgr.quorum.mind = true
+
+# Check switch programming every so many poll cycles (0 -> disable)
+honeycomb.switch_mgr.verification.period = 0
+
+# If the switch manager should check the version of the switch firmware
+# to make sure it's compatible with Honeycomb
+honeycomb.switch_mgr.versions.check = true
+
+# Where should ARP requests be sent to? Legal values are "switch" and "master"
+honeycomb.switch_mgr.arp.destination = master
+
+# Where should ICMP be sent to? Legal values are "switch" and "master"
+honeycomb.switch_mgr.icmp.destination = master
+
+# Where should NTP be sent to? Legal values are only "master"
+honeycomb.switch_mgr.ntp.destination = master
+
+# Should all rules on the switch be verified after sending them?
+honeycomb.switch_mgr.rules.verify = yes
+
+# Should all rules on the switch be deleted first and then required rules
+# added ("set") or should we both add and delete as reqd. ("merge")?
+# Differences: "set" is more robust against switch bugs, but "merge"
+# sends less traffic so is more robust against network flakiness.
+honeycomb.switch_mgr.xfer.algorithm = merge
+
+# If this many switch updates fail consecutively, all rules are cleared
+# and we start over (0 disables this behaviour)
+honeycomb.switch_mgr.reset.failure.limit = 3
+
+# The definition of node failure: if any service from this list is not
+# running, the node is down. Service names should be separated by
+# whitespace. If null (or missing), check for all services.
+honeycomb.switch_mgr.monitor.services = Protocol
+
+# How many bits of the src address should be used for load spreading?
+# On an N-node cluster, load spreading uses n = log(N) bits. Legal
+# values for this setting are from 0 to n; 0 means load spreading
+# depends only on src port, and n means it depends only on src
+# address.
+honeycomb.switch_mgr.spreader.addrbits = 0
+
+
+# Number of load spreading rules per authorized client.
+# Set this to any value >=4 and <=num nodes if you need to specify more number
+# of authorized clients on the cli. Currently the max allowed is 6 clients on the cli.
+# One could use the netmask to include large number of clients.
+honeycomb.switch_mgr.spreader.authrules = 16
+
+# supported versions of switch initrd
+honeycomb.switch_mgr.versions = 3.2.1 build g1,3.2.1 build g
+
+#
+# Config
+#
+
+# Honeycomb version - must be a number
+honeycomb.config.version = 1.1
+
+
+#
+# Admin user data
+#
+
+honeycomb.admin.user = admin
+honeycomb.admin.group = honeycomb
+honeycomb.admin.password = $1$D0GWmi8Q$9Ep8MkOzwqsLSI.lEnmY6/
+honeycomb.admin.pubkey = ssh-dss AAAAB3NzaC1kc3MAAACBAK9rWO4gKtCOdco3AMYvMoP+tWZI9W4a01FsuDLxQFna2kz+CNdxTxN0VacbF8/Zv1nYJhXHNkwq2DThIv1GBdu3zXXlUwmPHHsjzbnnUtkeni8ZhrOatWKw7xF9BZeeANgK+Jb7IKnYo2T7ldBQjUp4D1mSwWg1qE6Tf5E+kGqJAAAAFQD7ZGLpyIIjxjEbiOBe/MDWiEZtiwAAAIBgCJVZX6He7K4rbZfkgBXq/Qe7lKaJi0dD7hau7Opi9kgVmbiRLI1/3TQny+rkZ7ZrlPo4BkgvAhDOMDm21AcCQVDcgwTHHUiCMlsbf1BNshlmgAeCYUX1fjEhswy7XqLA1C5gQr1ZPtIpYL8w/1LwrSNBc9GauvpguL+dTAQ45QAAAIBrE1iWBKG9NyIcj90pCSGPhwQvAZYBXekmKTXJJlBRYaJPBcnlZSllXg/QTQOO8LEaz7UmENFUuIl95DFJCabKuxqjjG+VjgwLoWireZyhagvZT4mug7pFOZDOPqCEF2Ley3+gHANhrAbfK2849JtKjfD/d6tJ6hZDybg8KvHtoQ== root@honeycomb
+
+#
+# NodeMonitor
+#
+
+# How long to wait in seconds for a node to become online.
+# A node is power cycle if it is not accessible after this
+# timeout expired. The NodeMonitor mechanism is disabled if this 
+# property does not exist or if the timeout value is 0
+honeycomb.cell.node_monitor.powercycle_timeout = 0
+
+# This property indicates if DNS is setup for the system.
+# The permitted values are y/n 
+# "n" indicates DNS is disabled on this system.
+# "y" indicates DNS is enabled  on this system.
+# DNS is initially turned off.
+honeycomb.cell.dns = n
+
+# Initialize the other DNS properties to some defaults.
+honeycomb.cell.domain_name = 
+honeycomb.cell.dns_search = 
+honeycomb.cell.primary_dns_server = 0.0.0.0
+honeycomb.cell.secondary_dns_server = 0.0.0.0
+
+# This initializes authorized clients, so all clients 
+# can do store/retrieve to the cluster
+honeycomb.security.authorized_clients = all
+
+#
+# Disk sanity and usage checks
+#
+
+# Maximum usage for a disk (in percent)
+honeycomb.disks.usage.cap = 80
+
+# How often to do sanity checks on disks -- usage, export (in seconds)
+honeycomb.disks.poll_interval = 180
+
+# Sleep between disk failure checker iterations (in seconds)
+honeycomb.disks.check.interval = 60
+
+# Disable a disk after this many errors
+honeycomb.disks.error.threshold = 5
+
+# Should it make a new filesystem if fsck fails?
+honeycomb.disks.newfs.on_failed_fsck = false
+
+# Should it make a new filesystem if mount fails?
+honeycomb.disks.newfs.on_failed_mount = false
+
+# Additional flags for newfs (cf. -T for terabyte filesystems)
+honeycomb.disks.newfs.options =
+
+# Timeout for newfs (seconds). 0 means it'll run unrestricted.
+honeycomb.disks.newfs.timeout = 1800
+
+# Timeout for fsck (seconds). 0 means it'll run unrestricted.
+honeycomb.disks.fsck.timeout = 1800
+
+# extra options for local data mount
+honeycomb.disks.mount.options =
+
+# Retry CM notifications this many times on failure
+honeycomb.disks.cm.notify.tries = 5
+
+# Should all data disks be unmounted when Honeycomb quits?
+honeycomb.disks.on_exit.unmount = true
+
+# On shutdown, the time between disabling and unmounting a disk (seconds)
+honeycomb.disks.on_exit.unmount.delay = 10
+
+# The special file (named pipe) that we should read for kernel warnings/errors
+honeycomb.disks.log.kernel_errors = /var/adm/kernel
+
+# Simulate disk failures. Disk failures are assumed to be poisson
+# distributed with this error rate per honeycomb.disks.poll_interval.
+# With 16 nodes of 4 disks each, 0.0001 will give about 50% chance of
+# disk error in in 100 poll intervals. Or, with a 4-node cluster, 0.01
+# means an 80% change of disk error after 10 intervals.
+honeycomb.disks.simulate.error.rate = 0.0
+
+#
+# SMTP Alert Configuration
+#
+
+# The user we send alert email from
+honeycomb.alerts.smtp.from_name = st5800-noreply@sun.com
+
+# the locale to use for l10n
+honeycomb.language = en
+
+honeycomb.alerts.phonehome.smtp.to = st5800-noreply@sun.com
+honeycomb.alerts.phonehome.frequency = 86400000
+
+#
+# Filesystem in-memory cache
+#
+
+# Type of cache to use; avail: SimpleFSCache JavaFSCache LinkedHashMapCache
+honeycomb.fscache.classname = LinkedHashMapCache
+
+# For scratch files
+honeycomb.fscache.tempdir = /data/0/fscache
+
+# Max. no. of objects to keep in the cache on each node
+honeycomb.fscache.size.max = 10000
+
+# If the cache reaches the max size, delete unaccessed objects
+# until usage is down to this level
+honeycomb.fscache.size.lo = 8000
+
+# Intervals at which to run GC -- the space reclaimer (in seconds). 0 = disable
+honeycomb.fscache.gc_interval = 300
+
+# Turn on lots of internal consistency checking
+honeycomb.fscache.paranoid = true
+
+# The cache can be up to this many seconds out-of-date. Obviously smaller
+# values will lead to poorer performance because it'll make more queries
+# to MD.
+honeycomb.fscache.coherency.time = 60
+
+# If a lookup fails, should the parent be refreshed? If no, then
+# it's the usual coherency.time age-based behaviour.
+honeycomb.fscache.refresh_on_failure = yes
+
+#
+# The WebDAV server
+#
+
+# Set to 0 to disable buffering, i.e. write() the whole buffer (used for
+# writing out HTML, e.g. directory listings)
+honeycomb.webdav.buffer.size = 8192
+
+# WebDAV Authentication
+
+# Whether authentication is to be used
+honeycomb.webdav.auth.authenticate = true
+
+# Authentication realm and username. Realm is case-sensitive. (This is
+# only the initial setting; values are changed via the CLI.)
+honeycomb.webdav.auth.realm = HC WebDAV
+honeycomb.webdav.auth.user = root
+
+# This is the delimiter used in honeycomb.webdav.auth.hash
+honeycomb.webdav.auth.delimiter = ,
+
+# For testing only: this is H(A1) -- called "H1"
+# in http://hc-web.sfbay.sun.com/svn/docs/Divisadero/FunctionalSpecs/Auth.html
+honeycomb.webdav.auth.hash = HC WebDAV,root,6dad42d265e3b425e3892d2bf920a41d
+
+#
+# Multicell configuration 
+#
+# (default values)
+honeycomb.silo.cellid = 0
+honeycomb.cell.pot.refresh = 300000
+honeycomb.cell.mgmt.port = 9000
+honeycomb.multicell.support_8_nodes = false
+# default value is 1
+honeycomb.multicell.loglevel = 2
+
+# NDMP configuration
+honeycomb.ndmp.DataServerPort = 10000
+honeycomb.ndmp.InboundDataPort = 10001
+honeycomb.ndmp.OutboundDataPort = 10002
+honeycomb.ndmp.DateFormat=MM/dd/yyyy hh:mm:ss
+honeycomb.ndmp.GenerateFileHistory = false
+honeycomb.ndmp.AddNewlineToLogMessages = true
+honeycomb.ndmp.TwoPhaseAbort = true
+
+#
+# HADB related config
+
+# If set to 0, then MAs startup in parallel. If 1, then MAs are
+# started sequentially.
+honeycomb.hadb.ma_waits = 1
+
+# When trying to perform an operation, if we loop around all MAs this
+# many times, consider the op a failure. (0 means keep looping until
+# timeout.)
+honeycomb.hadb.ma.max_loops = 2
+
+#
+# For development testing: disable software version checking (only use when 
+# pushing ramdisks instead of install and not generating the version files 
+# correctly
+honeycomb.disable.version.checking = false
+
+#
+# smtp port requires a default value
+honeycomb.cell.smtp.port = 25
+
+####################################################################
+#  Logdump configuration for Explorer defaults file
+#
+// these are fixed for explorer
+honeycomb.logdump.exp.path = /usr/bin:/usr/sbin
+honeycomb.logdump.exp.lib = /opt/SUNWexplo/lib
+honeycomb.logdump.exp.version = 5.11
+honeycomb.logdump.exp.transport = https://supportfiles.sun.com/curl
+honeycomb.logdump.exp.https.interval = 1
+honeycomb.logdump.exp.https.tries = 5
+
+// these are user settable for hive (not required)
+honeycomb.logdump.exp.contact.name = 
+honeycomb.logdump.exp.contact.phone = 
+honeycomb.logdump.exp.contact.email =
+honeycomb.logdump.exp.proxy.server = 
+honeycomb.logdump.exp.proxy.port = 8080
+
+// this is user settable for hive and required (AMERICAS, EMEA or APAC values)
+honeycomb.logdump.exp.contact.geo =
+
+#
+# Service Tag Service - flag only valid on single cell system 
+#
+honeycomb.servicetags.service_disabled = false;
+
+#
+# END CNS
+#
+#####################################################################
+
+# Upgrade Properties
+
+honeycomb.upgrade.dvd.downloadfile = /data/0/honeycombdvd.iso
+honeycomb.upgrade.jar.downloadfile = /data/0/st5800-upgrade.jar
+honeycomb.upgrade.jarname = st5800-upgrade.jar
+honeycomb.upgrade.classname = com.sun.honeycomb.upgrade.Upgrader
+honeycomb.upgrade.image.dir = /mnt/new
+honeycomb.upgrade.jumpstart.dir = /mnt/js
+
+#
+# End of non-cluster-specific properties
+#
+# $Id: cluster_config.properties.in 11886 2008-03-05 00:02:03Z tt107269 $
+

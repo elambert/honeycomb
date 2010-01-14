@@ -1,0 +1,489 @@
+#!/bin/sh
+#
+# $Id: net_filesystem_configuration 10611 2007-04-10 05:17:10Z mgoff $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+. /lib/svc/share/smf_include.sh
+. /lib/svc/share/fs_include.sh
+
+#
+# This service is *only* for low-level mounting of slices and network
+# configuration. All other services like nfs sharing, time service
+# enabling, etc. should remain in the honeycomb-configuration service.
+#
+
+# Include the platform common lib for discovering disks and network
+. /opt/honeycomb/bin/platform.sh
+
+# Add entries for /boot/images/[0-3] to /etc/vfstab. $DISK[0-3] are
+# defined in platform.sh.
+config_disks() {
+    VFSTAB=/etc/vfstab
+    DISKCOUNT=0
+    for DISK in $DISK0 $DISK1 $DISK2 $DISK3; do
+	grep /boot/images/$DISKCOUNT $VFSTAB > /dev/null 2>&1
+	if [ $? != 0 ]; then
+	    echo "Adding /dev/dsk/"$DISK"s0 /boot/images/"$DISKCOUNT" to "$VFSTAB
+	    echo "/dev/dsk/"$DISK"s0 /dev/rdsk/"$DISK"s0 /boot/images/"$DISKCOUNT" ufs 1 no -" >> $VFSTAB	    
+	fi
+	DISKCOUNT=`expr $DISKCOUNT + 1`
+    done
+}
+
+# UFS -> ZFS upgrade for /config & /var/adm. If either of those
+# filesystems are ufs from a previous Honeycomb version, we will
+# convert them to zfs, and restore the data from a previous backup to
+# a /data slice.
+#
+# Mount each boot disk and look for config & adm upgrade configuration
+# files. If they are found and have the entries we need, validate that
+# the referenced /config tarfile & /var/adm backup directory
+# exist. This loop will cycle through all the disks and will end up
+# using the last, valid configuration for /config & /var/adm backups.
+#
+# The only known problem with this is if a disk was added that has a
+# different set of conf files, and valid backup images in the /data
+# slice. In this case, the highest disk number with a valid config
+# will win.
+#
+# Note that we do not check to see if the existing /config & /var/adm
+# slices are still ufs or not. This is meant to handle the case where
+# the zfs pool was created, but the restores never finished because of
+# power interrupt, etc. In this case the restores will be tried again
+# since valid conf files and backup images still exist.
+upgrade_zfs() {
+
+   # Defaults
+    USEADMDIR=
+    USECONFTAR=
+    UPGRADEADM=0
+    UPGRADECONFIG=0
+    ZFSPOOLNAME=tank
+    UPGRADEADMFILE=upgrade-adm.conf
+    UPGRADECONFFILE=upgrade-config.conf
+    RESTOREDADM=0
+    RESTOREDCONF=0
+
+    for i in 0 1 2 3; do
+	TEMPDISK=/boot/images/$i
+	mount $TEMPDISK
+	RET=$?
+	if [ $RET = 0 ] || [ $RET = 32 ]; then
+            if [ -f $TEMPDISK/$UPGRADECONFFILE ]; then
+
+                # Check the /config entry
+		grep /config $TEMPDISK/$UPGRADECONFFILE > /dev/null 2>&1
+		if [ $? = 0 ]; then
+                    DATADISK=`grep /config $TEMPDISK/$UPGRADECONFFILE | \
+                        cut -f2 -d' '`
+                    CONFTAR=`grep /config $TEMPDISK/$UPGRADECONFFILE | \
+                        cut -f3 -d' '`
+                    CONFPATH=/data/$DATADISK/upgrade/$CONFTAR
+		    
+                    # Mount referenced data slices because we'll need
+                    # it to check for upgrade backup files. We have to
+                    # mkdir the /data mount because it does not exist
+                    # in the ramdisk image.
+                    if [ $DATADISK = 0 ]; then
+			mkdir -p /data/0; mount "/dev/dsk/"$DISK0"s4" /data/0
+                    elif [ $DATADISK = 1 ]; then
+			mkdir -p /data/1; mount "/dev/dsk/"$DISK1"s4" /data/1
+                    elif [ $DATADISK = 2 ]; then
+			mkdir -p /data/2; mount "/dev/dsk/"$DISK2"s4" /data/2
+                    elif [ $DATADISK = 3 ]; then
+			mkdir -p /data/3; mount "/dev/dsk/"$DISK3"s4" /data/3
+                    fi
+
+                    # Debug
+                    echo "Mounted /data/$DATADISK"
+
+                    # Check the referenced tarfile
+                    if [ -f $CONFPATH ]; then
+
+                        # Debug
+			echo "Found conf tarfile $CONFPATH"
+                    
+                        # Verify the tarfile checksum
+			tar tf $CONFPATH
+			if [ $? = 0 ]; then
+                            USECONFTAR=$CONFPATH
+                        
+                            # Debug
+                            echo "Verified checksum of $CONFPATH"
+			fi
+                    fi
+		fi
+            fi
+
+            # Check the /var/adm entry
+            if [ -f $TEMPDISK/$UPGRADEADMFILE ]; then
+		grep /var/adm $TEMPDISK/$UPGRADEADMFILE > /dev/null 2>&1
+		if [ $? = 0 ]; then
+                    DATADISK=`grep /var/adm $TEMPDISK/$UPGRADEADMFILE | \
+                        cut -f2 -d' '`
+                    ADMDIR=`grep /var/adm $TEMPDISK/$UPGRADEADMFILE | \
+                        cut -f3 -d' '`
+                    ADMPATH=/data/$DATADISK/upgrade/$ADMDIR
+		    
+                    # Mount referenced data slices because we'll need
+                    # it to check for upgrade backup files. We have to
+                    # mkdir the /data mount because it does not exist
+                    # in the ramdisk image.
+                    if [ $DATADISK = 0 ]; then
+			mkdir -p /data/0; mount "/dev/dsk/"$DISK0"s4" /data/0
+                    elif [ $DATADISK = 1 ]; then
+			mkdir -p /data/1; mount "/dev/dsk/"$DISK1"s4" /data/1
+                    elif [ $DATADISK = 2 ]; then
+			mkdir -p /data/2; mount "/dev/dsk/"$DISK2"s4" /data/2
+                    elif [ $DATADISK = 3 ]; then
+			mkdir -p /data/3; mount "/dev/dsk/"$DISK3"s4" /data/3
+                    fi
+
+                    # Debug
+                    echo "Mounted /data/$DATADISK"
+
+                   # Check the referenced directory
+                    if [ -d $ADMPATH ]; then
+			USEADMDIR=$ADMPATH
+
+                        # Debug
+			echo "Found adm backup dir $ADMPATH"
+                    fi
+		fi
+            fi
+	fi
+
+        # Unmount the disk we're checking
+	umount -f $TEMPDISK
+    done
+
+    # Import honeycomb tank mirrors. If the import failed and we have
+    # backups to restore, create the zfs mirrors. This config should match
+    # the zfs config created during node jumpstart postinstall.
+    zpool import -f -a
+    zpool list $ZFSPOOLNAME > /dev/null 2>&1
+    if [ $? != 0 ]; then
+	if [ "$USECONFTAR" != "" ] || [ "$USEADMDIR" != "" ]; then
+            zpool create -f -m none $ZFSPOOLNAME \
+		mirror $DISK0"s3" $DISK1"s3" $DISK2"s3" $DISK3"s3" \
+		mirror $DISK0"s5" $DISK1"s5" $DISK2"s5" $DISK3"s5"
+            zfs create $ZFSPOOLNAME/config
+            zfs set mountpoint=legacy $ZFSPOOLNAME/config
+            zfs create $ZFSPOOLNAME/logs
+            zfs set mountpoint=legacy $ZFSPOOLNAME/logs
+            zfs set quota=19g tank/logs
+            echo "Created zfs mirrored pool $ZFSPOOLNAME"
+	fi
+    fi
+
+    # Mount /config if we have a config backup to restore
+    if [ "$USECONFTAR" != "" ]; then
+	echo "Mounting /config"
+	mount -F zfs $ZFSPOOLNAME/config /config
+	mount | grep /config > /dev/null 2>&1
+	CONFRET=$?
+
+       # Restore the backup if the mount succeeded
+	if [ $CONFRET = 0 ]; then
+            echo "Restoring /config"
+            cd /config
+            tar xvf $USECONFTAR
+            if [ $? = 0 ]; then
+		rm $USECONFTAR
+		RESTOREDCONF=1
+            else
+		echo "Failed to restore /config"
+            fi            
+            cd /
+	else
+            echo "Error: failed to mount /config"
+	fi
+
+	umount -f /config
+    fi
+
+    # Mount /config if we have a /var/adm backup to restore
+    if [ "$USEADMDIR" != "" ]; then
+	echo "Mounting /var/adm"
+	mount -F zfs $ZFSPOOLNAME/logs /var/adm
+	mount | grep /var/adm > /dev/null 2>&1
+	ADMRET=$?
+
+       # Restore the backup if the mounts succeeded
+	if [ $ADMRET = 0 ]; then
+            echo "Restoring /var/adm"
+            /opt/sfw/bin/rsync -av $USEADMDIR/* /var/adm
+            if [ $? = 0 ]; then
+		rm -r $USEADMDIR
+		RESTOREDADM=1
+            else
+		echo "Failed to restore /var/adm"
+            fi
+	else
+            echo "Error: failed to mount /var/adm"
+	fi
+
+	echo "Updating /var/adm/tmp..."
+	if [ -f /var/adm/tmp ]; then
+	    rm -rf /var/adm/tmp.old
+	    echo "Moving /var/adm/tmp to /var/adm/tmp.old"
+	    mv -f /var/adm/tmp /var/adm/tmp.old
+	fi
+	mkdir -p /var/adm/tmp
+	chmod 777 /var/adm/tmp
+
+	echo "Updating /var/adm/var-tmp..."
+	if [ -f /var/adm/var-tmp ]; then
+	    rm -rf /var/adm/var-tmp.old
+	    echo "Moving /var/adm/var-tmp to /var/adm/var-tmp.old"
+	    mv -f /var/adm/var-tmp /var/adm/var-tmp.old
+	fi
+	mkdir -p /var/adm/var-tmp
+	chmod 777 /var/adm/var-tmp
+
+	echo "Updating /var/adm/svc-log..."
+	if [ -f /var/adm/svc-log ]; then
+	    rm -rf /var/adm/svc-log.old
+	    echo "Moving /var/adm/svc-log to /var/adm/svc-log.old"
+	    mv -f /var/adm/svc-log /var/adm/svc-log.old
+	fi
+	mkdir -p /var/adm/svc-log
+	chmod 777 /var/adm/svc-log
+
+	echo "Creating /var/adm/core..."
+	if [ -f /var/adm/core ]; then
+	    rm -rf /var/adm/core.old
+	    echo "Moving /var/adm/core to /var/adm/core.old"
+	    mv -f /var/adm/core /var/adm/core.old
+	fi
+	mkdir -p /var/adm/core
+	chmod 777 /var/adm/core
+
+	echo "Creating /var/adm/crash..."
+	if [ -f /var/adm/crash ]; then
+	    rm -rf /var/adm/crash.old
+	    echo "Moving /var/adm/crash to /var/adm/crash.old"
+	    mv -f /var/adm/crash /var/adm/crash.old
+	fi
+	mkdir -p /var/adm/crash
+	chmod 777 /var/adm/crash
+	
+	echo "Creating empty /var/adm/utmpx..."
+	rm -f /var/adm/utmpx
+	touch /var/adm/utmpx
+
+	echo "Creating empty /var/adm/wtmpx..."
+	rm -f /var/adm/wtmpx
+	touch /var/adm/wtmpx
+
+	mkfifo /var/adm/kernel
+	umount -f /var/adm
+    fi
+
+    # Remove the upgrade conf files from the boot disks
+    if [ $RESTOREDCONF = 1 ] || [ $RESTOREDADM = 1 ]; then
+	for i in 0 1 2 3; do
+            TEMPDISK=/boot/images/$i
+            mount $TEMPDISK
+            RET=$?
+            if [ $RET = 0 ] || [ $RET = 32 ]; then    
+		if [ $RESTOREDCONF = 1 ]; then
+                    rm -f $TEMPDISK/$UPGRADECONFFILE
+		fi
+		if [ $RESTOREDADM = 1 ]; then
+                    rm -f $TEMPDISK/$UPGRADEADMFILE
+		fi
+		umount -f $TEMPDISK
+            fi
+	done
+    fi
+
+    # Unmount the /data disks
+    umount -f /data/0 > /dev/null 2>&1
+    umount -f /data/1 > /dev/null 2>&1
+    umount -f /data/2 > /dev/null 2>&1
+    umount -f /data/3 > /dev/null 2>&1
+
+    echo "Current date is..."
+    date
+    echo "Checking services..."
+    svcs -xv
+    echo "Checking zfs pools..."
+    zpool list
+    #echo "Sleeping..."
+    #sleep 30
+}
+
+# XXX todo: handle bringing up the primary address if it's already
+# configured on the secondary adapter.
+
+#Plumb & ifconfig nics
+ifconfig_nic() {
+    NIC=$1
+    STANDBY=$2
+    GROUP=$3
+    ADDR=$4
+
+    # See of the nic is already configured, and plumb if it isn't
+    ifconfig $NIC > /dev/null 2>&1
+    if [ $? != 0 ]; then
+	echo "Plumbing $NIC"
+	ifconfig $NIC plumb > /dev/null 2>&1
+	if [ $? != 0 ]; then
+	    echo "Failed to plumb $NIC group $GROUP"
+	    exit $SMF_EXIT_ERR_FATAL
+	fi
+    fi
+
+    # Configure the address and IPMP group if supplied
+    NEEDS_ADDR=0
+    NEEDS_GROUP=0
+    CMD=
+    if [ -n "$ADDR" ]; then
+	ifconfig $NIC | grep $ADDR > /dev/null 2>&1
+	if [ $? != 0 ]; then
+	    NEEDS_ADDR=1
+	    CMD=$CMD" "$ADDR" netmask "$NETMASK
+        fi
+    fi
+
+    if [ -n "$GROUP" ]; then
+	ifconfig $NIC | grep "groupname $GROUP" > /dev/null 2>&1
+	if [ $? != 0 ]; then
+	    NEEDS_GROUP=1
+	    CMD=$CMD" group "$GROUP
+        fi
+    fi
+
+    if [ $STANDBY -eq 1 ]
+    then 
+        CMD=$CMD" standby "
+    fi
+
+    if [ "$NEEDS_ADDR" = "1" ] || [ "$NEEDS_GROUP" = "1" ]; then
+	CMD=$CMD" up"
+	echo "Configuring $NIC with $CMD"
+	ifconfig $NIC $CMD > /dev/null 2>&1
+	if [ $? != 0 ]; then
+	    echo "Failed to configure $NIC with $CMD"
+	    exit $SMF_EXIT_ERR_FATAL
+	fi
+    fi
+}
+
+# Configure the network based on available nics
+config_network() {
+    # Use the first two nics from the list
+    NICLIST=`get_nics`
+
+    NIC0=`echo $NICLIST | cut -f1 -d' '`
+    NIC1=`echo $NICLIST | cut -f2 -d' '`
+
+    NIC0DEVICE=`echo $NIC0 | cut -c1-3`
+    NIC0INSTANCE=`echo $NIC0 | cut -c4`
+    NIC0VLAN1=$NIC0DEVICE"100"$NIC0INSTANCE
+    NIC0VLAN3=$NIC0DEVICE"300"$NIC0INSTANCE
+
+    NIC1DEVICE=`echo $NIC1 | cut -c1-3`
+    NIC1INSTANCE=`echo $NIC1 | cut -c4`
+    NIC1VLAN1=$NIC1DEVICE"100"$NIC1INSTANCE
+    NIC1VLAN3=$NIC1DEVICE"300"$NIC1INSTANCE
+
+    # Plumb internal network adapters. Configure the nodename on NIC0.
+    NODENAME=`get_nodename`
+    ifconfig_nic $NIC0 0 internal $NODENAME
+    ifconfig_nic $NIC1 1 internal
+
+    # Plumb external network adapters
+    ifconfig_nic $NIC0VLAN1 0 external
+    ifconfig_nic $NIC1VLAN1 1 external
+}
+
+# If the zfs filesystem is not already mounted, mount it and start a scrub
+mount_scrub() {
+    POOL=$1
+    MOUNTPOINT=$2
+
+    mount | grep $MOUNTPOINT > /dev/null 2>&1
+    if [ $? != 0 ]; then
+
+	echo "Mounting $MOUNTPOINT"
+	mount $2
+	if [ $? != 0 ]; then	
+	    echo "Failed to mount $MOUNTPOINT"
+	    exit $SMF_EXIT_ERR_FATAL
+	fi
+
+	echo "Scrubbing zfs pool $POOL"
+	zpool scrub $POOL
+	if [ $? != 0 ]; then	
+	    echo "Failed to scrub zfs pool $POOL"
+	    exit $SMF_EXIT_ERR_FATAL
+	fi
+    fi
+}
+
+mount_logs_config() {
+    LOGENTRY="tank/logs - /var/adm zfs - no -"
+    grep "$LOGENTRY" $VFSTAB > /dev/null 2>&1
+    if [ $? != 0 ]; then
+	echo $LOGENTRY >> $VFSTAB
+    fi
+
+    CONFENTRY="tank/config - /config zfs - no -"
+    grep "$CONFENTRY" $VFSTAB > /dev/null 2>&1
+    if [ $? != 0 ]; then
+	echo $CONFENTRY >> $VFSTAB
+    fi
+
+    mount_scrub tank /var/adm
+    mount_scrub tank /config
+}
+
+# Config services that need to run early
+config_services() {
+
+    # Update the passwd state or else we'll get login errors
+    echo "Updating /etc/passwd"
+    pwconv
+}
+
+# Main
+config_hostname
+config_disks
+upgrade_zfs
+config_network
+config_services
+exit $SMF_EXIT_OK

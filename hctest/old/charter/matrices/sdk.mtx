@@ -1,0 +1,164 @@
+#!/bin/bash
+#
+# $Id: sdk.mtx 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+# Test cases related to supporting software delivered to
+# Charter customers.  All test cases here are to be run
+# on final charter hardware.
+
+# Documentation
+echo "
+README reviewed
+javadoc reviewed
+example source reviewed
+"
+
+# SDK builds
+echo ant sdk
+
+# Setup
+echo setup.pl
+
+# Positive tests for all ops
+for op in Store Retrieve Query Copy Perf
+do
+  echo run_java $op --help
+  echo run_java $op ip
+  echo run_java $op host
+done
+
+# Negative tests for all ops
+for op in store retrieve query copy perf
+do
+  echo $op invalid ip syntax
+  echo $op invalid host syntax
+  echo $op ip server dne
+  echo $op host server dne
+  echo $op ip is not honeycomb
+  echo $op host is not honeycomb
+  echo $op --invalid-option
+done
+
+# op-specific tests
+# Store.java
+# -- positive tests
+echo "
+store /etc/hosts
+store --metadata filename=/etc/hosts
+"
+#store --meta-data <name>=<value>
+#store --meta-data '<name> = <value>'
+#store --meta-data '<name>= <value>'
+#store --meta-data '<name> =<value>'
+#store 3*(--meta-data <name>=<value>)
+#store max*(--meta-data <name>=<value>)
+# -- negative tests
+echo "
+store --meta-data <null>
+store --meta-data '=<name>=<value>'
+store --meta-data '<name>=<value>='
+store --meta-data '<string>'
+store directory
+store insufficient file permissions
+"
+
+# Retrieve.java
+# -- positive tests
+echo "
+retrieve to local file
+retrieve no local file
+retrieve file without metadata
+"
+# -- negative tests
+echo "
+retrieve to local dir
+retrieve insufficient file permissions
+"
+
+# Query.java
+# -- positive tests
+echo "
+query no results
+query max results
+"
+# -- negative tests
+echo "
+query syntactically invalid query
+query semantically invalid query
+"
+
+# Schema.java
+# -- positive tests
+echo "
+schema ip
+schema host
+schema none defined
+"
+# -- negative tests
+
+# Copy.java
+# -- positive tests
+echo "
+copy single file to honeycomb
+copy flat directory with 1 file to honeycomb
+copy flat directory with > 1 files to honeycomb
+copy flat directory with max files to honeycomb
+copy 2-level directory to honeycomb
+copy max-level directory to honeycomb
+copy single file to local file
+copy single file to local directory
+copy > 1 files to local directory
+copy max files to local directory
+"
+# -- failure tests
+echo "
+copy insufficient file permissions
+copy insufficient directory permissions
+copy file does not exist
+copy directory does not exist
+"
+# -- load tests
+echo "
+copy 2 clients to honeycomb
+copy 10 clients to honeycomb
+copy max clients to honeycomb
+copy 2 clients to local directory
+copy 10 clients to local directory
+copy max clients to local directory
+"
+
+# Perf.java
+echo perf test cases listed

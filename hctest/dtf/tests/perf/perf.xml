@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="perf">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF performance testsuite.</description>
+    </info>
+       
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+    </local>
+    
+    <record uri="storage://OUTPUT/dtf.internals.txt" type="txt" event="dtf.perf.*">
+    	<testsuite name="perfsuite">
+        	<testscript uri="storage://INPUT/distribute.xml"/> 
+        	<testscript uri="storage://INPUT/component.xml"/> 
+    	</testsuite>
+    </record>
+    
+</script>

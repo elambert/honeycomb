@@ -1,0 +1,210 @@
+<!--
+ $Id: build.xml 3416 2005-01-31 21:59:58Z jr1520251 $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for honeycomb suitcase diagnostics
+--> 
+<project name="suitcase" default="suitcase_jar">
+  <description>
+    Honeycomb suitcase component. Building this project creates
+    suitcase.jar
+  </description>
+
+  <!-- first, local, user specified .ant.properties files take precedence -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <!-- second, use the build.properties for this package -->
+  <property file="build.properties"/>
+
+  <!-- lastly, use the top-level builds properties file -->
+  <property file="../build/build.properties"/>
+
+  <!-- reference environment variables as env.X -->
+  <!-- ie. ${env.USER} -->
+  <property environment="env"/>
+
+  <!-- Classpath setup *************************************************** -->
+  <property name="server.jar"
+	value="${server.dist.libdir}/honeycomb-server.jar"/>
+  <property name="common.jar"
+	value="${common.dist.libdir}/honeycomb-common.jar"/>
+
+
+  <!-- INIT *************************************************************** -->
+  <target name="suitcase_init">
+    
+    <path id="suitcase.build.classpath">
+      <pathelement location="${common.dist.libdir}/${jarname.common}"/>
+      <pathelement location="${server.dist.libdir}/${jarname.server}"/>
+      <pathelement location="${external.dist.libdir}/jug.jar"/>
+      <pathelement location="${external.dist.libdir}/db-4.2.jar"/>
+    </path>
+  </target>
+
+  <!-- PREPARE ************************************************************ -->
+
+  
+  <target name="suitcase_prepare" depends="suitcase_init">
+    <mkdir dir="${suitcase.build.basedir}"/>
+    <mkdir dir="${suitcase.build.classdir}"/>
+    <mkdir dir="${suitcase.build.pkgdir}"/>
+    <mkdir dir="${suitcase.dist.basedir}"/>
+    <mkdir dir="${suitcase.dist.libdir}"/>
+    <mkdir dir="${suitcase.dist.docdir}"/>
+        <mkdir dir="${suitcase.dist.bindir}"/>
+	<mkdir dir="${suitcase.dist.etcdir}"/>
+
+    <!-- copy honeycomb jars  -->
+    <copy file="${common.dist.libdir}/${jarname.common}" 
+        todir="${suitcase.dist.libdir}"/>
+    <copy file="${server.dist.libdir}/${jarname.server}" 
+        todir="${suitcase.dist.libdir}"/>
+    <copy file="${external.dist.libdir}/jug.jar" 
+        todir="${suitcase.dist.libdir}"/>
+    <copy file="${external.dist.libdir}/jetty-4.2.20.jar" 
+        todir="${suitcase.dist.libdir}"/>
+    <!-- Multicell config file -->
+    <copy file="${hctest.basedir}/src/etc/silo_info.xml"
+        todir="${suitcase.dist.etcdir}"/>
+    <!-- Cluster config file -->
+    <copy file="${hctest.basedir}/src/etc/config_defaults.properties"
+          todir="${suitcase.dist.etcdir}"/>
+    <!-- xsl stylesheet to parse silo_info.xml file -->
+    <copy file="${hctest.basedir}/src/etc/silo_info.xsl"
+          todir="${suitcase.dist.etcdir}"/>
+    <copy file="${suitcase.basedir}/README" 
+          todir="${suitcase.dist.basedir}"/>
+
+    <!-- ConvertOid uses these external libs -->
+    <copy todir="${suitcase.dist.libdir}">
+      <fileset dir="${external.dist.libdir}">
+        <include name="*EtherAddr*"/>
+      </fileset>
+    </copy>
+  </target>
+
+  <!-- COMPILE_JAVA ******************************************************* -->
+
+  <target name="suitcase_compile_java" depends="suitcase_prepare">
+
+    <javac classpathref="suitcase.build.classpath"
+           srcdir="${suitcase.java.srcdir}"
+           destdir="${suitcase.build.classdir}"
+           debug="${javac.debug}"
+           deprecation="${javac.deprecation}"
+           source="${javac.source}"
+           optimize="${javac.optimize}"/>
+
+
+  </target>
+
+
+  <!-- JAR *************************************************************** -->
+  <target name="suitcase_jar" depends="suitcase_compile_java"
+          description="Build the suitcase only">
+    <jar jarfile="${suitcase.jar}">
+      <fileset dir="${suitcase.build.classdir}"/>
+    </jar>
+    <!-- moved this copy from former suitcase target  -->
+    <copy todir="${suitcase.dist.libdir}" file="${suitcase.jar}"/>
+
+  </target>
+
+  <!-- SCRIPTS ********************************************************* -->
+  <target name="scripts" depends="suitcase_prepare">
+
+    <!-- copy suitcase customerTools scripts to dist dir -->
+    <copy todir="${suitcase.dist.bindir}">
+        <fileset dir="${suitcase.scripts.srcdir}/customerTools"/>
+    </copy>
+
+    <!-- all scripts in bindir must be executable -->
+    <chmod dir="${hctest.dist.bindir}" perm="555" includes="*"/>
+
+  </target>
+
+  <!-- TAR ************************************************************* -->
+  <target name="tar" depends="suitcase_jar" 
+          description="tar up the suitcase extraction for test clients">
+
+      <tar destfile="${suitcase.tarpackage}/${tarname.suitcase}">
+
+          <!-- executable scripts in scripts/ -->
+          <tarfileset dir="${suitcase.scripts.srcdir}" mode="755">
+            <include name="**.sh"/>
+            <include name="**.pl"/>
+          </tarfileset>
+
+	  <tarfileset dir="${suitcase.scripts.srcdir}/customerTools" mode="755">
+	     <include name="ConvertOid"/>
+	     <include name="ConvertOidBatch"/>
+	  </tarfileset>
+
+          <!-- dbscript from hctest -->
+          <tarfileset dir="${hctest.utils.srcdir}" mode="600">
+            <include name="dbscript.sh"/>
+          </tarfileset>
+
+          <tarfileset dir="${suitcase.dist.libdir}" mode="755">
+            <include name="honeycomb-suitcase.jar"/>
+          </tarfileset>
+
+
+      </tar>
+
+  </target>
+  
+  <!-- PKG **************************************************************** -->
+  <target name="pkg"
+          depends="tar,suitcase_jar,scripts"
+          description="build the entire package">
+      <exec executable="${pkgmk.bin}" failonerror="yes">
+        <!-- arg value="" does not work here for some reason -->
+        <arg line="-o -d ${suitcase.build.pkgdir} -f ${suitcase.pkgdefs}/prototype -r ${suitcase.dist.basedir}"/>
+      </exec>
+
+      <exec executable="${pkgtrans.bin}" failonerror="yes">
+        <arg line="-s ${suitcase.build.pkgdir} ${sun.pkgname.suitcase}.pkg ${sun.pkgname.suitcase}"/>
+      </exec>
+  </target>
+
+  <!-- ************************************************************** -->
+  <target name="build_pkg" depends="pkg"
+    description="compile sources and create the solaris package" />
+
+  <!-- CLEAN ************************************************************** -->
+  <target name="clean" description="cleans workspace of all generated files">
+    <delete dir="${suitcase.build.basedir}"/>
+  </target>
+
+</project>

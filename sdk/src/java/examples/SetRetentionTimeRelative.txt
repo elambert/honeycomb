@@ -1,0 +1,19 @@
+
+NAME
+       SetRetentionTimeRelative - set a retention time on a previously 
+       stored object relative to the current server time
+
+SYNOPSIS
+       java SetRetentionTimeRelative <IP | HOST> <OID> <RETENTION_LENGTH> [OPTIONS]
+
+DESCRIPTION
+       Set a retention time on a stored object. RETENTION_LENGTH
+       describes the number of seconds relative to the current server time
+       from which the retention time should be set for the object.
+
+OPTIONS
+       -h, --help
+              print this message
+
+EXAMPLES
+       java SetRetentionTimeRelative server @SampleOID@ 64800

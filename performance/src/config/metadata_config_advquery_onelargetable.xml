@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 
+
+  $Id:$
+
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+
+Use /opt/honeycomb/bin/metadata_merge_config.sh to add this config to
+the existing one -->
+
+<!-- This file contains the performance schema, used to pass the performance and
+blockstore suite tests. Merge accordingly before running those ! -->
+
+<metadataConfig>
+  <schema>
+
+    <namespace name="advquery_onelargetable_noidx" writable="true" extensible="true">
+            
+      <field name="test_start_timestamp" type="long" />
+      <field name="test_id" type="string" length="64" />
+      <field name="iteration" type="long" />
+      <field name="insert_timestamp" type="long" />
+      <field name="client" type="string" length="64" />
+      
+      <field name="one" type="string" length="64" />
+      <field name="two" type="string" length="64" />
+      <field name="three" type="string" length="64" />
+      <field name="four" type="string" length="64" />
+      <field name="five" type="string" length="64" />
+      <field name="six" type="string" length="64" />
+      <field name="seven" type="string" length="64" />
+      <field name="eight" type="string" length="64" />
+      <field name="nine" type="string" length="64" />
+      <field name="ten" type="string" length="64" />
+      <field name="eleven" type="string" length="64" />
+      <field name="twelve" type="string" length="64" />
+      <field name="thirteen" type="string" length="64" />
+      <field name="fourteen" type="string" length="64" />
+      <field name="fifteen" type="string" length="64" />
+      <field name="sixteen" type="string" length="64" />
+      <field name="seventeen" type="string" length="64" />
+      <field name="eighteen" type="string" length="64" />
+      <field name="nineteen" type="string" length="64" />
+      <field name="twenty" type="string" length="64" />
+      <field name="twenty_one" type="string" length="64" />
+      <field name="twenty_two" type="string" length="64" />
+      <field name="twenty_three" type="string" length="64" />
+      <field name="twenty_four" type="string" length="64" />
+      <field name="twenty_five" type="string" length="64" />
+      <field name="twenty_six" type="string" length="64" />
+      <field name="twenty_seven" type="string" length="64" />
+      <field name="twenty_eight" type="string" length="64" />
+      <field name="twenty_nine" type="string" length="64" />
+      <field name="thirty" type="string" length="64" />
+      <field name="thirty_one" type="string" length="64" />
+      <field name="thirty_two" type="string" length="64" />
+      <field name="thirty_three" type="string" length="64" />
+      <field name="thirty_four" type="string" length="64" />
+      <field name="thirty_five" type="string" length="64" />
+      <field name="thirty_six" type="string" length="64" />
+      <field name="thirty_seven" type="string" length="64" />
+      <field name="thirty_eight" type="string" length="64" />
+      <field name="thirty_nine" type="string" length="64" />
+      <field name="forty" type="string" length="64" />
+      <field name="forty_one" type="string" length="64" />
+      <field name="forty_two" type="string" length="64" />
+      <field name="forty_three" type="string" length="64" />
+      <field name="forty_four" type="string" length="64" />
+      <field name="forty_five" type="string" length="64" />
+      <field name="forty_six" type="string" length="64" />
+      <field name="forty_seven" type="string" length="64" />
+      <field name="forty_eight" type="string" length="64" />
+      <field name="forty_nine" type="string" length="64" />
+      <field name="fifty" type="string" length="64" />
+      
+    </namespace>
+
+  </schema>
+ <fsViews>
+</fsViews>
+
+  <tables>
+    <table name="advquery_onelargetable_noidx">
+      <column name="advquery_onelargetable_noidx.test_start_timestamp"/>
+      <column name="advquery_onelargetable_noidx.test_id"/>
+      <column name="advquery_onelargetable_noidx.iteration"/>
+      <column name="advquery_onelargetable_noidx.insert_timestamp"/>
+      <column name="advquery_onelargetable_noidx.client"/>
+      
+      <column name="advquery_onelargetable_noidx.one"/>
+      <column name="advquery_onelargetable_noidx.two"/>
+      <column name="advquery_onelargetable_noidx.three"/>
+      <column name="advquery_onelargetable_noidx.four"/>
+      <column name="advquery_onelargetable_noidx.five"/>
+      <column name="advquery_onelargetable_noidx.six"/>
+      <column name="advquery_onelargetable_noidx.seven"/>
+      <column name="advquery_onelargetable_noidx.eight"/>
+      <column name="advquery_onelargetable_noidx.nine"/>
+      <column name="advquery_onelargetable_noidx.ten"/>
+      <column name="advquery_onelargetable_noidx.eleven"/>
+      <column name="advquery_onelargetable_noidx.twelve"/>
+      <column name="advquery_onelargetable_noidx.thirteen"/>
+      <column name="advquery_onelargetable_noidx.fourteen"/>
+      <column name="advquery_onelargetable_noidx.fifteen"/>
+      <column name="advquery_onelargetable_noidx.sixteen"/>
+      <column name="advquery_onelargetable_noidx.seventeen"/>
+      <column name="advquery_onelargetable_noidx.eighteen"/>
+      <column name="advquery_onelargetable_noidx.nineteen"/>
+      <column name="advquery_onelargetable_noidx.twenty"/>
+      <column name="advquery_onelargetable_noidx.twenty_one"/>
+      <column name="advquery_onelargetable_noidx.twenty_two"/>
+      <column name="advquery_onelargetable_noidx.twenty_three"/>
+      <column name="advquery_onelargetable_noidx.twenty_four"/>
+      <column name="advquery_onelargetable_noidx.twenty_five"/>
+      <column name="advquery_onelargetable_noidx.twenty_six"/>
+      <column name="advquery_onelargetable_noidx.twenty_seven"/>
+      <column name="advquery_onelargetable_noidx.twenty_eight"/>
+      <column name="advquery_onelargetable_noidx.twenty_nine"/>
+      <column name="advquery_onelargetable_noidx.thirty"/>
+      <column name="advquery_onelargetable_noidx.thirty_one"/>
+      <column name="advquery_onelargetable_noidx.thirty_two"/>
+      <column name="advquery_onelargetable_noidx.thirty_three"/>
+      <column name="advquery_onelargetable_noidx.thirty_four"/>
+      <column name="advquery_onelargetable_noidx.thirty_five"/>
+      <column name="advquery_onelargetable_noidx.thirty_six"/>
+      <column name="advquery_onelargetable_noidx.thirty_seven"/>
+      <column name="advquery_onelargetable_noidx.thirty_eight"/>
+      <column name="advquery_onelargetable_noidx.thirty_nine"/>
+      <column name="advquery_onelargetable_noidx.forty"/>
+      <column name="advquery_onelargetable_noidx.forty_one"/>
+      <column name="advquery_onelargetable_noidx.forty_two"/>
+      <column name="advquery_onelargetable_noidx.forty_three"/>
+      <column name="advquery_onelargetable_noidx.forty_four"/>
+      <column name="advquery_onelargetable_noidx.forty_five"/>
+      <column name="advquery_onelargetable_noidx.forty_six"/>
+      <column name="advquery_onelargetable_noidx.forty_seven"/>
+      <column name="advquery_onelargetable_noidx.forty_eight"/>
+      <column name="advquery_onelargetable_noidx.forty_nine"/>
+      <column name="advquery_onelargetable_noidx.fifty"/>
+  </table>
+
+  </tables>
+
+</metadataConfig>

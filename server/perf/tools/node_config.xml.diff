@@ -1,0 +1,20 @@
+*** node_config.xml.current	Mon Jul 19 16:56:30 2004
+--- node_config.xml	Mon Jul 19 16:56:37 2004
+***************
+*** 53,59 ****
+    <jvm
+      name="API-SERVERS"
+      rss="256MB"
+!     params="-server -Xms128m -Xmx256m -XX:MaxDirectMemorySize=512m -XX:+DisableExplicitGC -XX:NewRatio=1">
+      <group
+          runlevel="5">
+          <service
+--- 53,60 ----
+    <jvm
+      name="API-SERVERS"
+      rss="256MB"
+!     params="-Djava.system.class.loader=com.sun.honeycomb.perf.PerfClassLoader -Dperf.specfile=/opt/honeycomb/perf/honeycomb.specfile -Dperf.path=/opt/honeycomb/lib/honeycomb.jar:/opt/honeycomb/perf/hc_perf.jar -server -Xms128m -Xmx256m -XX:MaxDirectMemorySize=512m -XX:+DisableExplicitGC -XX:NewRatio=1"
+!     classpath="/opt/honeycomb/perf/hc_perf-cl.jar:/opt/honeycomb/perf/bcel-5.1.jar:/opt/honeycomb/lib/jetty-4.2.19.jar:/opt/honeycomb/lib/servlet-4.2.19.jar:/opt/honeycomb/lib/db-4.1.25.jar:/opt/honeycomb/lib/concurrent.jar:/opt/honeycomb/lib/jug.jar">
+      <group
+          runlevel="5">
+          <service

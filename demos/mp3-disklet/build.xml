@@ -1,0 +1,44 @@
+<!--
+    $Id: build.xml 10856 2007-05-19 02:58:52Z bberndt $
+
+    Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+    Use is subject to license terms.
+-->
+<project name="mp3-disklet" default="jar">
+
+  <property name="hcroot" value="${basedir}/../.."/>
+
+  <property name="buildir" value="${basedir}/classes"/>
+  <property name="jarfile" value="mp3disklet.jar"/>
+
+  <path id="classpath">
+    <pathelement location="${hcroot}/classes"/>
+    <pathelement location="${basedir}/scilla.jar"/>
+  </path>
+
+  <target name="prepare">
+    <tstamp/>
+    <mkdir dir="${buildir}"/>
+  </target>
+
+  <target name="clean">
+    <delete dir="${buildir}"/>
+  </target>
+
+  <target name="compile" depends="prepare">
+    <javac classpathref="classpath"
+      destdir="${buildir}"
+      debug="true">
+      <src path="${basedir}/src"/>
+    </javac>
+  </target>
+
+  <target name="jar" depends="compile">
+    <jar jarfile="${jarfile}">
+      <fileset dir="${buildir}"/>
+    </jar>
+  </target>
+  
+</project>
+
+

@@ -1,0 +1,6 @@
+$Id: README 10858 2007-05-19 03:03:41Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+use the prebuild .jar file, or Makefile WS variable to point to your tree, and type make.

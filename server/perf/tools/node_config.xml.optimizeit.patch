@@ -1,0 +1,21 @@
+*** node_config.xml.orig	Thu Jul 22 19:21:58 2004
+--- node_config.xml	Fri Jul 23 10:04:23 2004
+***************
+*** 61,67 ****
+    <jvm
+      name="API-SERVERS"
+      rss="256MB"
+!     params="-server -Xms128m -Xmx256m -XX:MaxDirectMemorySize=512m -XX:+DisableExplicitGC -XX:NewRatio=1">
+      <group
+          runlevel="5">
+          <service
+--- 61,69 ----
+    <jvm
+      name="API-SERVERS"
+      rss="256MB"
+!     classpath="/opt/honeycomb/lib/optit.jar:/opt/honeycomb/lib/oibcp.jar:/opt/honeycomb/lib/honeycomb.jar:/opt/honeycomb/lib/jetty-4.2.19.jar:/opt/honeycomb/lib/servlet-4.2.19.jar:/opt/honeycomb/lib/db-4.1.25.jar:/opt/honeycomb/lib/concurrent.jar:/opt/honeycomb/lib/jug.jar"
+!     params="-server -Xms128m -Xmx256m -XX:MaxDirectMemorySize=512m -XX:+DisableExplicitGC -XX:NewRatio=1 -Xrunpri:filter=/opt/honeycomb/lib/DefaultAllOn.oif -DAUDIT=jni -Xbootclasspath/a:/opt/honeycomb/lib/oibcp.jar intuitive.audit.Audit"
+!     env="LD_LIBRARY_PATH=/opt/honeycomb/lib:OPTIT_HOME=/opt/honeycomb">
+      <group
+          runlevel="5">
+          <service

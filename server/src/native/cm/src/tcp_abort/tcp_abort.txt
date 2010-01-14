@@ -1,0 +1,98 @@
+$Id: tcp_abort.txt 10855 2007-05-19 02:54:08Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+
+From http://sac.eng/Archives/CaseLog/arc/PSARC/2001/292/contract-mail
+
+
+        The non-transparent[6] ioctl command to the TCP module is called 
+        TCP_IOC_ABORT_CONN. The argument to this ioctl command is a
+        pointer to the following structure:
+
+        typedef struct tcp_ioc_abort_conn_s {
+            struct sockaddr_storage ac_local; /* local addr and port */
+            struct sockaddr_storage ac_remote;/* remote addr and port */
+            int32_t ac_start;                 /* start state */
+            int32_t ac_end;                   /* end state  */
+        } tcp_ioc_abort_conn_t;
+
+        The fields ac_local and ac_remote are structures that can hold
+        sockaddr_in or sockaddr_in6 structures. Together, they represent
+        the four tuple of a TCP connection. The use of wildcards is
+        allowed. The valid wildcards are INADDR_ANY and IN6ADDR_ANY_INIT
+        for addresses and 0 for ports. The fields ac_start and ac_end
+        specify a range of TCP states. Only connections which have a
+        matching four-tuple and a state within the specified range will
+        be aborted.  The valid states for the ac_start and ac_end fields
+        are in the range TCPS_SYN_SENT to TCPS_TIME_WAIT, inclusive. The 
+        file /usr/include/inet/tcp.h contains a complete list of TCP
+        states.
+         
+        The following example shows how the ioctl can be invoked in user
+        space:
+
+        #include <sys/types.h>
+        #include <stropts.h>
+        #include <sys/conf.h>
+        #include <inet/tcp.h>
+        #include <netinet/in.h>
+        #include <fcntl.h>
+
+        int
+        abort_conn_v4(in_addr_t v4local, in_addr_t v4remote,
+                ushort_t v4lport, ushort_t v4rport, int32_t start,
+                int32_t end)
+        {
+                int fd;
+                struct strioctl ioc;
+                struct sockaddr_in *local, *remote;
+                tcp_ioc_abort_conn_t conn;
+
+                local = (struct sockaddr_in*)&conn.ac_local;
+                local->sin_family = AF_INET;
+                local->sin_addr.s_addr = v4local;
+                local->sin_port = htons(v4lport);
+
+                remote = (struct sockaddr_in*)&conn.ac_remote;
+                remote->sin_family = AF_INET;
+                remote->sin_addr.s_addr = v4remote;
+                remote->sin_port = htons(v4rport);
+
+                conn.ac_start = start;
+                conn.ac_end = end;
+
+                ioc.ic_cmd = TCP_IOC_ABORT_CONN;
+                ioc.ic_timout = -1; /* infinite timeout */
+                ioc.ic_len = sizeof(conn);
+                ioc.ic_dp = (char *)&conn;
+
+                if ((fd = open("/dev/tcp", O_RDONLY)) < 0) return (-1);
+
+                return(ioctl(fd, I_STR, &ioc));
+        }
+
+
+        On success, the ioctl will return 0. On error, -1 will be
+        returned and errno will be set. There are two types of errors:
+
+        Invalid argument to the ioctl call - This can be caused by an
+        invalid TCP state range or a socketpair with differing address
+        families.  errno is set to EINVAL for this type of error.
+
+        Internal error - Either a matching four-tuple has not been found
+        in the kernel or an internal TCP error has occurred. errno is
+        set to a value returned from the kernel.
+
+        An application which has its connection aborted involuntarily by
+        the aforementioned ioctl mechanism will receive an error that is
+        dependent on the connection state at the time of the abort. If
+        the connection state is < TCPS_TIME_WAIT, an application should
+        behave as though a RST packet has been received. The exact
+        details of the behavior (error codes, signals) can be found in
+        [5]. If the connection state is equal to TCPS_TIME_WAIT, the
+        2MSL timeout will immediately be canceled by the kernel and all
+        resources associated with the connection will be freed.
+
+

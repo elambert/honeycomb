@@ -1,0 +1,224 @@
+#!/bin/ksh
+#
+# $Id: bugsbydate 10853 2007-05-19 02:50:20Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+
+# /ws/onnv-gate/public/gate/bin/bugsbydate
+#
+# Outputs the CR Number and Synopsis of bugs files during a given
+# period.  If the -o option is used, this script calls
+# /ws/onnv-gate/public/gate/bin/onlyon to filter out the non-ON
+# bugs.
+# 
+# Created originally by previous gatekeepers
+#
+# Modified by Anup Sekhar (S10) for use with Bugster and sqlplus
+# Oct. 4, 2004
+#
+# Hacked for honeycomb use by sarahg
+
+# set up common env for bug scripts
+DIR=`cd \`dirname $0\`; pwd` ; export DIR
+COMMON="$DIR/bugscommon.sh"
+if [ ! -f $COMMON ]; then
+    echo "ERROR: couldn't find common env file $COMMON"
+    exit 1
+fi
+. $COMMON
+
+lastb() {
+# The following date arithmetic is needed for:
+#    a) The fact that the database system date is GMT
+#    b) To account for the -y option whereupon we only need the
+#	bugs filed the previous day (for PDT)
+#
+#XXX: The call to new_time should change PDT to PST when Daylight
+#     savings time ends during the last Sunday of October and
+#     then again should revert back when DST starts again. 
+#     When I get more time, I will try to incorporate this into
+#     the logic here.
+#
+# this time is the current time minus the number of days specified
+date_input_minus_days="select to_date(to_char(new_time(sysdate - $len, 'GMT', 'PST'),'DD-MON-YYYY'),'DD-MON-YYYY hh24:mi:ss')  from dual"
+# this is the current time
+date_input_now="select to_date(to_char(new_time(sysdate, 'GMT', 'PST'),'DD-MON-YYYY'),'DD-MON-YYYY hh24:mi:ss')  from dual"
+
+# Choose different fields for output if long format is requested
+if [ "$longf" = "true" ]; then
+	selectfields="TO_CHAR(cr_number, 9999999), priority, area, ' ', status, ' ', sub_category, release, ' ', responsible_engineer, '|', synopsis"
+    areacolumn="COLUMN area FORMAT A3 TRU"
+    statuscolumn="COLUMN status FORMAT A5 TRU"
+	pricolumn="COLUMN priority FORMAT A1 TRU"
+	catcolumn=""
+	scatcolumn="COLUMN sub_category FORMAT A10 TRU"
+	targrel="COLUMN release FORMAT A7 TRU"
+	respeng="COLUMN responsible_engineer FORMAT A13 TRU"
+	syncolumn="COLUMN synopsis FORMAT A80 TRU"
+else
+	selectfields="TO_CHAR(cr_number, 9999999), synopsis"
+	pricolumn=""
+    areacolumn=""
+    statuscolumn=""
+	catcolumn=""
+	scatcolumn=""
+    targrel=""
+    respeng=""
+	syncolumn="COLUMN synopsis FORMAT A100 TRU"
+fi
+
+# If it's for yesterday's bugs, we need to give it two end conditions.
+if [ "$yesterday" = "true" ]; then
+	dates="date_submitted >= new_time(($date_input_minus_days), 'PST', 'GMT') and date_submitted <= new_time(($date_input_now), 'PST', 'GMT')"
+    dateconstraint="AND $dates"
+elif [ "$historymode" = "true" ]; then
+	dates="date_submitted <= new_time(($date_input_minus_days), 'PST', 'GMT')"
+    dateconstraint="AND $dates"
+elif [ "$nodates" = "false" ]; then
+	dates="date_submitted >= new_time(($date_input_minus_days), 'PST', 'GMT')"
+    dateconstraint="AND $dates"
+fi
+
+if [ "$printheader" = "true" ]; then
+    echo $header
+fi
+
+# The mr_number clause is there to prevent subCRs being displayed.
+# $dateconstraint is on the same line as the mr_number clause because
+# we get a syntax error otherwise when the clause is not specified.
+( $SQLPLUS $user/$pass@$TARGETBTDB <<_EOF | grep -v 'rows selected'
+	SET linesize 1000
+	SET pagesize 0
+    $areacolumn
+	$pricolumn
+    $statuscolumn
+	$catcolumn
+	$scatcolumn
+    $targrel
+    $respeng
+	$syncolumn
+	SELECT 
+		$selectfields
+	FROM
+		change_requests
+	WHERE
+        product = 'honeycomb'
+	AND
+		status in $states
+	AND
+		(cr_number = mr_number or mr_number = 0)  $dateconstraint
+	ORDER BY
+		$order
+;	
+_EOF
+) | uniq | sed 's/^[ \t]*//' | $ON_FILTER | sed -e 's/^ //' -e 's/ *$//' | awk 'length > 0'
+}
+
+
+usage() {
+	echo "Usage:  bugsbydate [-H] [-l] [-t|-w|-y|-d <n>|-D <n>|-a] - in this order"
+    echo " -H:  print header"
+	echo " -l:  Use the long output format"
+	echo " -t:  CRs filed today"
+	echo " -w:  CRs filed in the past 7 days (including today)"
+	echo " -y:  CRs filed only yesterday"
+	echo " -d:  CRs filed in the past <n> days (including today)"
+	echo " -D:  CRs filed in up until <n> days ago (including today)"
+    echo " -a:  all CRs"
+	exit 1
+}
+
+states="(select status_value from cr_status where num < 10)"
+yesterday="false"
+longf="false"
+CRS="CRs"
+ON_FILTER='cat'
+NOW="`date`"
+nodates="false" # for the 'all' queries, this is true
+historymode="false" # for generating historical views
+dateconstraint=""
+printheader="false"
+
+if [ "$1" = "-H" ]; then
+    printheader="true"
+	shift
+elif [ "$1" = "-l" ]; then
+	shift
+	longf="true"
+fi
+
+# The -l could be used with -H format
+if [ "$1" = "-l" ]; then
+	shift
+	longf="true"
+fi
+
+case "$1" in
+	-t)	header="\n$CRS filed today, `date '+%B %d, %Y'`:\n"
+		len=0
+        order="priority"
+		lastb;;
+	-w)	header="\n$CRS filed in the last seven days:\n"
+		len=6
+        order="priority"
+		lastb;;
+	-y)	header="\n$CRS filed only yesterday:\n"
+		yesterday="true"
+		len=1
+        order="priority"
+		lastb;;
+    -a) header="\nAll $CRS filed as of $NOW:\n"
+        states="(select status_value from cr_status where num < 12)"
+        nodates="true"
+        len=0
+        order="cr_number"
+        lastb;;
+	-d)	if [ $# != 2 ]; then
+			usage
+		else
+			len=$2 
+			header="\n$CRS filed in the last $len days:\n"
+			lastb
+		fi;;
+    -D)	if [ $# != 2 ]; then
+			usage
+		else
+            historymode="true"
+			len=$2 
+			header="\n$CRS filed up to $len days ago:\n"
+            states="(select status_value from cr_status where num < 12)"
+            order="cr_number"
+			lastb
+		fi;;
+	*) 	usage;;
+esac

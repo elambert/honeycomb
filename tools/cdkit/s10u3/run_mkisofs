@@ -1,0 +1,223 @@
+#!/usr/bin/ksh
+#
+# $Id: $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# @(#) run_mkisofs 1.8@(#)
+
+typeset PRG=
+[[ $0 = /* ]] && PRG=$0 || PRG=$PWD/$0
+
+typeset -r BIN_DIR=$(dirname $PRG)
+
+. $BIN_DIR/retools.ksh.lib
+
+typeset OPT_SRC=
+typeset OPT_DEST=
+typeset OPT_VOLUME_INF=
+typeset OPT_MOUNT_PT=
+typeset OPT_MKISOFS=mkisofs
+typeset OPT_DEBUG=false
+
+typeset CD_CAPACITY=643
+
+if [ "$(uname -r)" = '5.10' ] ; then
+        typeset MKISOFS_OPTIONS="-l -ldots -R -N -D"
+        typeset X86_MKISOFS_OPTIONS="-l -ldots -r -N -d -D"
+        typeset PC_COMPATIBLE_OPTIONS="-l -ldots -R -D -U -joliet-long"
+else
+	typeset MKISOFS_OPTIONS="-l -L -R -N -D"
+	typeset X86_MKISOFS_OPTIONS="-l -L -r -N -d -D"
+	typeset PC_COMPATIBLE_OPTIONS="-l -L -R -D -U -J"
+fi
+
+GetOpts() {
+
+	typeset char=
+	while getopts :f:m:e:s:gp char ; do
+		case $char in
+			f)	OPT_VOLUME_INF=$OPTARG	;;
+			m)	OPT_MOUNT_PT=$OPTARG	;;
+			e)	OPT_MKISOFS=$OPTARG	;;
+			p)	MKISOFS_OPTIONS=$PC_COMPATIBLE_OPTIONS ;;
+			g)	OPT_DEBUG=true
+				set -x
+				;;
+			s)	CD_CAPACITY=$OPTARG	;;
+			\?)	PrintErr "Unknown option $OPTARG"
+				return 1
+				;;
+			:)	PrintErr "Option -$OPTARG requires a value!"
+				return 1
+				;;
+		esac
+	done
+
+	shift OPTIND-1
+
+	[ $# -ne 2 ] && {
+		return 1
+	}
+
+	OPT_SRC=$1
+	OPT_DEST=$2
+
+	[ -z "$OPT_VOLUME_INF" -a -z "$OPT_MOUNT_PT" ] && {
+		PrintErr "You must specify -f <volume.inf> or -m <mount_pt>"
+		return 1
+	}
+	[ ! -z "$OPT_VOLUME_INF" -a ! -z "$OPT_MOUNT_PT" ] && {
+		PrintErr "-f and -m are mutually exclusive"
+		return 1
+	}
+
+	return 0
+}
+
+
+Usage() {
+	PrintErr '\nUsage: run_mkisofs -f volume_inf_file [-s alternate_cd_size] src_dir dest_file'
+	PrintErr '       run_mkisofs -m mount_point [-s alternate_cd_size] src_dir dest_file\n'
+	PrintErr '       volume_inf_file = data file format specified' \
+				'by mkisofs(1M).'
+	PrintErr '       mount_point = name of automount directory\n'
+        PrintErr '       alternate_cd_size = CD size limit other than 643 MB, use for archives\n'
+}
+
+
+_GetMkisofsAbsolutePath() {
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+
+	if [[ "$OPT_MKISOFS" = /* ]] ; then
+		echo $OPT_MKISOFS
+	else
+		whence mkisofs > /dev/null 2>&1 || {
+			PrintErr "Cannot find mkisofs(1M) in the path, quitting"
+			return 1
+		}
+		whence mkisofs
+	fi
+	return 0
+}
+
+
+_GenVolumeInf() {
+
+	typeset -ru mount_name=$1
+
+	cat <<- EOF | sed -e 's:XMOUNT_DIRX:'"$mount_name:"
+		SI"SUN_MICROSYSTEMS_INC"
+		VI"XMOUNT_DIRX"
+		VS"INTERNAL_SERIES"
+		PI"SUN_MICROSYSTEMS_INC"
+		DP"SOLARIS_PRODUCT_ENGINEERING"
+		AI"NOT SPECIFIED"
+		CM
+		CF"COPYRGHT.FIL;1"
+		AF"ABSTRACT.FIL;1"
+		BF"BIBLIOG.FIL;1"
+		CD""
+		MD""
+		FD""
+	EOF
+
+	return $?
+}
+
+
+Main() {
+
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+
+        typeset mkisofs=
+	mkisofs=$(_GetMkisofsAbsolutePath)                    || return $?
+ 
+	[ ! -x $mkisofs ] && {
+	PrintErr "Cannot execute $mkisofs, quitting!"
+		return 1
+	}
+
+	typeset -r logfile=${OPT_DEST}.log
+	[ -f $logfile ] && mv $logfile $logfile.$(date "+%b.%d.%T")
+ 
+	typeset volid=
+	if [ -z "$OPT_MOUNT_PT" ] ; then
+        	volid=$(cat $OPT_VOLUME_INF | sed -n -e 's:VI"\(.*\)":\1:p')
+	else
+        	volid=$OPT_MOUNT_PT
+	fi
+
+	# add options for boot x86 media 
+	if [ "$(uname -p)" = 'i386' -a -f $OPT_SRC/boot/grub/stage2_eltorito ] ; then
+		x86_boot_options="-b boot/grub/stage2_eltorito -c .catalog -no-emul-boot -boot-load-size 4 -boot-info-table -relaxed-filenames"
+		MKISOFS_OPTIONS="$x86_boot_options $X86_MKISOFS_OPTIONS"
+        fi
+
+	{
+		integer error=0
+		echo "START TIME: $(date)"
+		echo "MKISOFS_OPTIONS: $MKISOFS_OPTIONS"
+		echo "$mkisofs $MKISOFS_OPTIONS -V $volid -o $OPT_DEST $OPT_SRC"
+		$mkisofs $MKISOFS_OPTIONS -V $volid -o $OPT_DEST $OPT_SRC || \
+			error=$?
+		echo "END TIME: $(date)"
+		echo "RETURN=$error"
+		if (( $error != 0 )); then
+			PrintErr "Failed: see log file $logfile for details"
+			return $error
+		fi
+	} > $logfile 2>&1
+
+
+	chmod 664 $OPT_DEST	|| {
+		PrintErr "Failed to chmod on file $OPT_DEST"
+		return 1
+	}
+
+	_PadFile $OPT_DEST	|| {
+		PrintErr "Failed to pad to file $OPT_DEST"
+		return 1
+	}
+        # rm -f $OPT_SRC/.bootimage $OPT_SRC/.catalog
+}
+
+
+GetOpts $@ || {
+	Usage
+	return 1
+}
+
+
+Main
+return $?

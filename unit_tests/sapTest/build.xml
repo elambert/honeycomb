@@ -1,0 +1,38 @@
+<project name="sapTest" default="jar">
+
+  <property name="srcDir" value="${basedir}/src"/>
+  <property name="buildDir" value="${basedir}/build"/>
+  <property name="classes" value="${buildDir}/classes"/>
+  <property name="jarFile" value="${buildDir}/sapTest.jar"/>
+  <property name="manifest" value="${basedir}/Manifest.mf"/>
+
+  <path id="classpath">
+    <pathelement location="${basedir}/../../build/server/dist/lib/honeycomb-server.jar"/>
+  </path>
+
+  <target name="prepare">
+    <tstamp/>
+    <mkdir dir="${classes}"/>
+  </target>
+
+  <target name="compile" depends="prepare">
+    <javac classpathref="classpath"
+      srcdir ="${srcDir}"
+      destdir="${classes}"
+      debug="on"
+      deprecation="on"
+      optimize="off"
+      source="1.4"/>
+  </target>
+
+  <target name="jar" depends="prepare,compile">
+    <jar jarfile="${jarFile}"
+      manifest="${manifest}">
+      <fileset dir="${classes}"/>
+    </jar>
+  </target>
+
+</project>
+
+    
+

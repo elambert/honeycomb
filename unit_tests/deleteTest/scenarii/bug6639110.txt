@@ -1,0 +1,116 @@
+/*
+ * Copyright © 2008, Sun Microsystems, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+
+ECHO("Bug 6639110: On restore of System Metadata object, number of preceding checksums is not equal.");
+
+/*
+  When this bug is fixed, please uncomment the check in the isMetadataEqual
+  located in windowTestUtils.java.  Just search for 6639110
+*/
+
+
+import java.util.BitSet;
+import com.sun.honeycomb.common.NewObjectIdentifier;
+import com.sun.honeycomb.common.ObjectReliability;
+import com.sun.honeycomb.common.SystemMetadata;
+import com.sun.honeycomb.delete.Constants;
+import com.sun.honeycomb.oa.OAClient;
+import com.sun.honeycomb.oa.FragmentFooter;
+import com.sun.honeycomb.common.ArchiveException;
+
+
+//Import Utils
+new bsh.Interpreter().source(System.getProperty("deletefmk.script.dir") +
+                             File.separatorChar + "utils" + File.separatorChar +
+                             "windowTestUtils.java",this.namespace);
+                             
+/*
+Simple Store - Delete MD
+-------------------------
+- Store
+- Backup
+- Delete MD from system cache
+- Restore
+- Make sure MD is back in system cache
+*/
+
+
+ECHO("\n");
+ECHO("**********************************************************************");
+
+WIPECACHES(); MOVEALL();
+
+ECHO("Storing object " + 1000);
+STORE(1000, 1024);
+
+ECHO("Getting data for " + 1000 + ", tagging with " + 1001);
+DEREF(1000,1001);
+
+ECHO("Verifying system cache exists for 1000");
+SM1=getSystemCache(1000, true);
+
+ECHO("Verifying system cache exists for 1001");
+SM3=getSystemCache(1001, true);
+
+ECHO("Full Backup.");
+BACKUP("b1",0);
+
+ECHO("Removing metadata 1000 from system cache");
+REMOVEM(1000);
+
+ECHO("Verifying system cache missing for 1000");
+getSystemCache(1000, false);
+
+ECHO("Moving data disks over and reinitializing data disks.");
+MOVEALL();
+
+ECHO("Restoring.");
+RESTORE("b1",com.sun.honeycomb.oa.bulk.Session.REPLAY_BACKUP_OPTION);
+
+ECHO("Verifying system cache exists for 1000");
+SM2=getSystemCache(1000, true);
+
+ECHO("Verifying system cache exists for 1001");
+SM4=getSystemCache(1001, true);
+
+ECHO("Verifying num preceeding checksums entry is identical for 1000");
+if (!SM1.getNumPreceedingChksums().equals(SM2.getNumPreceedingChksums())) {
+    throw new RuntimeException ("Stored metadata vs. returned metadata " + 
+        "is not equal: Num Preceeding Checksums");
+}
+
+ECHO("Verifying num preceeding checksums entry is identical for 1001");
+if (!SM3.getNumPreceedingChksums().equals(SM4.getNumPreceedingChksums())) {
+    throw new RuntimeException ("Stored metadata vs. returned metadata " + 
+        "is not equal: Num Preceeding Checksums");
+}

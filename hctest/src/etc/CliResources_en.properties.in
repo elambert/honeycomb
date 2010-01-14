@@ -1,0 +1,1031 @@
+# CliResources_en.properties
+#
+# Contains some of the English resouces used in the Sun StorageTek 5800 System 
+# command-line (CLI). Other messages are embedded in the source for the 
+# various commands being run.
+#
+# Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+# $Id: AdminResources_en.properties.in 9319 2006-09-23 17:59:10Z stephb $
+#
+###############################################################################
+
+###############################################################################
+# COMMON STRINGS
+###############################################################################
+common.productname = Sun StorageTek 5800 System v1.1
+common.appname = Sun StorageTek (TM) 5800 System Management Console
+common.default_error = unknown error
+common.incluster = ONLINE
+common.off = OFFLINE
+common.disabled = disabled
+common.node = Node
+
+common.readonlyerr = The CLI session is read-only. Another session is connected\n\
+and is making system modifications. Only one such session is allowed at a time.
+
+common.missingString = The string resource is not available in this language.
+
+
+
+###############################################################################
+# CLI STRINGS
+###############################################################################
+cli.command_not_found = Command not found
+cli.abort_msg = Command cancelled.
+cli.wipe.prompt = Destroy all data? [y/N]: 
+cli.usage = Usage
+cli.copyright.miniNotice = \
+Copyright (C) 2008 Sun Microsystems, Inc. \n\
+All rights reserved. Use is subject to license terms.
+
+#
+# CLI commad names - WARNING TRAILING SPACES REGISTER!
+#
+
+cli.commandname.copyright = copyright
+cli.commandname.logout = logout
+cli.commandname.logout.aliases = exit,quit
+cli.commandname.help = help
+cli.commandname.help.aliases = ?
+cli.commandname.echo = echo
+cli.commandname.ipmi = ipmi
+cli.commandname.sensors = sensors
+cli.commandname.syscfg = syscfg
+cli.commandname.license = license
+cli.commandname.version = version
+cli.commandname.sysstat = sysstat
+cli.commandname.hwstat = hwstat
+cli.commandname.df = df
+cli.commandname.shutdown = shutdown
+cli.commandname.reboot = reboot
+cli.commandname.hwcfg = hwcfg
+cli.commandname.wipe = wipe
+cli.commandname.upgrade = upgrade
+cli.commandname.passwd = passwd
+cli.commandname.protocolpasswd = protocolpasswd
+cli.commandname.hivecfg = hivecfg
+cli.commandname.setupcell = setupcell
+cli.commandname.cellcfg = cellcfg
+cli.commandname.alertcfg = alertcfg
+cli.commandname.locale = locale
+cli.commandname.logcfg = logcfg
+cli.commandname.ddcfg = ddcfg
+cli.commandname.mdconfig = mdconfig
+cli.commandname.hadb = hadb
+cli.commandname.disklabel = disklabel
+cli.commandname.profiler = profiler
+cli.commandname.celladm = celladm
+cli.commandname.perfstats = perfstats
+cli.commandname.hiveadm = hiveadm
+cli.commandname.date = date
+cli.commandname.tcfgupd = tcfgupd
+cli.commandname.setprops = setprops
+cli.commandname.ndmpstat = ndmpstat
+cli.commandname.logdump = logdump
+cli.commandname.servicetags = servicetags
+
+# General rules for messages
+#
+# 1. Put a period at the end of complete sentences and at the end of statements that 
+#    have an implied subject.
+# 2. Sentences should be seperated by a single space, not two as per Sun 
+#    editorial style. 
+# 3. Change instances of "may" to "can" when the meaning seemed to be about capability 
+#    rather than permission.
+# 4. If quoting use double quotes instead of single quotes in messages per Sun style.
+# 5. Sun no longer uses Warnings, only Cautions. Change all warnings to cautions. 
+#    But make sure that the caution is warranted. Use cautions only if there is 
+#    a danger of injury or loss of life to a person or there is a chance that 
+#    data might be lost.
+
+#
+# Nomenclature for usage messages
+#
+# [] - used to represent a option parameter
+# <> - used to represent a value
+#
+# Don't know why but the message reader we are using
+# is removing spaces from the front of the usage lines
+# therefore use "\n    " before any option value to
+# get desired indentation. Lines then need to end in "\"
+#
+# Force option -F / --force need not be documented in the usage message
+# for hidden commands as it is intended for test automation only
+
+# When creating usage message try to use a consistent style when stating the 
+# purpose of the command by beginning the statement with the same type of verb:
+#
+#          o Display the list of cells.
+#
+#            vs.
+#
+#          o Displays the list of cells.
+#
+# In the first example, "Display the list of cells,"  the assumed introduction to 
+# the message is "Use this command to..." This type of message describes what the 
+# user uses the command for.
+#
+# In the second example, "Displays the list of cells," the assumed introduction 
+# to the message is "This command..." This message describes what the command 
+# does. The best way to clarify which meaning is intended is to state exactly 
+# what is meant by writing out the message as a complete sentence:
+#
+#   * Use this command to display the list of cells.
+#   * This command displays the list of cells.
+
+
+cli.cellid_required = This is a multi cell hive, the cell ID must be specified.
+
+#-------------------------------------------------------------------------------
+#- CLI - alertcfg command
+#-------------------------------------------------------------------------------
+cli.alertcfg.opts = [<action> <type> <email-address>]
+cli.alertcfg.usage = \
+Add or remove email addresses to which alerts will be sent.\n\
+\nAction:\
+\n  add        Add an email address to the alert notification list.\
+\n  del        Remove an email address from the alert notification list.\
+\n\
+\nType:\
+\n  to         Specifies the To: email list\
+\n  cc         Specifies the Cc: email list\
+\n\
+\nExamples:\
+\n  alertcfg add to sunstoragetek-alerts@sun.com\
+\n  alertcfg del cc sunstoragetek-alerts@sun.com\
+\n
+
+cli.alertcfg.listto = To:
+cli.alertcfg.listcc = Cc:
+
+cli.alertfg.unableToDelete = Unable to delete {0}
+
+
+
+#-------------------------------------------------------------------------------
+#- CLI - celladm command - hidden
+#-------------------------------------------------------------------------------
+cli.celladm.opts = [expand]
+cli.celladm.usage = \
+View the expansion status of cell or expand an 8-node cell to 16 nodes.\n\
+\nArguments:\
+\n  expand                     Initiate the expansion of a cell.\
+\n
+
+#-------------------------------------------------------------------------------
+#- CLI - cellcfg command
+#-------------------------------------------------------------------------------
+cli.cellcfg.opts = [options]
+cli.cellcfg.opts.multicell = -c <cellid> [options]
+cli.cellcfg.usage = \
+Configure or display cell-level parameters. If --set option is not\n\
+specified, multiple options can be specified. A reboot will be\n\
+initiated upon acceptance of the newly set value(s).\n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>            Specifies the ID of the cell where the\
+\n                                   command should run.\
+\n  -a, --admin_ip <ip addr>         Set the Admin IP Address.\
+\n  -d, --data_ip <ip addr>          Set the Data IP Address.\
+\n  -n, --service_node_ip <ip addr>  Set the Service Node IP Address.\
+\n  -u, --subnet <subnet addr>       Set the Subnet Address.\
+\n  -g, --gateway <gateway addr>     Set the Gateway Address.\
+\n  -z, --set                        Invokes the interactive mode.\
+\n
+
+#-------------------------------------------------------------------------------
+#- CLI - copyright
+#-------------------------------------------------------------------------------
+cli.copyright.opts = 
+cli.copyright.usage = \
+Display the copyright for the Sun StorageTek 5800 System\
+\n
+cli.copyright.notice =\
+Copyright (C) 2008 Sun Microsystems, Inc. All rights reserved.\n\
+\n\
+Sun Microsystems, Inc. has intellectual property rights relating to technology\n\
+embodied in the product that is described in this document. In particular, and\n\
+without limitation, these intellectual property rights may include one or more\n\
+of the U.S. patents listed at http://www.sun.com/patents and one or more\n\
+additional patents or pending patent applications in the U.S. and in other\n\
+countries.\n\
+\n\
+U.S. Government Rights - Commercial software.\n\
+Government users are subject to the Sun Microsystems, Inc. standard license\n\
+agreement and applicable provisions of the FAR and its supplements. Use is\n\
+subject to license terms. This distribution may include materials developed by\n\
+third parties. Portions may be derived from Berkeley BSD systems, licensed from\n\
+U. of CA. Sun, Sun Microsystems, the Sun logo, Java and Solaris are trademarks\n\
+or registered trademarks of Sun Microsystems, Inc. in the U.S. and other\n\
+countries.\n
+
+#-------------------------------------------------------------------------------
+#- CLI - date
+#-------------------------------------------------------------------------------
+cli.date.opts = [options]
+cli.date.opts.multicell = -c <cellid>
+cli.date.usage = \
+Displays the date.\n\
+\n\
+Options:\n\
+\n  -c, --cellid <cellid>      Specifies the ID of the cell where the\
+\n                             command should run\
+\n
+
+
+#-------------------------------------------------------------------------------
+#- CLI - ddcfg - hidden
+#-------------------------------------------------------------------------------
+cli.ddcfg.opts = [options] [argument]
+cli.ddcfg.opts.multicell = -c <cellid> [[-list] | [argument]]
+cli.ddcfg.usage = \
+Displays data doctor cycles. \n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>      Specifies the ID of the cell where the\
+\n                             command should run\
+\n  -l, --list                 List the current data doctor cycles.\
+\n\
+\nArguments:\
+\n  default                    Set all cycle targets to the default values\
+\n                             as defined by config.properties.\
+\n  off                        Set all targets to 0, which stops all tasks.\
+\n  fullspeed                  Set all targets to 1, which runs as fast\
+\n                             as possible.\
+\n  <cycle-name>               Displays the value of <cycle-name> property\
+\n                             Use --list to retrieve of list of cycle names.\
+\n  <cycle-name> <value>       Sets <cycle_name> to <value>\
+\n                             Use --list to retrieve the list of cycle names.\
+\n
+
+
+
+#-------------------------------------------------------------------------------
+#- CLI - df command
+#-------------------------------------------------------------------------------
+cli.df.opts = [options]
+cli.df.opts.multicell = -c <cellid> [options]
+cli.df.usage = \
+Report the estimated logical file system disk space usage for the cell.\n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>      Specifies the ID of the cell where the\
+\n                             command should run. If no cellid is specified\
+\n                             and the system contains more than one cell then\
+\n                             the command will be run on every cell.\
+\n  -h, --human-readable       Prints sizes in human-readable format.\
+\n  -p, --physical             Prints the physical free space on all disks.\
+\n                             Must specify -c option when using -p.\
+\n
+
+cli.df.skip_null = Skipping null disk.
+cli.df.skip_disabled = Skipping disabled disk.
+cli.df.block_size = All sizes expressed in 1K blocks
+cli.df.human_readable_name = human-readable
+cli.df.human_readable_char = human-readable
+cli.df.physical_name = physical
+cli.df.physical_char = p
+cli.df.contact_cells = Contacting all cells, please wait.
+cli.df.cell_unavailable = Unavailable
+cli.df.cell_unreachable_warn = WARNING: Cell {0} is unreachable
+
+cli.df.raw = \
+{0}: Total: {1}; Avail: {2}; Used: {3}; Use%: {4,number,percent}
+
+cli.df = \
+Total: {0}; Avail: {1}; Used: {2}; Use%: {3,number,percent}
+
+#-------------------------------------------------------------------------------
+#- CLI - disklabel command. Not Public
+#-------------------------------------------------------------------------------
+cli.disklabel.opts = [options]
+cli.disklabel.usage = \
+Modify or display disk label.\n\
+\n\
+Options:\
+\n -c, --cellid <cellid> Specifies the ID of the cell where the\
+\n                       command should run.\
+\n -a, --all    Display labels on all the disks.\
+\n -f, --FRUID  Required to display a single disk's label or\
+\n              to modify a label.\
+\n -C, --dlCellId Modify the cellId on a given frus label.\
+\n -s, --siloId Modify the siloId on a given frus label.\
+\n -n, --node Modify the nodeId on a given frus label.\
+\n -d, --diskIndex Modify the slot index of a given frus label.\
+\n
+cli.disklabel.all_char = a
+cli.disklabel.all_name = allLabels
+
+cli.disklabel.fruid_char = f
+cli.disklabel.fruid_name = FRU_NAME
+
+cli.disklabel.not_both = can not set verbose and other options together
+cli.disklabel.fru_name_needed = fru_name has to be specified
+cli.disklabel.not_found = Invalid FRU_NAME
+
+cli.disklabel.header = \
+FRU ID\t\t\tDiskLabel\n\
+---------\t\t--------
+
+cli.disklabel_long = \
+{0}\t\t\t{1}\n\
+
+cli.disklabel = \
+CellId: {0} SiloId {1} NodeId: {2} disk Index: {3} Disabled: {4}\n\
+Incarnation: {5} device:{6} \n\n\
+
+#-------------------------------------------------------------------------------
+#- CLI - echo command - hidden
+#-------------------------------------------------------------------------------
+cli.echo.opts = [TEXT]
+cli.echo.usage = Prints TEXT to the console.\
+\n
+
+
+#-------------------------------------------------------------------------------
+#- CLI - hadb - hidden
+#-------------------------------------------------------------------------------
+cli.hadb.opts = [options] [status | clear]
+cli.hadb.opts.multicell = -c <cellid> [status | clear]
+cli.hadb.usage = \
+Displays the status of the HADB database and provides the ability to clear\n\
+the HADB database.\n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>   Specifies the ID of the cell where the\
+\n                          command should run.\
+\n\
+Arguments:\
+\n  status                  Retrieves the current HADB status\
+\n  details                 Retrieves a detailed HADB status\
+\n  clear                   Tries to wipe and restart HADB after it\
+\n                          is in the failed state.\
+\n
+
+#-------------------------------------------------------------------------------
+#- CLI - help command
+#-------------------------------------------------------------------------------
+
+cli.help.opts = [<command-name>]
+cli.help.usage = \
+Displays a list of available commands or the help for a given command.\n\
+\n\
+Arguments:\
+\n  <command-name>            Display help for the specified command name.\
+\n\
+\nAlternatively each <command-name> supports the ability to request help\n
+for that command via a help flag, <command-name> --help\n
+\n
+
+cli.help.assist = Type \"help <command>\" or \"<command> --help\" for one of the commands below
+
+
+#-------------------------------------------------------------------------------
+#- CLI - hiveadm
+#-------------------------------------------------------------------------------
+cli.hiveadm.opts = [options]
+cli.hiveadm.opts.multicell = [options]
+cli.hiveadm.usage = \
+View the status of the hive.\n\
+\n\
+Options:\
+\n  -s, --status             Displays the list of existing cells in this hive.\
+\n
+
+#-------------------------------------------------------------------------------
+#- CLI - hivecfg command
+#-------------------------------------------------------------------------------
+cli.hivecfg.opts = [options]
+cli.hivecfg.usage = \
+Configure or display the networking parameters. If the Domain Name System (DNS)\n\
+is enabled, all DNS values must be set. Changing network values requires a\n\
+hive reboot. If --set option is not specified, multiple options can be \n\
+specified.\n\
+\nMultiple values can be specified for NTP servers, Authorized\n\
+Clients, and DNS Search. When multiple values are entered the values must be\n\
+comma seperated.\n\
+\n\After changing a value(s) a reboot of the hive will be needed in order\n\
+for the change(s) to take effect.\n\
+\n\
+Options:\
+\n  -n, --ntp_server <ntp-servers>       Sets the Network Time Protocol (NTP)\
+\n                                       servers. \
+\n  -s, --smtp_server <smtp-server>      Set the Simple Mail Transfer Protocol\
+\n                                       (SMTP) server.\
+\n  -p, --smtp_port <smtp-port>          Set the port of the SMTP server.\
+\n  -h, --authorized_clients <clients> | all\
+\n                                       Set the list of clients that are\
+\n                                       authorized to perform data access.\
+\n                                       The special token 'all' allows any\
+\n                                       client on the network to perform\
+\n                                       data access. The client list can\
+\n                                       include an IP and netmask combination\
+\n                                       as defined by CIDR (RFC 4632) to permit\
+\n                                       multiple clients on the same subnet to\
+\n                                       have access. See the authorized client\
+\n                                       examples below.\
+\n  -x, --external_logger <logger>       The external host that is capabable\
+\n                                       of receiving syslogd messages. Cell \
+\n                                       alert notifications will be logged to\
+\n                                       the specified host.\
+\n  -D, --dns <y|n>                      Enable/Disable DNS\
+\n  -m, --domain_name <domain-name>      Set the domain name.\
+\n  -e, --dns_search <dns-search>        Set the other domains that DNS should\
+\n                                       search.\
+\n  -1, --primary_dns_server <dns-server>\
+\n                                       The primary DNS server for DNS lookups\
+\n  -2, --secondary_dns_server <dns-server>\
+\n                                       The secondary DNS server for DNS lookups\
+\n  -z, --set                            Invokes the interactive mode\
+\n\n\
+Authorized Client Examples:\
+\n  hivecfg --authorized_clients all\
+\n\tThe value "all" will allow any client to connect. \
+\n  hivecfg --authorized_clients xxx.0.0.0/8\
+\n\tThe value "xxx.0.0.0/8" corresponds to a netmask of\
+\n\t255.0.0.0 and matches all clients with an IP address of xxx.*.*.*\
+\n  hivecfg --authorized_clients 172.168.20.35,192.37.1.80/28\
+\n\tThis allows the single IP of 172.168.20.35 and all machines\
+\n\ton the 192.37.1.80/28 network to have data access.\n
+
+## TODO: Remove unused hivecfg messages
+cli.hivecfg.reboot_switches = You must reboot the switches for the changes to take effect.
+
+cli.hivecfg.reboot_node = Either the Data IP or Admin IP or NTP Server was changed,\n\
+and the node must be rebooted.
+
+cli.hivecfg.commit = ---Committing Values---
+
+cli.hivecfg.invalid_addr = Not an IP address: {0}.
+
+cli.hivecfg.dns_disable = DNS is disabled. It might take a few minutes to propagate the updates.
+
+cli.hivecfg.dns_warn = DNS is disabled. Enter an IP address.
+
+cli.hivecfg.dns_enable_warn = DNS is enabled. It might take a few minutes to propagate the updates.
+
+cli.hivecfg.config_check = \
+Change {0} to use IP addr (see hivecfg --help).\n\
+
+#-------------------------------------------------------------------------------
+#- CLI - hwcfg command - Hidden
+#-------------------------------------------------------------------------------
+cli.hwcfg.opts = [options]
+cli.hwcfg.usage = \
+Perform FRU replacement type activies on nodes and disks. The component name\n\
+or FRU ID can be used when specifying the component on which to perform an\n\
+action on. For a complete list of available nodes and disks use 'hwstat'.\n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>      Specifies the ID of the cell where the\
+\n                             command should run\
+\n  -E, --enable <component>   Enable the specified node or disk.\
+\n  -D, --disable <component>  Disable the specified node or disk.\
+\n  -i, --ipmi                 Use IPMI to a force disable of node.\
+\n  -O, --online <disk>        Online disk\
+\n  -X, --offline <disk>       Offline disk\
+\n  -W, --wipe <disk>          Destroy all data on the disk. May only\
+\n                             be applied to a disable disk.\n
+
+cli.hwcfg.enable_char = E
+cli.hwcfg.enable_name = enable
+
+cli.hwcfg.disable_char = D
+cli.hwcfg.disable_name = disable
+
+#-------------------------------------------------------------------------------
+#- CLI - hwstat command
+#-------------------------------------------------------------------------------
+cli.hwstat.opts = [options]
+cli.hwstat.usage = \
+Displays information about the various FRUs in the system. The component name\n\
+or FRU ID can be used when specifying the component to view.\n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>      Specifies the ID of the cell where the\
+\n                             command should run.\
+\n  -f, --FRUID <component>    Shows information about component\n
+
+
+cli.hwstat.fruid_char = f
+cli.hwstat.fruid_name = FRUID
+
+
+#-------------------------------------------------------------------------------
+#- CLI - license command - hidden
+#-------------------------------------------------------------------------------
+cli.license.opts = [option] [<license_key>]
+cli.license.opts.multicell = -c <cellid> [<license_key>]
+cli.license.usage =\
+Display or set the Sun StorageTek 5800 System license.\n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>    Specifies the ID of the cell where the\
+\n                           command should run.\
+\n\
+Arguments:\
+\n  <license_key>            The license key to enable one or more licenceable\
+\n                           features on the cell.\n
+cli.license.not_set = License Not Yet Entered
+
+#-------------------------------------------------------------------------------
+#- CLI - locale command - hidden
+#-------------------------------------------------------------------------------
+
+
+cli.locale.opts = [option]
+cli.locale.usage = \
+Display or set the Sun StorageTek 5800 System locale. \n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>    Specifies the ID of the cell where the\
+\n                           command should run.\
+\n  -s, --set <lang>         Set the locale to the supported language.\
+\n  -l, --list               Lists all available languages.\n
+
+
+
+#-------------------------------------------------------------------------------
+#- CLI - logcfg - hidden
+#-------------------------------------------------------------------------------
+
+cli.logcfg.opts = [option]
+cli.logcfg.usage =\
+Changes the log settings on the cell. May be used to change specific \n\
+services on a specific node, all services on a specific node, or all services\n\
+in the cell. If the --level option is ommitted, a list of services will be\n\
+displayed. These services can be used with the --service switch to change a\n\
+specific service.\n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>    Specifies the ID of the cell where the\
+\n                           command should run\
+\n  -l, --level <level>      The level to set the log, where level is: Finest\
+\n                           Fine, Info, Warning, Severe, Fatal, or Off\
+\n  -n, --node               Specifies the node to change log levels on.\
+\n                           Ommitting this affects all nodes.\
+\n  -s, --service            Specifies the service to change log levels on. \
+\n                           Ommitting this affects all JVMs.\n
+
+
+#-------------------------------------------------------------------------------
+#- CLI - logout command
+#-------------------------------------------------------------------------------
+cli.logout.opts = 
+cli.logout.usage = \
+Terminates the connection to the Sun StorageTek 5800 System Management Console.\n
+
+
+#-------------------------------------------------------------------------------
+#- CLI - mdconfig
+#-------------------------------------------------------------------------------
+
+cli.mdconfig.opts = [options] 
+cli.mdconfig.usage = \
+Schema management tool. Reconfigure or create new schema defintions for the\n\
+Sun StorageTek 5800 System.\n\
+\n\
+Options:\
+\n  -a, --apply         Commit the changes into the schema configuration.\
+\n                      Input for this option is read in from standard in.\
+\n  -l, --list          Lists the current schema configuration.\
+\n  -p, --parse         Parse and validate the schema before applying.\
+\n                      Input for this option is read in from standard in.\
+\n  -r, --retry         Apply the previous mdconfig changes again.\
+\n  -t, --template      Prints a template that can be used as a starting point\
+\n                      to edit a new configuration overlay\n\
+Examples:\
+\n  $ cat metadata.xml | ssh admin@<adminIP> mdconfig --parse\
+\n  $ cat metadata.xml | ssh admin@<adminIP> mdconfig --apply\n
+
+cli.mdconfig.commit_char = a
+cli.mdconfig.commit_name = apply
+
+cli.mdconfig.dump_char = l
+cli.mdconfig.dump_name = list
+
+cli.mdconfig.template_char = t
+cli.mdconfig.template_name = template
+
+cli.mdconfig.wipe_char = w
+cli.mdconfig.wipe_name = wipe
+
+cli.mdconfig.retry_char = r
+cli.mdconfig.retry_name = retry
+
+cli.mdconfig.validate_char = p
+cli.mdconfig.validate_name = parse
+
+cli.mdconfig.no_flag The -{0} flag is not set. The changes have not been committed.
+
+#-------------------------------------------------------------------------------
+#- CLI - password command
+#-------------------------------------------------------------------------------
+cli.passwd.opts = [options]
+cli.passwd.usage =\
+Set the admin password or public key. Setting the password works only when\n\
+the shell is interactive. In noninteractive mode, the command will only allow\n\
+the setting of the public key.\n\
+\n\
+Options:\
+\n  -K, --pubkey               In noninteractive mode tells the command to \
+\n                             expect a public key on stdin.\n\
+\n\
+Example:\
+\n  $ cat my_public_key | ssh admin@<adminIP> passwd --pubkey\n
+
+
+#-------------------------------------------------------------------------------
+#- CLI - perfstats Command
+#-------------------------------------------------------------------------------
+cli.perfstats.opts = [options]
+cli.perfstats.usage = \
+Outputs hive, cell, and node performance statistics as specified by\n\
+the options invoked. By default outputs cell and system performance\n\
+statistics and runs indefinitely.\n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>    Specifies the ID of the cell where the\
+\n                           command should run\
+\n  -t, --howlong <minutes>  Specifies the number of minutes to output\
+\n                           performance data for. 0 indicates to run\
+\n                           indefinitely.\
+\n  -i, --interval <seconds> Specifies the number of seconds between samples.\
+\n                           The default is 15 seconds.\
+\n  -n, --node <node>        Specifies the name of the node to collect data on.\n
+
+cli.perfstats.intervalerr = Incorrect Value: Negative Interval specified.
+
+
+#-------------------------------------------------------------------------------
+#- CLI - profiler command - Hidden
+#-------------------------------------------------------------------------------
+
+cli.profiler.opts = [options] [[-n <node>] [-m <module>] [start]] | stop | getTar]
+cli.profiler.opts.multicell = -c <cellid> [options]\
+\n        [[-n <node>] [-m <module>] [start]] | stop | getTar]
+cli.profiler.usage =\
+Profile a module or all modules for the specified node or cell. Unless\n\
+specified runs indefinitely.\n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>    Specifies the ID of the cell where the\
+\n                           command should run\
+\n  -n, --node <node>        The name of the node on which to profile the module.\
+\n                           All nodes will be used if none is specified.\
+\n  -m, --module <module>    Set the name of the module to profile.\
+\n                           Use "all" to specify all modules.\
+\n  -t, --howlong <minutes>  Specify the duration in minutes of the profiling\
+\n                           session. 0 indicates to run indefinitely until\
+\n                           stopped.\
+\n\
+Arguments:\
+\n  start                    Start the profile session.\
+\n  stop                     Stop the profile session.\
+\n  getTar                   Dumps the result of the last profile session on\
+\n                           standard out. See example.\n\
+\n\
+Example:\
+\n  $ ssh admin@<adminIP> getTar > results.tar\n
+
+
+#-------------------------------------------------------------------------------
+#- CLI - protocol password command
+#-------------------------------------------------------------------------------
+cli.protocolpasswd.opts = --user <username> --realm <realm>
+cli.protocolpasswd.usage =\
+Sets the secure protocol password for WebDAV. Only one set WebDAV setting\n\
+is maintained by the system. Invoking this command will overwrite\n\
+any existing WebDAV settings.\n\
+\n\
+Options:\
+\n  -u, --user <username>     Specifies the new WebDAV user name\
+\n  -r, --realm <realm>       Specifies the new WebDAV realm\n
+
+#-------------------------------------------------------------------------------
+#- CLI - reboot command
+#-------------------------------------------------------------------------------
+cli.reboot.opts = [options]
+cli.reboot.opts.mutlicell = -c <cellid> [--all]
+cli.reboot.usage = \
+Reboot the cell.\n\
+\n\
+Options:\
+\n  -A, --all                Reboot all nodes and the service node for the\
+\n                           specified cell. Also reboots the cell switches\
+\n  -c, --cellid <cellid>    Specifies the ID of the cell where the\
+\n                           command should run\n
+
+cli.reboot.reasonPrompt =  \
+                    Doing so may force repopulation of the metadata,\nwhich \
+                    will cause query to become temporarily unavailable. \n\
+                    Do you want to {0} anyway? [y/N]:  
+
+#-------------------------------------------------------------------------------
+#- CLI - sensors command
+#-------------------------------------------------------------------------------
+cli.sensors.opts = [options]
+cli.sensors.opts.multicell = -c <cellid>
+cli.sensors.usage = \
+Displays the available sensor data. \n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>    Specifies the ID of the cell where the\
+\n                           command should run\n
+
+#-------------------------------------------------------------------------------
+#- CLI - setupcell - hidden
+#-------------------------------------------------------------------------------
+cli.setupcell.opts =
+cli.setupcell.usage =\
+Sets up a new cell for adding to the hive. A reboot of the cell will\n\
+be required after setting new values.\n
+
+#-------------------------------------------------------------------------------
+#- CLI - setprops - Hidden
+#-------------------------------------------------------------------------------
+cli.setprops.opts = [options]
+cli.setprops.usage = \
+Modify the cell config.properties properties interactively. Changing some\n\
+values may require a reboot of the hive.\n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>    Specifies the ID of the cell where the\
+\n                           command should run\n
+
+#-------------------------------------------------------------------------------
+#- CLI - servicetags - Hidden
+#-------------------------------------------------------------------------------
+cli.servicetags.opts = [options]
+cli.servicetags.usage = \
+Add or modify the service tag service and properties.\n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>    Specifies the ID of the cell to set the service tag\
+\n                           properties for.  On a multi-cell system this option\
+\n                           is required when the option --marketing_num,\
+\n                           --product_num, and/or --product_serial_num is used\
+\n                           Ignored if used with any other option flags.\
+\n  -D, --disable            Disable service tags on a single cell system.\
+\n                           Service Tags can not be disabled on a multi-cell\
+\n                           System.  Disabling service tags prevents the\
+\n                           creation of the service tag registration file.\
+\n                           This operation should only be performed when two\
+\n                           cells share the same product serial number but are\
+\n                           not joined into a hive.  If both cells will be\
+\n                           running as independent cells, service tags on one\
+\n                           cell must be disabled to prevent duplicate\
+\n                           service tag registration entries from being created.\
+\n  -E, --enable             Enable service tags on a single cell system where\
+\n                           service tags are currently disabled.\
+\n  -l, --list               List the service tag information for the system.\
+\n                           The list is sorted by product serial numbers.\
+\n  -M, --marketing_num <marketing_number>\
+\n                           Marketing number for the top level assembly of the\
+\n                           cell.\
+\n  -P, --product_num <product_number> \
+\n                           Manufacturing product number for the top level\
+\n                           assembly number that the cell resides in.\
+\n  -S, --product_serial_num <product_serial_number>\
+\n                           The product serial number.  This is the top level\
+\n                           assembly serial number located on the label\
+\n                           affixed to the rack and on the Customer Information\
+\n                           Sheet.\
+\n  -r, --refresh            Valides the current stored service tag information\
+\n                           and forces a refresh of the service tag registry.\
+\n                           This command should be run when all the updates\
+\n                           of the service tag information for all the cells\
+\n                           in the hive is completed.\
+\n  -V, --validate           Perform a validation of the currently stored\
+\n                           service tag information.\n
+
+#-------------------------------------------------------------------------------
+#- CLI - shutdown command
+#-------------------------------------------------------------------------------
+cli.shutdown.opts = [options]
+cli.shutdown.usage = \
+Shuts down the specified cell.\n\
+\n\
+Options:\
+\n  -A, --all                Shuts down all nodes and the service node for the\
+\n                           specified cell.\
+\n  -c, --cellid <cellid>    Specifies the ID of the cell where the\
+\n                           command should run\
+\n  -i, --ipmi               Use IPMI to a force shutdown.\n
+
+
+#-------------------------------------------------------------------------------
+#- CLI - sysstat command
+#-------------------------------------------------------------------------------
+cli.sysstat.opts = [options]
+cli.sysstat.usage =\
+Display the Sun StorageTek 5800 System status information.\n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>    Specifies the ID of the cell where the\
+\n                           command should run. If no cell is specified and\
+\n                           the system contains more than one cell then the\
+\n                           command will be run on every cell.\
+\n  -i, --interval <secs>    The wait time in seconds between updates.\
+\n  -v, --verbose            Hardware status\
+\n                           Must specify -c when using the -v option.
+\n
+
+
+#-------------------------------------------------------------------------------
+#- CLI - tcfgupd command - Hidden
+#-------------------------------------------------------------------------------
+cli.tcfgupd.opts = [options]
+cli.tcfgupd.usage = \
+This is a private command used to test config/update. \n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>    Specify the ID of the cell where the\
+\n                           command should run.\
+\n  -n, --new                Start a new executor for config/update.\
+\n  -r, --remove             Stop any existing executor.\
+\n  -i, --executor_id <id>   Specify the executor ID.\
+\n  -k, --create_intf [true | false]\
+\n                           Specify which CMM interface to use.\
+\n                           (true == storeConfig, false = updateConfig).\
+\n  -l, --latency <ms>       Specify the delay between two config update (ms) \
+\n  -f, --failure            Specify whether or not you want the executor to \
+\n                           induce failures.\
+\n  -p, --percent_failure <rate>\
+\n                           Specify the rate failure (%).\n
+
+
+#-------------------------------------------------------------------------------
+#- CLI - upgrade command - Hidden
+#-------------------------------------------------------------------------------
+cli.upgrade.opts = [options] dvd | <url> | downloaded | download <url>
+cli.upgrade.opts.multicell = -c <cellid> [options] (dvd | <url> | downloaded | download <url>)
+cli.upgrade.usage = \
+Upgrade the software for a cell.\n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>    Specifies the ID of the cell where the\
+\n                           command should run.\
+\n\
+Arguments:\
+\n  dvd                      Retrieve the ISO image from the DVD drive.\
+\n                           'dvd' specifies the DVD drive.\
+\n  <url>                    Retrieve the ISO image from the specified URL.\
+\n  downloaded               Specifies to perform the upgrade with an ISO image\
+\n                           that was previously downloaded with "download <url>".\
+\n  download <url>           Downloads an ISO image from the specified url.\
+\n                           Does not perform an upgrade.\
+\n\
+Examples:\
+\n  upgrade -c 1 http://111.22.44.55/release/stk5800_1.1-xx.iso\
+\n  upgrade -c 2 download http://111.22.44.55/release/stk5800_1.1-xx.iso.iso\
+\n  upgrade -c 2 downloaded\n
+
+#-------------------------------------------------------------------------------
+#- CLI - version command
+#-------------------------------------------------------------------------------
+
+
+cli.version.opts = [options]
+cli.version.usage =\
+Displays the version information for the Sun StorageTek 5800 System.\n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>    Specifies the ID of the cell where the\
+\n                           command should run\
+\n  -v, --version            Prints the version information for each node\n
+
+
+
+#-------------------------------------------------------------------------------
+#- CLI - wipe command
+#-------------------------------------------------------------------------------
+
+cli.wipe.opts =
+cli.wipe.usage = \
+Reinitializes the hive by destructively removing the metadata schema and\n\
+all stored data.\n
+
+cli.wipe.partial = \
+Failed to wipe disks on Node {0}.
+
+
+###############################################################################
+# Cli Alerts
+###############################################################################
+
+cli.alert.expand = \
+Cell expansion has started.
+
+cli.alert.passwd = \
+CLI admin: The {0} has been changed successfully.
+
+
+###############################################################################
+# External Log Info
+###############################################################################
+
+
+#
+# Admin CLI
+#
+info.admin.cli.execcommand = \
+CLI command : {0} executed with status {1} and args {2}
+
+#
+# Client API
+#
+
+info.admin.adminApi.setLogLevel = \
+Client Api: Trying to set log level to {2} on node {0} for JVM {1}
+
+info.admin.adminApi.setLogLevel.success = \
+Client Api: Succeeded in setting log level to {2} on node {0} for JVM {1}
+
+info.admin.adminApi.clearHADBFailure = \
+Client Api: Clear HADB Failure: {0}
+
+
+
+#-------------------------------------------------------------------------------
+#- CLI - ndmpstat command
+#-------------------------------------------------------------------------------
+cli.ndmpstat.opts = [options]
+cli.ndmpstat.usage =\
+Display the Sun StorageTek 5800 NDMP Tape-based disasater protection status information.\n\
+\n\
+Options:\
+\n  -c, --cellid <cellid>    Specifies the ID of the cell where the\
+\n                           command should run\
+\n  -i, --interval <secs>    The wait time in seconds between updates.\
+\n                           The default is 5 seconds.\n
+
+#-------------------------------------------------------------------------------
+#- CLI - logdump
+#-------------------------------------------------------------------------------
+cli.logdump.opts = [options]
+cli.logdump.usage = \
+Extracts the log information for the hive and sends the output back to Sun Service.\n\
+If the --set option is not specified, multiple options can be used.\n\
+\n\
+Options:\
+\n  -z, --set                        Invokes the interactive mode. \
+\n  -g, --geo <geo_region>           Sets the geographic location -- choose from \
+\n                                   AMERICAS, EMEA or APAC (required). \
+\n  -s, --proxy_server <ip_addr>     Sets the https proxy server IP Address. This only needs\
+\n                                   to be set if a proxy server is required to connect to the internet.\
+\n  -p, --proxy_port <port>          Sets the https proxy port.  This only needs to be set\
+\n                                   if the port is needed in order to connect to the internet.\
+\n  -C, --contact <last,first>       Sets the contact name. \
+\n  -n, --phone_num <number>         Sets the contact phone number. \
+\n  -e, --email <address>            Sets the contact email address. \
+\n\
+Examples:\
+\n  Prompts for configuration information interactively:        \
+\n  logdump -z                                                \
+\n  Sets the required parameter directly:                     \
+\n  logdump -g AMERICAS                                         \
+\n  Sets all possible configuration parameters directly:        \
+\n  logdump -g AMERICAS -s 100.2.34.5 -p 8080 -C smith,joe -n 1234567899 -e joe.smith@company.com\n
+
+cli.logdump.started = Log extraction will take ~60 minutes.  \n\
+Initiating logdump...  \n\
+\n
+cli.logdump.failed = Failed to send log information back to Sun.
+cli.logdump.succeeded = Successfully sent log information back to Sun.
+cli.logdump.config.updated = The logdump configuration settings have been successfully updated.\n
+cli.logdump.config.no.update.needed = No updates were needed for the logdump configuration settings.\n
+cli.logdump.proxyServer = HTTP Proxy Server
+cli.logdump.proxyPort = HTTP Proxy Port
+cli.logdump.geoLocale = Geographic Location
+cli.logdump.contact = Contact Name
+cli.logdump.number = Contact Phone Number
+cli.logdump.email = Contact Email Address
+cli.logdump.proceed = Do you want to proceed with log extraction ?  [y/N]: 
+cli.logdump.use_proxy = Is a HTTP Proxy Server required to connect to the Internet? [y/N]: 
+cli.logdump.geo.info = Please select one of the following three geographic locations: \n\
+1) AMERICAS (North, Central and South America) \n\
+2) EMEA (Europe, Middle East, Africa)     \n\
+3) APAC (Asia Pacific)     \n\
+\n
+cli.logdump.geo.selections = Specify either AMERICAS, EMEA or APAC for the -g/--geo option.
+cli.logdump.args.err = Invalid parameter value(s), please try again.
+cli.logdump.dns.err = DNS is not enabled.  \n\
+Please use hivecfg to enable DNS or enter the proxy server's IP Address \n\
+\n
+cli.logdump.set_char = z
+cli.logdump.set_name = set
+cli.logdump.geo_char = g
+cli.logdump.geo_name = geo
+cli.logdump.proxyServer_char = s
+cli.logdump.proxyServer_name = proxy_server
+cli.logdump.proxyPort_char = p
+cli.logdump.proxyPort_name = proxy_port
+cli.logdump.contact_char = C
+cli.logdump.contact_name = contact
+cli.logdump.number_char = n
+cli.logdump.number_name = phone_num
+cli.logdump.email_char = e
+cli.logdump.email_name = email

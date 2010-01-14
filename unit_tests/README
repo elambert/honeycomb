@@ -1,0 +1,217 @@
+#
+# $Id: README 11724 2008-01-07 15:40:46Z lm156032 $
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+---- UNIT TEST README
+
+This document explains how to run existing unit tests and how to add
+new ones. 
+
+---- RELATED DOCUMENTS
+
+For detailed instructions on writing unit tests, see:
+../test/src/java/com/sun/honeycomb/examples/HOWTO
+
+Example of unit test source code:
+../test/src/java/com/sun/honeycomb/examples/SampleUnitTest.java
+
+Real unit test and documentation:
+./src/java/com/sun/honeycomb/layout/LayoutTest.java, README
+
+For instructions on running Honeycomb emulator, which unit tests may
+use instead of a real Honeycomb cluster, see:
+../emulator/README.txt
+
+For information on obtaining code coverage metrics, see:
+../tools/emma/README
+
+
+---- HOW TO RUN UNIT TESTS
+
+1. Check out the source tree from subversion repository. Since you are
+   reading this, presumably you have a checkout already. Let's assume
+   that your workspace is called 'dev'.
+
+dev> pwd
+dev> /export/home/username/dev
+dev> svn info
+URL: http://subversion/repos/honeycomb/trunk
+Revision: 6851
+...
+dev> ls
+build client common external hctest server test unit_tests ...
+
+2. Build the source tree. The easiest way of doing this is via make
+   targets in build module. Run 'make' with no arguments to see help.
+
+dev> cd build
+build> make cleanall
+... BUILD SUCCESSFUL
+build> make all
+... BUILD SUCCESSFUL
+build> make
+... Help for all make targets
+
+3. Run the default set of existing unit tests. This set is specified
+   in the file:
+
+dev> cat unit_tests/test.list
+com.sun.honeycomb.emd.ExtendedCacheTest
+com.sun.honeycomb.layout.LayoutTest
+
+   You can easily run these unit tests via make target "make
+   run_unit_tests". Watch the output for failures; the final
+   summary line will give you count of total tests run, passed and 
+   failed. 
+
+build> make run_unit_tests |tee make.out
+...
+SUM: END RUN_ID=0 RUNTIME=00:00:13 RESULTS=5 PASS=5 SKIPPED=0 FAIL=0
+
+   Unit tests also get run as part of make target "make check_commit"
+   which is meant to be executed before any code checkin to validate
+   that the change didn't break anything. 
+
+4. Run an individual existing unit(non JUNIT) test. Here is the command line; see
+   an explanation in next section for how this works. You can supply a
+   single classname, or a space-separated list of them.
+
+dev> cd build/unit_tests/dist
+bin> ./runtests.sh <classnames example below>
+bin> ./runtests.sh com.sun.honeycomb.layout.LayoutTest
+
+5. Run an individual JUNIT test. Change the JTESTS parameter in 
+trunk/unit_tests/bin/run_tests.sh for the script to pick up only your 
+particular test. 
+
+ JTESTS=`jar tf $UTESTSJAR  |grep 'FsView_t1.class'`
+
+And also comment out these two lines if you dont want to run
+any of the other unit_tests:
+
+ #$TESTBIN $TESTLIST
+ #RC=$?
+
+6. To further comment out the individual tests inside your
+JUNIT test(say FsView_t1.java), include the letter 'x' before the particular
+test routine. This way, when you run run_test.sh script, only
+the particular test of your interest will be run.
+
+ public void xtestFilenameFieldExistFail() throws EMDConfigException { ..
+ ..
+
+7. For more information on writing unit tests involving JUNIT, refer
+https://hc-twiki.sfbay.sun.com/twiki/bin/view/Main/UnitTestHowto
+
+--- HOW UNIT TESTS WORK
+
+Let's understand what "make run_unit_tests" actually does, and
+how. The make target runs script 'unit_tests/bin/run_tests.sh' (which
+you can run by hand as well), which executes all unit tests listed in
+'test.list' file. The script must run from the built distribution
+under 'build/unit_tests/dist', not from the source code location.
+
+dev> ls unit_tests/bin/run_tests.sh
+dev> ls unit_tests/test.list
+dev> cd build/unit_tests/dist
+dist> ./run_tests.sh
+
+There may be more unit-test class files in unit_tests module, but only
+the ones listed here get run via "make run_unit_tests". When you write
+a new unit test and want it to be executed in pre-commit checks, you
+need to add it to 'test.list'.
+
+A unit test is a Java class written in a certain pattern, which is
+explained in detail in test/.../HOWTO, and outlined in the next
+section. The basic notion is that a unit test exercises a limited
+subset of Honeycomb functionality in a very targeted way, and either
+passes or fails, communicating the result to the user via stdout. Our
+unit test framework has similarities to JUnit, but was not written on
+top of JUnit because we chose to integrate it with system-test
+framework instead.
+
+Unit tests that are meant to exercise Honeycomb server
+functionality can use the emulator instead, which presents a
+Honeycomb-like interface without requiring a real Honeycomb
+cluster. See ../emulator/README.txt for more information.
+
+
+--- HOW TO WRITE UNIT TESTS
+
+To create a new unit test, you write a Java program which has methods
+with signature:
+
+public boolean testXXX() {
+    // where XXX is the name of your testcase,
+    // and the boolean return type means:
+    // true = test passed; false = test failed.
+}
+
+These methods will be called by the test framework in alphanumeric
+order. Methods with other signatures in your class will not be
+called, you can have whatever you want in the class. There is no
+requirement to extend any class or implement any interface, only a
+naming convention for test methods.
+
+For more info, see:
+../test/src/java/com/sun/honeycomb/examples/HOWTO
+
+Let's say you created a new unit test class called:
+com.sun.honeycomb.admingui.WindowOpen
+
+To run this unit test, you will execute command:
+
+dev> cd unit_tests/bin
+bin> ./runtests.sh com.sun.honeycomb.admingui.WindowOpen
+
+When you are satisfied with the test and want to add it to the default
+set of unit tests that get run pre-checkin, append the classname to
+'test.list' file:
+
+dev> cd unit_tests
+unit_tests> echo "com.sun.honeycomb.admingui.WindowOpen" >>test.list
+
+And commit the new unit test file, and the test list, to subversion:
+unit_tests> svn add com/sun/honeycomb/admingui/WindowOpen.java
+unit_tests> svn commit test.list
+com/sun/honeycomb/admingui/WindowOpen.java
+
+
+---- UNIT TEST COVERAGE
+
+To see what percentage of the source code is covered by unit tests,
+you can compile your java classes with emma support. EMMA is a code
+coverage tool for java. Read about emma here:
+
+../tools/emma/README

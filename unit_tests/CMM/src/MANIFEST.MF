@@ -1,0 +1,2 @@
+Main-Class: Main
+Class-Path: ./honeycomb-server.jar ./honeycomb-utests.jar ./bsh-2.0b2.jar .

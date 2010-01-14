@@ -1,0 +1,136 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+<html>
+<!--
+ $Id: Query.html 11497 2007-09-12 03:37:43Z ds158322 $
+ 
+ Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ Use is subject to license terms.
+--> 
+
+  <head>
+    <title>Query</title>
+  </head>
+
+  <body>
+<h1>Query</h1>
+
+The Java and C APIs both have a Query mechanism that passes a query string to 
+the @HoneycombFullProductName@ and gets back results. 
+
+<h2>Operation</h2>
+
+The query format looks a lot like the Boolean expression part of an
+SQL query. The two main differences are that @HoneycombProductName@ queries do not
+contain embedded subqueries, and the only "columns" that are available
+are the attributes defined in the @HoneycombProductName@ schema. Many features of
+the underlying metadata database's own query language may be used in
+queries. There is a recommended subset of queries, however, that is
+most likely to be portable from the @HoneycombProductName@ emulator to a live
+@HoneycombProductName@ (the server uses HADB for its query engine, 
+whereas the emulator uses Derby).
+
+<h2>Literal Format</h2>
+Literals can occur in several formats:
+<br>
+Numeric literals (e.g. <code>45,-1, 3.14, 5.2E10</code>)
+<br>
+String literals (e.g. <code>'The Lighter Side'</code>). String literals are surrounded by single 
+quotes, <code>'</code>.You may embed single quote
+<code>'</code> 
+characters in a query by doubling them: <code>'Susan''s House'</code>.
+
+<h2>Attribute Format</h2>
+
+Any string in double quotes (e.g. <code>"filename"</code>) and any
+dotted string (e.g. <code>mp3.title</code>) will automatically treated
+as an attribute. The double quotes may optionally be omitted as long
+as the attribute does not match an SQL reserved word in any of our
+underlying metadata databases. Some SQL reserved words (such as
+<code>SELECT</code> or <code>CREATE</code>) are forbidden from occurring in queries. 
+
+<p>Attribute names must appear in the current @HoneycombProductName@ schema in
+order to be used in a query. This is because we have to be able to
+derive the proper type information about each attribute in order to
+build the query.
+
+<h2>Supported expression types</h2>
+
+The following expression types are explicitly supported in the @HoneycombProductName@ Release 1.0:
+<ul>
+<li>Boolean operations: <code>expr1 OP expr2</code>, where <code>OP</code>
+is one of <code>=</code>, <code>!=</code>, <code>&lt;&gt;</code>,
+<code>&lt;=</code>, <code>&gt;=</code>, <code>&lt;</code>, <code>&gt;</code>.
+<br>The Boolean operations can compare any two expressions,
+for example two attribute values, or one attribute value and one
+literal value. The two values must be of compatible types. For
+example, a <code>&lt;</code> comparison may not be used between a numeric literal
+value and a string-valued attribute. Note that <code>&lt;&gt;</code> and <code>!=</code> are
+synonyms.</li>
+<li>The concatenation operator,  <code>expr1 || expr2</code></li>
+<li>Use of parentheses to indicate precedence of evaluation.</li>
+<li><code>AND</code>, <code>OR</code>, and <code>NOT</code>.</li>
+<li><code>Expr1 [NOT] LIKE expr2 [{ESCAPE expr3}]</code>
+<br>Attempts to match a character expression to a character pattern, which
+is a character string that includes one or more wildcards. <code>%</code> matches
+any number (zero or more) of characters in the corresponding position
+in expr1. <code>_</code> matches one character in the corresponding position in
+expr1. Any other character matches only that character in the
+corresponding position in the character expression. To treat either <code>%</code>
+or _ as constant characters, escape that character with an optional
+escape character, which you specify in expr3.</li>
+
+<li>The following JDBC function escapes have been tested and are supported:  
+<ul>
+<li><code>{fn UCASE(string)}</code> to convert a string to uppercase</li>
+<li><code>{fn LCASE(string)}</code> to convert a string to lowercase</li>
+<li><code>{fn ABS(value)}</code> to take the absolute value of a numeric expression.</li>
+</ul>
+</ul>
+<h2>What is not supported in Release 1.0</h2>
+
+The following query forms may work but have not been fully tested or
+validated. These operations are, however, a useful guide to those
+query capabilities that should eventually function identically between
+the @HoneycombProductName@ and emulator.
+
+<ul>
+<li>Queries that contain Java Unicode values using the syntax <code>\uXXXX.</code></li>
+<li><code>Expr1 BETWEEN expr2 AND expr3</code></li>
+<li><code>Expr [NOT] IN (valueslist)</code></li>
+<li>Other  JDBC function escapes as described in Appendix B of the JDBC Specification.</li>
+</ul>
+
+<h2>Examples of Supported Query Expressions</h2>
+<ul>
+<li><code>{fn LCASE(mp3.artist)} LIKE '%floyd%' AND system.object_size &gt; 2000000</code></li>
+<li><code>(object_size &lt; 200) OR  "Collation" = en-US'</code></li>
+</ul>
+
+
+<h2>Reserved Words</h2>
+ All of the words on either the HADB or Derby SQL Reserved Words lists are reserved and cannot be used as Attribute names unless the Attribute name is enclosed in double quotes. 
+
+<h2>Allowed Query Terms</h2>
+Some reserved words are allowed and necessary in queries, such as <code>LIKE</code>. These words are expected to be used in generating queries. 
+<p>
+The following reserved words are allowed: 
+<br>
+<code>
+ABS, ABSOLUTE, AFTER, AND, AS, ASCII, AT, BEFORE, BETWEEN, BINARY, BIT, BIT_LENGTH, BOOLEAN, BOTH, CASE, CAST, CHAR, CHARACTER, CHARACTER_LENGTH, CHAR_LENGTH, COALESCE, COLLATE, COLLATION, CONTAINS,COUNT, CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP, DATE, DAY, DEC,DECIMAL, DOUBLE, ELSE, ELSEIF, END, ESCAPE, EXISTS, EXIT, EXPAND,EXTRACT, FALSE, FIRST, FOR, FROM, HOUR, IF, IN, INT, INTEGER, INTERVAL,IS, LCASE, LEADING, LEFT, LIKE, LOWER, MATCH, MAX, MIN, MINUTE, MONTH,NCHAR, NO, NOT, NULL, NUMERIC, OCTET_LENGTH, OF, R, PAD, PI,POSITION, REAL, RIGHT, RTRIM, SECOND, SIZE, SMALLINT, SUBSTRING, THEN,TIME, TIMESTAMP, TIMEZONE_HOUR, TIMEZONE_MINUTE, TO, TRAILING, TRIM,TRUE, UCASE, UNKNOWN, UPPER, VARBINARY, VARCHAR, VARYING, WHEN,WHENEVER, YEAR, ZONE.
+
+</code>
+
+<h2>Forbidden Words in Queries</h2>
+ Some reserved words are forbidden to be used in queries. such as <code>SELECT</code> and <code>ORDER BY</code> or <code>stringattribute</code>. The StorageTek 5800 server will immediately raise an exception when one of the forbidden reserved words is used in a query. 
+<p>
+The following reserved words are forbidden:
+<p>
+<code>
+ ACTION,ADD, ALL, ALLOCATE, ALTER, ANY, APPLICATION, ARE, AREA, ASC, ASSERTION, ATOMIC, AUTHORIZATION, AVG, BEGIN, BY, CALL, CASCADE, CASCADED, CATALOG, CHECK, CLOSE, COLUMN, COMMIT, COMPRESS, CONNECT, CONNECTION, CONSTRAINT, CONSTRAINTS, CONTINUE, CONVERT, CORRESPONDING, CREATE, CROSS, CURRENT, CURRENT_PATH, CURRENT_SCHEMA, CURRENT_SCHEMAID, CURRENT_USER, CURRENT_USERID, CURSOR, DATA, DEALLOCATE, DECLARE, DEFAULT, DEFERRABLE, DEFERRED, DELETE, DESC, DESCRIBE, DESCRIPTOR, DETERMINISTIC, DIAGNOSTICS, DIRECTORY, DISCONNECT, DISTINCT, DO, DOMAIN, DOUBLEATTRIBUTE, DROP, EACH, EXCEPT, EXCEPTION, EXEC, EXECUTE, EXTERNAL, FETCH, FLOAT, FOREIGN, FOUND, FULL, FUNCTION, GET, GLOBAL, GO, GOTO, GRANT, GROUP, HANDLER, HAVING, IDENTITY, IMMEDIATE, INDEX, INDEXED, INDICATOR, INITIALLY, INNER, INOUT, INPUT, INSENSITIVE, INSERT, INTERSECT, INTO, ISOLATION, JOIN, KEY, LANGUAGE, LAST, LEAVE, LEVEL, LOCAL, LONGATTRIBUTE, LOOP, MODIFIES, MODULE, NAMES, NATIONAL, NATURAL, NEXT, NULLIF, ON, ONLY, OPEN, OPTION, ORDER, OUT, OUTER, OUTPUT, OVERLAPS, OWNER, PARTIAL, PATH, PRECISION, PREPARE, PRESERVE, PRIMARY, PRIOR, PRIVILEGES, PROCEDURE, PUBLIC, READ, READS, REFERENCES, RELATIVE, REPEAT, RESIGNAL, RESTRICT, RETURN, RETURNS, REVOKE, ROLLBACK, ROUTINE, ROW, ROWS, SCHEMA, SCROLL, SECTION, SELECT, SEQ, SEQUENCE, SESSION, SESSION_USER, SESSION_USERID, SET, SIGNAL, SOME, SPACE, SPECIFIC, SQL, SQLCODE, SQLERROR, SQLEXCEPTION, SQLSTATE, SQLWARNING, STATEMENT, STRINGATTRIBUTE, SUM, SYSACC, SYSHGH, SYSLNK, SYSNIX, SYSTBLDEF, SYSTBLDSC, SYSTBT, SYSTBTATT, SYSTBTDEF, SYSUSR, SYSTEM_USER, SYSVIW, SYSVIWCOL, TABLE, TABLETYPE, TEMPORARY, TRANSACTION, TRANSLATE, TRANSLATION, TRIGGER, UNDO, UNION, UNIQUE, UNTIL, UPDATE, USAGE, USER, USING, VALUE, VALUES, VIEW, WHERE, WHILE, WITH, WORK, WRITE, ALLSCHEMAS, ALLTABLES, ALLVIEWS, ALLVIEWTEXTS, ALLCOLUMNS, ALLINDEXES, ALLINDEXCOLS, ALLUSERS, ALLTBTS, TABLEPRIVILEGES, TBTPRIVILEGES, MYSCHEMAS, MYTABLES, MYTBTS, MYVIEWS, SCHEMAVIEWS, DUAL, SCHEMAPRIVILEGES, SCHEMATABLES, STATISTICS, USRTBL, STRINGTABLE, LONGTABLE, DOUBLETABLE.
+</code>
+<hr>
+<!-- hhmts start -->
+Last modified: Thu Sep  6 18:56:14 PDT 2007
+<!-- hhmts end -->
+  </body>
+</html>

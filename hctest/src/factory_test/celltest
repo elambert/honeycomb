@@ -1,0 +1,165 @@
+#!/bin/sh
+#
+# $Id: celltest 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+#
+# Factory test script
+#
+
+# Configuration files to read
+COMMON=/opt/test/bin/cell_common.sh
+
+# Include common functions
+. $COMMON
+
+# Error count
+ERROR=0
+
+# Usage
+usage()
+{
+    echo
+    echo "Usage: celltest [<data vip> <admin vip> <num nodes>]"
+    echo
+    echo "When run on the serivce processor without arguments it"
+    echo "reads the existing configuration from:"
+    echo
+    echo "$CONF"
+    echo
+    echo "Otherwise the data vip, admin vip, and number of"
+    echo "nodes are required arguments."
+    echo
+    exit 1
+}
+
+# Require zero or three arguments
+if [ $# -ne 0 ] && [ $# -ne 3 ] ; then
+    usage
+fi
+
+# With zero arguments cluster.conf must exist
+if [ $# -eq 0 ] && [ ! -f $CONF ]; then
+    usage
+fi
+
+# Called with arguments
+if [ $# -eq 3 ]; then
+    DATAVIP=$1
+    ADMINVIP=$2
+    NNODES=$3
+# Use the factory default configuration
+else
+    . $CONF
+    # $DATAVIP set in cluster.conf
+    ADMINVIP=10.123.45.200
+    NNODES=$CLUSTERSIZE
+fi
+
+# Set node counts
+NOTHERNODES=`echo "$NNODES - 1" | bc`
+MAX_NODE=`echo "$NNODES + 100" | bc`
+
+# Print header
+echo
+echo $SEPARATOR
+echo "$TITLE"
+echo $SEPARATOR
+echo
+
+# Initialize the test log
+init_log
+
+#
+# Test cases start here
+#
+
+# Run cmm_verifier to check node membership
+echo_name "Node membership"
+run_cmd "/opt/test/bin/cmm_verifier $NNODES factory"
+if [ $? -eq 0 ] ; then
+    echo_success
+else
+    echo_failure
+    ERROR=1
+fi
+
+# Check all disk mounts
+echo_name "Disk mounts"
+run_cmd "/opt/test/bin/dfck.sh $NNODES"
+if [ $? -eq 0 ] ; then
+    echo_success
+else
+    echo_failure
+    ERROR=1
+fi
+
+# Check internal bandwidth
+# XXX commented out until nfs tests are fixed
+#echo_name "NFS mounts"
+#run_cmd "/opt/test/bin/load_nodes_java.sh $MAX_NODE -n $NNODES -f $NOTHERNODES -i 1"
+#if [ $? -eq 0 ] ; then
+#    echo_success
+#else
+#    echo_failure
+#    ERROR=1
+#fi
+
+# Check internal bandwidth
+echo_name "Client load"
+run_cmd /opt/test/bin/factoryClient.sh $DATAVIP
+if [ $? -eq 0 ] ; then
+    echo_success
+else
+    echo_failure
+    ERROR=1
+fi
+
+#
+# Test cases end here
+#
+
+# Print test log
+echo
+echo $SEPARATOR
+echo "Test log: $LOG"
+echo $SEPARATOR
+echo
+
+# Finish the test log
+finish_log
+
+# Exit with the error code
+exit $ERROR

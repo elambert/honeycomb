@@ -1,0 +1,31 @@
+flamebox: hostname: southpark
+flamebox: taskname: build-quince
+flamebox: repository: /src
+flamebox: module: quince
+flamebox: branch: HEAD
+flamebox: starttime: 1059152451
+flamebox: END
+
+This is some testing stuff.
+
+Running Test: hello (system.pl)
+
+Blah
+Blah
+Error this line
+blasg
+asvl
+adfbl
+asdgl
+
+Running Test: blah (blah.pl)
+
+aASDG
+asdgl
+Warning yes
+asdfl
+No
+
+Running Test: blech (abladb.pl)
+
+Whatever

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="snapshot">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>Snapshot tool, can be used through this test to handle your
+                     snap-shooting needs.</description>
+    </info>
+
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input" />
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+        <createstorage id="TINPUT" path="${dtf.xml.path}" />
+
+        <loadproperties uri="storage://INPUT/hc.properties" />
+        
+        <!-- default property values -->
+        <property name="snapshot.name" value="bogus"/>
+        <property name="snapshot.node" value="all"/>
+        <property name="snapshot.type" value="move"/>
+    </local>
+
+    <local>
+        <lockcomponent id="CLUSTER" timeout="${hc.lockcomponent.timeout}">
+            <attrib name="hc.cluster.type" value="${hc.cluster.type}" />
+        </lockcomponent>
+    </local>
+
+    <component id="CLUSTER">
+        <cli>
+            <setprops name="honeycomb.disks.usage.cap" value="100"/>
+        </cli>
+    </component>
+    
+</script>

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="store">
+	<info>
+		<author>
+			<name>Rodney Gomes</name>
+			<email>rodney.gomes@sun.com</email>
+		</author>
+		<description>Honeycomb store test.</description>
+	</info>
+
+	<local>
+		<createstorage id="INPUT" path="${dtf.xml.path}/input" />
+		<createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+		
+		<loadproperties uri="storage://INPUT/hc.properties" />
+        <import uri="storage://INPUT/${hc.metadata.filename}" />
+		<!-- default values incase you want to run this test on its own
+		     instead of within the perf tessuite -->
+		<property name="runid" value="${dtf.timestamp}"/>
+        <metadata id="MDEMPTY"/>
+	</local>
+
+	<!-- Lock as many components as necessary by the test. -->
+	<for property="client" range="1..${hc.perf.clients}">
+    	<local>
+            <lockcomponent id="CLIENT${client}">
+            	<attrib name="hc.client.type" value="${hc.client.type}"/>
+            </lockcomponent>
+    	</local>
+    </for>
+    
+    <if>
+        <eq op1="${hc.md.refid}" op2="MDEMPTY"/>
+        <then>
+            <local>
+                <property name="output.prefix" value=""/>
+                <property name="message.extra" value="without MD"/>    
+            </local>     
+        </then>
+        <else>
+            <local>
+                <property name="output.prefix" value="md"/>
+                <property name="message.extra" value="with MD"/>    
+            </local>     
+        </else>
+    </if>
+
+	<local>
+		<echo>
+        Storing ${message.extra} ${hc.filesize} byte files 
+        to ${hc.cluster.datavip}:${hc.cluster.dataport} 
+        using ${hc.perf.clients} client(s) and ${hc.perf.threads} thread(s)
+        for ${hc.perf.duration}</echo>
+	</local>
+	<record type="txt"
+	        event="hc.store"
+		    uri="storage://OUTPUT/${output.prefix}store_perf_${hc.filesize}.txt">
+    	<record type="${hc.test.db.type}" 
+    	        event="hc.object"
+    		    uri="storage://OUTPUT/${hc.test.db.file}">
+		   	<!-- The runid attribute allows us to measure the performance
+		   	     of this specific run and not take into account the values
+		   	     that may have been generated from previous runs :) -->
+		    <attribute name="runid" value="${runid}"/>
+            <parallelloop property="client" range="1..${hc.perf.clients}">
+    			<component id="CLIENT${client}">
+                    <attribute name="client" value="CLIENT${client}"/>
+                    <loop range="1..${hc.perf.threads}"
+                          property="thread"
+                          type="parallel"> 
+                		<loop range="${hc.perf.duration}" 
+                              property="iteration"
+                              type="timer">
+            				<store datavip="${hc.cluster.datavip}"
+            					   port="${hc.cluster.dataport}"
+                                   node="${hc.loadgaming.node}"
+            					   continueOnFailure="${hc.continueonfailure}"
+            					   monitor="${hc.channel.monitoring}">
+            					<file length="${hc.filesize}" 
+            					      type="${hc.filetype}"
+            					      offset="${hc.fileoffset}"/>
+            					<metadata refid="${hc.md.refid}"/>
+            				</store>
+                		</loop>
+                    </loop>
+    			</component>
+            </parallelloop>
+    	</record>
+	</record>
+    <local>
+        <echo>
+        Runid: ${runid}</echo>
+    </local>
+</script>

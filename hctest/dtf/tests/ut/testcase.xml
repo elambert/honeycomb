@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="${testcase.name}">
+	<info>
+		<author>
+			<name>Rodney Gomes</name>
+			<email>rodney.gomes@sun.com</email>
+		</author>
+		<description>
+			dummy testcase used by the testsuite testcase.
+		</description>
+	</info>
+
+	<local>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+        <echo>Inside testcase ${testcase.name}</echo>
+	</local>
+	
+</script>

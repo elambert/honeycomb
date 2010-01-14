@@ -1,0 +1,32 @@
+$Id: README 10858 2007-05-19 03:03:41Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+These tools are used for testing video streaming off Honeycomb cluster,
+or in general for streaming performance testing. Tests use WebDAV for puts and gets.
+
+Prerequisites: cluster must be up, HADB must be online (query available),
+               cluster should have metadata schema for video demo (mdconfig_video.xml).
+
+Input file WipeOpenSpace.mpg (800MB hi-def video) lives on hclog301.
+Copy it, and all these scripts, to a location under /mnt/test on the client before starting test.
+Do not copy it to /opt/test because it's on ramdisk, not enough space.
+
+0. mkdir /mnt/test/streamingtest
+   scp ./* /mnt/test/streamingtest
+   cd /mnt/test/streamingtest
+   scp hclog301:/var/log/archive1/keepdata/WideOpenSpace.mpg .
+
+1. ./putvideos.sh devXXX - stores several copies of an 800MB video file to the cluster, using curl.
+
+2. ./queryvideos.sh devXXX - queries for the pathnames of stored videos
+
+3. ./getvideos.sh devXXX - downloads stored videos, using curl.
+
+Edit getonevideo.sh to run in a mode where test fails if streaming rate falls below given minimum.
+By default, downloads run to completion, and output the average throughput rate.
+Human analysis is necessary to decide whether the test succeeded.
+
+Additional scripts store and retrieve are provided to do the test via Java API instead of WebDAV.
+

@@ -1,0 +1,19 @@
+
+NAME
+       GetDate - get the date
+
+SYNOPSIS
+       java GetDate <IP | HOST>  [OPTIONS]
+
+DESCRIPTION
+       Get the current date used to compute retention time setting and 
+       checking during store and delete operations. This date can be used 
+       as a reference to clients which perform SetRetentionTime operations 
+       upon an object.
+
+OPTIONS
+       -h, --help
+              print this message
+
+EXAMPLES
+       java GetDate server

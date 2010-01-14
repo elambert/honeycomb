@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="singlecomponent">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF component performance test.</description>
+    </info>
+
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input" />
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+        <loadproperties uri="storage://INPUT/test.properties" />
+
+        <property name="runid" value="${dtf.timestamp}" />
+        <createrange name="quote" value="${einstein.quotes}" recycle="true"/>
+        
+        <property name="agents" value="1"/>
+        <property name="threads" value="1"/>
+    </local>
+
+    <for property="agent" range="1..${agents}">
+        <local>
+            <lockcomponent id="AGENT${agent}">
+                <attrib name="type" value="${agent.type}" />
+            </lockcomponent>
+        </local>
+    </for>
+    
+    <event name="dtf.perf.echo" id="dtf.event1">
+        <attribute name="runid" value="${runid}"/>
+        <attribute name="iteration" value="${iter}" />
+        <attribute name="timestamp" value="${dtf.timestamp}" />
+    </event>
+
+    <event name="dtf.perf.echo" id="dtf.event2">
+        <attribute name="runid" value="${runid}"/>
+        <attribute name="iteration" value="${iter}" />
+        <attribute name="timestamp" value="${dtf.timestamp}" />
+        <attribute name="datetamp"  value="${dtf.datestamp}" />
+                 
+        <attribute name="timestring1" value="date: ${dtf.datestamp} time: ${dtf.timestamp}" length="64"/>
+        <attribute name="timestring2" value="date: ${dtf.datestamp} time: ${dtf.timestamp}" length="64"/>
+        <attribute name="timestring3" value="date: ${dtf.datestamp} time: ${dtf.timestamp}" length="64"/>
+        <attribute name="timestring4" value="date: ${dtf.datestamp} time: ${dtf.timestamp}" length="64"/>
+        <attribute name="timestring5" value="date: ${dtf.datestamp} time: ${dtf.timestamp}" length="64"/>
+                    
+        <attribute name="int1" value="${dtf.randomInt}" length="64"/>
+        <attribute name="int2" value="${dtf.randomInt}" length="64"/>
+        <attribute name="int3" value="${dtf.randomInt}" length="64"/>
+        <attribute name="int4" value="${dtf.randomInt}" length="64"/>
+        <attribute name="int5" value="${dtf.randomInt}" length="64"/>
+
+        <attribute name="long1" value="${dtf.randomLong}" length="64"/>
+        <attribute name="long2" value="${dtf.randomLong}" length="64"/>
+        <attribute name="long3" value="${dtf.randomLong}" length="64"/>
+        <attribute name="long4" value="${dtf.randomLong}" length="64"/>
+        <attribute name="long5" value="${dtf.randomLong}" length="64"/>
+                  
+        <attribute name="longquote1" value="${quote}" length="512"/>
+        <attribute name="longquote2" value="${quote}" length="512"/>
+                   
+        <attribute name="stamp1" value="${dtf.timestamp}"/>
+        <attribute name="stamp2" value="${dtf.timestamp}"/>
+        <attribute name="stamp3" value="${dtf.timestamp}"/>
+        <attribute name="stamp4" value="${dtf.timestamp}"/>
+        <attribute name="stamp5" value="${dtf.timestamp}"/>
+    </event>
+
+    <record type="database"
+            uri="storage://OUTPUT/iterations.db"
+            event="dtf.perf"
+            append="false">
+        <for range="1..${iterations}" property="iter">
+            <event refid="dtf.event1"/>
+        </for>
+    </record>
+
+    <query uri="storage://OUTPUT/iterations.db"
+           type="database"
+           event="dtf.perf.echo"
+           cursor="rcursor" />
+
+    <record type="txt" 
+            uri="storage://OUTPUT/remote_cursor_perf.txt"
+            event="dtf.perf"
+            append="false">
+            <try>
+            <parallelloop property="agent" range="1..${agents}">
+                <component id="AGENT${agent}">
+                    <loop property="thread" range="1..${threads}" type="parallel">
+                        <loop range="1..${iterations}" property="iter">
+                            <fetchresult cursor="rcursor"/>
+                            <event name="dtf.perf.echo">
+                                <sleep time="1ms"/>
+                            </event>
+                        </loop>
+                    </loop>
+                </component>
+            </parallelloop>
+                <catch exception="${dtf.NoMoreResultsException}">
+                    <local>
+                        <echo>All done.</echo>
+                    </local>
+                </catch>
+            </try>
+    </record>
+    
+    <query uri="storage://OUTPUT/remote_cursor_perf.txt" 
+           type="txt"
+           event="dtf.perf.echo"
+           cursor="cursor" />
+
+    <record type="object" uri="property://dbperf">
+        <stats cursor="cursor" event="stats" />
+    </record>
+
+    <local>
+        <echo>
+            Remote Cursor performance on ${agents} agent(s) with ${threads} thread(s).
+            Events per second: ${dbperf.avg_occ} 
+            Total of Events:   ${dbperf.tot_occ} 
+            Total Duration:    ${dbperf.tot_dur}s
+        </echo>
+    </local>
+
+</script>

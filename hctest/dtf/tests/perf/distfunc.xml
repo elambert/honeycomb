@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="distribute">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF distribute performance test.</description>
+    </info>
+        
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+       
+        <loadproperties uri="storage://INPUT/test.properties"/>
+    </local>
+
+    <record type="txt"
+            uri="storage://OUTPUT/dist1.txt" 
+            append="false"
+            event="dtf.distribute">
+        <record type="database" 
+                uri="storage://OUTPUT/dist1.db" 
+                append="false"
+            	event="distribute">
+            <distribute property="iter" 
+                        timer="5s"
+                        workers="5"
+                        id="test">
+                <sequence>
+                    <event name="distribute.action.echo">
+                		<attribute name="prop1" value="${iter}"/>
+                		<attribute name="prop2" value="${iter}${iter}"/>
+                		<attribute name="prop3" value="${iter}${iter}"/>
+                	</event>
+                </sequence>
+           </distribute>
+        </record>
+  	</record>
+  	 
+    <query uri="storage://OUTPUT/dist1.db" 
+           type="database" 
+           event="distribute.action.echo"
+           cursor="cursor"/>
+           
+    <record type="object" uri="property://dbperf"> 
+    	<stats cursor="cursor" event="stats"/>
+    </record>  
+           
+    <local>
+   		<echo>
+              Distribute with no distribution function
+              ----------------------------------------
+              Events per second: ${dbperf.avg_occ}
+              Total of Events:   ${dbperf.tot_occ}
+              Total Duration:    ${dbperf.tot_dur}s
+        </echo> 
+    </local>
+    
+    <record type="txt"
+            uri="storage://OUTPUT/dist2.txt" 
+            append="false"
+            event="dtf.distribute">
+        <record type="database" 
+                uri="storage://OUTPUT/dist2.db" 
+                append="false"
+            	event="distribute">
+            <distribute property="iter" 
+                        timer="5s"
+                        workers="5"
+                        func="const(1000)"
+                        id="test">
+                <sequence>
+                    <event name="distribute.action.echo">
+                		<attribute name="prop1" value="${iter}"/>
+                		<attribute name="prop2" value="${iter}${iter}"/>
+                		<attribute name="prop3" value="${iter}${iter}"/>
+                	</event>
+                </sequence>
+           </distribute>
+        </record>
+  	</record>
+  	 
+    <query uri="storage://OUTPUT/dist2.db" 
+           type="database" 
+           event="distribute.action.echo"
+           cursor="cursor"/>
+    <record type="object" uri="property://dbperf"> 
+    	<stats cursor="cursor" event="stats"/>
+    </record>  
+    <local>
+   		<echo>
+              Distribute with const(1000) distribution function
+              -------------------------------------------------
+              Events per second: ${dbperf.avg_occ}
+              Total of Events:   ${dbperf.tot_occ}
+              Total Duration:    ${dbperf.tot_dur}s
+        </echo> 
+    </local>		
+    
+</script>

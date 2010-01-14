@@ -1,0 +1,1438 @@
+#!/usr/bin/perl
+#
+# $Id: handle_online_offline.pl.in 11885 2008-03-04 23:50:17Z sc1444 $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+#
+# configure the sata disk access point prior to disk removal (offline)
+# or after insertion (online).  This includes adding or deleting
+# swap and dump devices and attaching or detaching zfs mirrors.
+#
+# Optionally only do the swap, dump and zfs mirror ops (no access point
+# configuration).
+# 
+#
+# arguments: online|offline|dumpswap_online|dumpswap_offline /dev/dsk/c?t?d?s?
+#
+# There are two possible return values:
+#
+# "ok"
+# "error: <string describing problem>"
+#
+
+use warnings;
+
+# constants
+$DUMP_CONFIG_FILE = "/config/dumpadm";	# HC dump config file
+$DUMP_BASE_DIR = "/boot/images";	# base directory of dump file
+$DUMP_FILENAME = "dumpfile";		# name of the dump file
+$DISKLABEL_CMD = "/opt/honeycomb/bin/disklabel.sh";
+$MIRROR_SLICE_A = "s3";			# slice used for mirror
+$MIRROR_SLICE_B = "s5";			# slice used for mirror
+
+$UNCFG_SLEEP = 60;			# amount to sleep in seconds after
+					# failed cfgadm unconfig
+
+#
+# log messages
+#
+sub log {
+  my $logger_string = shift @_;
+  my $pid = open(LOGGER,
+		 "|logger -f - -t handle_online_offline -p local0.info") or
+		   die "coudn't open logger";
+  print LOGGER "$logger_string";
+  close LOGGER;
+}
+
+#
+# log stuff for debugging
+#
+sub dbg {
+  &log(shift @_);
+}
+
+
+# map device to access point
+%device_to_ap = (
+		 "c0t0d0" => "sata0/0",
+		 "c0t1d0" => "sata0/1",
+		 "c1t0d0" => "sata1/0",
+		 "c1t1d0" => "sata1/1"
+		);
+
+#
+# Confirm that the device is in the desired occupant state
+#
+# input parameters:
+#	device			name of the device (e.g. /dev/dsk/c0t0d0s0)
+#	desired_state		desired occupant state (e.g. "configured")
+#
+# There are 3 possible return values:
+#
+# "ok: <accessptid>"
+# "unusable: <accessptid>
+# "error: <string describing problem>"
+#
+sub confirm_dev_state {
+
+  my $device = shift @_;
+  my $desired_state = shift @_;
+
+  my $access_pt = $device_to_ap{$device};
+
+  &log("confirm_dev_state: dev $device ap $access_pt desired $desired_state");
+
+  # run the cfgadm command, looking for sata lines
+  #
+  # the cfgadm below produces output that looks like this (fields are
+  # seperated by multiple spaces):
+  #
+  # sata0/0::dsk/c1t0d0 /devices/pci@0,0/pci108e,5348@7:0 connected configured
+  #
+
+  my $pid = open(CFGADM,
+	 "cfgadm |grep sata|")
+    || die "error: can't run cfgadm command\n";
+
+  my ($ap, $type, $receptacle_state, $occupant_state, $condition);
+
+  while (<CFGADM>) {
+    $ap = $type = $receptacle_state = $occupant_state = $condition = "";
+
+    ($ap, $type, $receptacle_state, $occupant_state, $condition) = split;
+
+    next unless ($ap =~ /$access_pt/);
+
+    # found it
+
+    if ($condition eq "unusable") {
+        &log("found $ap is unusable");
+	return "unusable: $ap\n";
+    }
+
+    if ($occupant_state eq $desired_state) {
+        &log("found $ap in expected state ($occupant_state)");
+	return "ok: $ap\n";
+    } else {
+      &log("found $ap in wrong state ($occupant_state)");
+      return "error: $access_pt should be $desired_state but is " .
+	"$occupant_state\n";
+    }
+  }  
+
+  # didn't find it
+
+  &log("can't find $access_pt");
+  return "error: can't find $access_pt\n";
+}
+
+#
+# Get cfg state.
+# Returns a list of (receptacle_state, occupant_state, condition)
+# If we can't find the device, we return (0, 0, 0).
+# 
+sub get_cfg_state {
+  my $device = shift @_;
+
+  my $access_pt = $device_to_ap{$device};
+
+  # debug
+  &log("get_cfg_state: dev $device ap $access_pt");
+
+  # run the cfgadm command, looking for sata lines
+  #
+  # the cfgadm below produces output that looks like this (fields are
+  # separated by multiple spaces):
+  #
+  # sata0/0::dsk/c1t0d0 disk connected configured ok
+  #
+
+  my $pid = open(CFGADM,
+	 "cfgadm |grep sata|")
+    || die "error: can't run cfgadm command\n";
+
+  my ($ap, $type, $receptacle_state, $occupant_state, $condition);
+
+  while (<CFGADM>) {
+    $ap = $type = $receptacle_state = $occupant_state = $condition = "";
+    ($ap, $type, $receptacle_state, $occupant_state, $condition) = split;
+
+    next unless ($ap =~ /$access_pt/);
+
+    # found it
+
+    # debug
+    &log("get_cfg_state: rstate $receptacle_state ostate $occupant_state cond $condition");
+
+    return ($receptacle_state, $occupant_state, $condition);
+  }  
+
+  # not found
+  return (0, 0, 0);
+}
+
+#
+# Is the device unusable?
+#
+sub is_unusable {
+  my $device = shift @_;
+
+  my $access_pt = $device_to_ap{$device};
+
+  &log("is_unusable: dev $device ap $access_pt");
+
+  # run the cfgadm command, looking for sata lines
+  #
+  # the cfgadm below produces output that looks like this (fields are
+  # seperated by multiple spaces):
+  #
+  # sata0/0::dsk/c1t0d0 /devices/pci@0,0/pci108e,5348@7:0 connected configured
+  #
+
+  my $pid = open(CFGADM,
+	 "cfgadm |grep sata|")
+    || die "error: can't run cfgadm command\n";
+
+  my ($ap, $type, $receptacle_state, $occupant_state, $condition);
+
+  while (<CFGADM>) {
+    $ap = $type = $receptacle_state = $occupant_state = $condition = "";
+    ($ap, $type, $receptacle_state, $occupant_state, $condition) = split;
+
+    next unless ($ap =~ /$access_pt/);
+
+    # found it
+    if ($condition eq "unusable") {
+        &log("found $ap is unusable");
+	return 1;
+    } else {
+        &log("found $ap is NOT unusable");
+	return 0;
+    }
+  }  
+}
+
+#
+# Confirm the device state, polling if it is not in the expected
+# state for some number of iterations.
+# If we see that the device is unusable, we return immediately,
+# since it won't transition out of unusable state without our
+# intervention.
+#
+sub confirm_dev_state_poll {
+  my $device = shift @_;
+  my $desired_occupant_state = shift @_;
+  my $retries = shift @_;
+
+  &dbg("confirm_dev_state_poll dev $device desired $desired_occupant_state");
+
+  my $i = 0;
+  my $result;
+
+  while ($i++ < $retries) {
+    $result = &confirm_dev_state($device, $desired_occupant_state);
+    last if ($result =~ /^ok: /);
+    last if ($result =~ /^unusable: /);
+    sleep 10;
+  }
+
+  &dbg("result: $result");
+  
+  return $result;
+}
+
+
+# Trim any trailing cruft from the access pt id
+sub normalize_ap {
+  my $ap_id = shift @_;
+
+  # access pt may be followed by :: clause which specifies the disk name.
+  # Strip it off.
+
+  $ap_id =~ s/::.*$//;
+  return $ap_id;
+}
+
+#
+# Get the device out of the unusable state by unconfiging, and, if the
+# desired_state parameter requires it, reconfiging.
+#
+# This routine may loop and retry.
+#
+# Returns 0 for failure, non-zero for success.
+#
+sub fix_unusable {
+  my $ap_id = shift @_;
+  my $dev_name = shift @_;
+  my $desired_state = shift @_;
+
+  my $cmd;
+  my $cmd_output;
+  my $cmd_retval;
+  my $max_tries = 5;
+  my $i;
+  my $receptacle_state;
+  my $occupant_state;
+  my $condition;
+
+  # get rid of trailing cruft
+  $ap_id = &normalize_ap($ap_id);
+
+  # ensure that the disk isn't being used in any way
+  &quiesce_disk($dev_name);
+
+  $cmd = "cfgadm -f -y -c unconfigure $ap_id 2>&1";
+
+  # algorithm: unconfigure until the state is no longer unusuable,
+  # then leave in unconfigured state or reconfigure, depending upon
+  # desired state.
+
+  for ($i = 0; $i < $max_tries; $i++) {
+
+      $cmd_output = `$cmd`;
+      $cmd_retval = $?;
+      &log("fix_unusable: <$cmd> retval $?, output <$cmd_output>");
+
+      ($receptacle_state, $occupant_state, $condition) =
+	  &get_cfg_state($dev_name);
+      &log("fix_unusable: cfgstate: $receptacle_state $occupant_state $condition");
+
+      last if ($condition ne "unusable");
+
+      # Still unusable, sleep and try again
+
+      &log("fix_unusable: sleeping $UNCFG_SLEEP before unusable uncfg");
+      sleep $UNCFG_SLEEP;
+  }
+
+  if ($condition eq "unusable") {
+      &log("failed to clear $ap_id unusable state");
+      return 0;
+  }
+
+  if ($desired_state eq "configured") {
+      # need to reconfigure
+      $cmd_output = `cfgadm -f -y -c configure $ap_id 2>&1`;
+      $cmd_retval = $?;
+      &log("cfgadm -f -y -c configure $ap_id: retval $?, output <$cmd_output>");
+
+      ($receptacle_state, $occupant_state, $condition) =
+	  &get_cfg_state($dev_name);
+
+      if ($desired_state ne $occupant_state) {
+	  &log("occupant state $occupant_state not $desired_state");
+	  return 0;
+      }
+
+      return 1;
+  }
+
+  return 1;
+}
+
+#
+# Configure the access pt.  After configuring, confirm that it is
+# in the desired state.
+#
+# Because the configuration is currently a bit flakey, we wait a bit
+# before checking to see if it is configured properly.  Hopefully
+# we will be able to remove this delay in a bit.
+#
+# input parameters:
+#	op			operation code, "configure" or "unconfigure"
+#	access_pt		access pt (e.g. sata0/0)
+#				note: access pt may have a trailing
+#				"::*" component, which should be trimmed off
+#	device			name of the device (e.g. /dev/dsk/c0t0d0s0)
+#	desired_occupant_state	desired occupant state (e.g. "configured")
+# 
+# There are 2 possible return values:
+#
+# "ok: <accessptid>"
+# "error: <string describing problem>"
+#
+sub cfg_and_confirm {
+  my $op = shift @_;
+  my $ap_id = shift @_;
+  my $dev_name = shift @_;
+
+  # get rid of trailing cruft
+  $ap_id = &normalize_ap($ap_id);
+
+  my $result;
+  my $desired_state;
+  my $cmd_output = "";
+  my $cmd_retval = 0;
+  my $retry_cnt = 0;
+
+  &log("cfg_and_confirm $op $ap_id $dev_name");
+
+  die "error: bad op $op" if (($op ne "configure") && ($op ne "unconfigure"));
+
+  if ($op eq "configure") {
+    $desired_state = "configured";
+  } else {
+    $desired_state = "unconfigured";
+  }
+
+  # See if the condition is OK
+  my ($receptacle_state, $occupant_state, $condition) =
+      &get_cfg_state($dev_name);
+  
+  if (! $receptacle_state) {
+      # can't find device!
+      die "can't find device $dev_name";
+  }
+
+  #
+  # There are a number of possibilities here:
+  #
+  # condition is "unusable"
+  #	this means that the device was yanked but the OS is still holding
+  #	references to it.  unconfiging the device may work the first time;
+  #	if not, we can try again repeatedly after sleeping to wait for
+  #	various users to give up.
+  #
+  # receptacle state is "empty"
+  #	There's no device in the slot.  There's nothing to do in this case;
+  #	we need to wait for human intervention.
+  #
+  # receptacle state is "connected" and condition is "unconfigured"
+  #	This indicates that the device is present, but needs to be configured
+  #	if the desired state is configured.
+
+  if (($op eq "unconfigure") && ($occupant_state eq "unconfigured")) {
+      # we're trying to unconfigure
+      return "ok: $ap_id";
+  }
+
+  if ($receptacle_state eq "empty") {
+      return "error: receptacle for $ap_id is empty";
+  }
+
+  if ($condition eq "unusable") {
+      &fix_unusable($ap_id, $dev_name, $desired_state);
+  }
+
+cfg_try_again:
+
+  $cmd_output = `cfgadm -f -y -c $op $ap_id 2>&1`;
+  $cmd_retval = $?;
+  &log("cfgadm -f -y -c $op $ap_id: retval $?, output <$cmd_output>");
+
+  # If the device is already configured, we consider the cfgadm
+  # command to have succeeded.
+  $cmd_retval = 0 if ($cmd_output =~ /Device already configured/);
+
+  # If there's no device connected and we're doing an unconfigure
+  # we consider the cfgadm command to have succeeded.
+  $cmd_retval = 0 if (($op eq "unconfigure") &&
+		      ($cmd_output =~ /No device connected/));
+
+  # The device can get into an unusable state if there are still
+  # references held to it by the OS.  The corrective action is to
+  # wait a bit, unconfigure the device, and try again.
+
+  # debug
+  &log("checking if cmd_output is unusable: $cmd_output");
+
+  if (is_unusable($dev_name)) {
+      # sleep if we've already tried to unconfig
+      if ($retry_cnt) {
+	  &log("cfg_and_confirm: sleeping $UNCFG_SLEEP before unusable uncfg");
+	  sleep $UNCFG_SLEEP;
+      }
+
+      # unconfig
+      &log("cfg_and_confirm: unconfig after unusable");
+      $cmd_output = `cfgadm -f -y -c unconfigure $ap_id 2>&1`;
+      $cmd_retval = $?;
+      &log("cfgadm -f -y -c unconfigure $ap_id: retval $?, output <$cmd_output>");
+
+      # try again?
+      if ($retry_cnt++ < 6) {
+	  goto cfg_try_again;
+      } else {
+	  &log("error: couldn't unconfigure unusable access point $ap_id");
+	  return "error: couldn't unconfigure unusable access point $ap_id";
+      }
+  }
+
+  if ($cmd_retval == 0) {
+    $result = &confirm_dev_state_poll($dev_name, $desired_state, 5);
+     
+    &log("cfg_and_confirm: config returned $result");
+
+    return $result;
+  } else {
+    &log("error: cfgadm returned $?");
+    return "error: cfgadm returned $?";
+  }
+}
+
+# map device to boot images index.
+%device_to_boot = (
+  	           "c0t0d0" => "0",
+	           "c0t1d0" => "1",
+	           "c1t0d0" => "2",
+	           "c1t1d0" => "3"
+	          );
+
+# map  boot images index to device name.
+%boot_to_device = (
+                   "0" => "c0t0d0",
+                   "1" => "c0t1d0",
+                   "2" => "c1t0d0",
+                   "3" => "c1t1d0"
+                  );
+
+#
+# is the disk marked disabled  or foreign in the HC label?
+#
+# input: disk index
+# return value: 1 for disabled, 0 for enabled
+#
+sub hc_disabled_or_foreign {
+  my $disk_index = shift @_;
+  my $disk_dev = $boot_to_device{$disk_index};
+
+  # crude, but effective
+  `$DISKLABEL_CMD 2>/dev/null | egrep $disk_dev | egrep 'disabled|foreign'`;
+
+  if ($?) {
+    return 0;
+  } else {
+    return 1;
+  }
+}
+
+#
+# Searches for other valid disks to configure dump.
+#
+# input parameter:
+#    index : Takes the disk index that is getting offlined.  This disk
+#	     should be skipped when looking for valid disks.
+#	     If index is -1, consider all disks.
+#
+# There are 2 possible return values:
+#  Any of {0,1,2,3} for valid disks.
+#  -1 for no valid disk found.
+#
+sub get_valid_disk_index {
+   my $curr_index = shift @_;
+   my $expected_state = "configured";
+   my $i = keys(%boot_to_device) - 1;
+
+   &log("get_valid_disk_index $curr_index");
+
+   # find one of the other 3 valid disk for dump setup
+   while ($i >= 0 ) {
+       # skip the current disk which is going offline
+       if ($i == $curr_index) {
+           $i--;
+           next;
+       }
+       my $result = &confirm_dev_state_poll($boot_to_device{$i},
+                                            $expected_state, 5);
+
+       if ($result =~ /^ok: /) {
+
+	   # Skip disabled disks.
+	   if (&hc_disabled_or_foreign($i)) {
+	       &log("Skipping disabled or foreign disk index $i");
+	       $i--;
+	       next;
+	   }
+
+           &log("index $i: $result");
+           return $i;
+       }
+       $i--;
+   }
+   &log("Failed to find any valid disk, No dump device configured\n");
+   return -1;
+}
+
+#
+# Return the crash dump configuration as a 2 element list
+# containing (index, file).  If there's no configuration file,
+# or the contents are invalid, the returned index will be -1.
+#
+sub get_crash_dump_config {
+  my $diskIndex = -1;
+  my $dumpFile = "none";
+
+  my $open_status = "ok";
+
+  open(DUMPCONF, "<$DUMP_CONFIG_FILE") or $open_status="failed";
+  if ($open_status =~ "failed") {
+    return (-1, "none");
+  }
+
+  while (<DUMPCONF>) {
+    if ( $_ =~ /DISK_INDEX=(.*)/) {
+      $diskIndex = $1;   
+    } elsif ( $_ =~ /DUMPFILE=(.*)/) {
+      $dumpFile = $1;
+    } 
+  }
+
+  # If either one is not specified, signal error
+  if ($dumpFile eq "none" || $diskIndex == -1) {
+    $dumpFile = "none"; $diskIndex = -1;
+  }
+
+  close DUMPCONF;
+
+  return ($diskIndex, $dumpFile);
+}
+
+
+
+#
+# Handle crash dump reconfiguration when a disk goes offline.
+# 
+# If a disk goes offline we need to move the dump device file to
+# next valid disk. Even if the dump device file is not
+# on the disk going away, ensure that dump is set up properly
+# on another disk.
+#
+# input parameter:
+#    device name : Takes the device name of disk going tata-tata!
+#
+# There are no return values.  If there is a problem, log a warning;
+# it is important, but not critical to have a dump device configured
+# for normal operation.
+#
+sub handle_crash_dump_configuration {
+   my $dev_name = shift @_;
+   my $our_disk_is_dump = 0;
+
+   &log("$dev_name going offline, checking if dump configured on it");
+
+   my $cur_disk_index = &dump_is_setup(-1);
+   my $offline_disk_index = $device_to_boot{$dev_name};
+
+   &log("dump_is_setup: curdump $cur_disk_index offline $offline_disk_index");
+
+   $our_disk_is_dump = 1 if ($cur_disk_index == $offline_disk_index);
+
+   if ($our_disk_is_dump) {
+       &log("switching dump away from $dev_name");
+   } else {
+       &log("$dev_name going offline, dump currently not configured on it");
+   }
+
+   &log("dump device not currently configured") if ($cur_disk_index == -1);
+
+
+   # We need to configure a new dump device if the disk going away
+   # contained it or if it was not previously set up.
+
+   if ($our_disk_is_dump || $cur_disk_index == -1) {
+       if (! &find_and_setup_dump_device($offline_disk_index)) {
+	 &log("WARNING: No valid disks found to configure dump");
+       }
+   }
+
+   # Unmount the dump partition if we moved dump from the going-away disk.
+
+   if ($our_disk_is_dump) {
+       if (system("umount -f  $DUMP_BASE_DIR/$cur_disk_index") != 0) {
+	 &log("Failed to unmount $DUMP_BASE_DIR:$cur_disk_index:$dev_name");
+       }
+   }
+}
+
+#
+# Write the dump configuration file with the disk index and dump file name
+#   Input: disk index, dump file name
+#   Return value: 1 for success, 0 for failure
+#
+sub write_dump_config {
+  my $disk_index = shift @_;
+  my $dump_file = shift @_;
+  my $open_status = "ok";
+
+  open(DUMPCONF, ">$DUMP_CONFIG_FILE") or $open_status="failed";
+  if ($open_status =~ "failed") {
+    # log failure, return
+    &log("Couldn't open $DUMP_CONFIG_FILE for writing");
+    return 0;
+  }
+
+  print DUMPCONF "DISK_INDEX=$disk_index\n";
+  print DUMPCONF "DUMPFILE=$dump_file\n";
+  close DUMPCONF;
+
+  &log("write_dump_config: updated $DUMP_CONFIG_FILE index $disk_index");
+
+  return 1;
+}
+
+#
+# Is something mounted on the mount point?
+#   Input: mount point
+#   Return value: 1 for mounted, 0 otherwise
+#
+sub is_mounted {
+  my $mount_pt = shift @_;
+  my $ret_val = 1;
+
+  `mount | grep $mount_pt`;
+  $ret_val = 0 if ($? != 0);
+
+  return ($ret_val);
+}
+
+#
+# Set up a new dump device:
+#	- ensure that the partition is mounted
+#	- create the dumpfile on the partition
+#	- tell Solaris about it using dumpadm
+#	- update the honeycomb dump configuration file
+#
+#   Input: disk index, dump file name
+#   Return value: 1 for success, 0 for failure
+#
+sub new_dump_device {
+  my $diskIndex = shift @_;
+  my $dumpFile = shift @_;
+  my $mkfile_status = "ok";
+
+  # Try to mount the file system; if it's already mounted that's OK.
+  my $mount_pt = "$DUMP_BASE_DIR/$diskIndex";
+  if (!is_mounted($mount_pt)) {
+    my $rc=system("mount $DUMP_BASE_DIR/$diskIndex");
+    if ($rc !=0) {
+      &log("Couldn't mount $mount_pt (errno $rc), crash dump not configured");
+      return 0;
+    }
+  }
+
+  my $fname = "$mount_pt/$DUMP_FILENAME";
+  # Recreate the dumpfile
+  system("mkfile 1g $fname") == 0 or $mkfile_status = "failed";
+  if ($mkfile_status =~ "failed") {
+    &log("Failed to create the dump file on $mount_pt");
+    return 0;
+  }
+  
+  &log("Configuring dumpadm on disk $diskIndex ($fname)");
+  if (system("/usr/sbin/dumpadm -d $fname")) {
+    &log("Can't set up dump on disk $diskIndex due to dumpadm failure");
+    return 0;
+  }
+
+  # Update the dump file configuration file.
+  if (&write_dump_config($diskIndex, $DUMP_FILENAME) == 0) {
+    # failure
+    return 0;
+  }
+
+  return 1;
+}
+
+#
+# Extract the disk index from the dump device file name.
+# If the dump device is not well-formed
+# ($DUMP_BASE_DIR/<digit>/$DUMP_FILENAME), return -1.
+#
+sub dump_dev_to_disk_index {
+  my $dump_dev = shift @_;
+  my $disk_index = -1;
+
+  if ($dump_dev =~ m=${DUMP_BASE_DIR}/(\d+)/${DUMP_FILENAME}=) {
+    $disk_index = $1;
+  }
+  
+  return $disk_index;
+}
+
+#
+# Validate current dump setup:
+#	- Check if there's a dump device
+#	- Ensure that it's disk-based
+#	- Update the honeycomb configuration file if everything else
+#	  is OK (side effect)
+#
+# Input: disk index to skip; set to an existing disk when we know that
+#	 the disk is going away and we should ignore it for checking purposes.
+#	 Set to -1 when we want to see if dump is set up on any disk.
+#
+# Returns: disk index of dump disk if dump setup is OK, -1 otherwise
+#
+sub dump_is_setup {
+  my $disk_index_to_ignore = shift @_;
+
+  &log("dump_is_setup: disk_index_to_ignore $disk_index_to_ignore");
+  my $x=`/usr/sbin/dumpadm | grep 'Dump device'`;
+
+  if ($x =~ /Dump device: (\/.+) .*/) {
+    # dump device is configured
+
+    my $dump_dev = $1;
+
+    &log("dump device is configured, dump_dev $dump_dev");
+
+    # Is the dump device what we expect:
+    # $DUMP_BASE_DIR/$diskindex/$DUMP_FILENAME ?
+    
+    my $disk_index = &dump_dev_to_disk_index($dump_dev);
+    
+    &log("disk_index returned $disk_index");
+
+    if ($disk_index == -1) {
+      &log("unexpected dump device: $dump_dev");
+      return -1;
+    }
+
+    if ($disk_index == $disk_index_to_ignore) {
+      # dump is set up, but on the device we know is going away.
+      return -1;
+    }
+
+    &log("calling write_dump_config with $disk_index");
+
+    # Set up properly, make sure that config file reflects that.
+    &write_dump_config($disk_index, $DUMP_FILENAME);
+
+    return $disk_index;
+  }
+
+  &log("dump device is not configured");
+
+  # not configured
+  return -1;
+}
+
+# quiesce disk: unmount any mounted file systems
+# and stop swapping to it.
+sub quiesce_disk {
+    my $dev_name = shift @_; # must be of the form cXtXdX, e.g. c0t0d0
+
+    my $mount_point;
+    my $swapfile;
+
+    &log("quiesce_disk $dev_name");
+
+    my $mount_pid = open(MOUNT, "mount |grep $dev_name|")
+	|| die "error: can't run mount command\n";
+
+    while (<MOUNT>) {
+	$mount_point = '';
+	($mount_point, $rest) = split;
+
+	&log("quiesce_disk $dev_name: found $mount_point mounted");
+
+	if (system("umount -f $mount_point") != 0) {
+	    &log("quiesce_disk $dev_name: couldn't unmount $mount_point");
+	}
+    }
+
+    &disable_swap_for_disk($dev_name);
+}
+
+
+
+#
+# Unmount any spurious /boot mounts.
+#
+# Input: disk index to skip when checking for spurious mounts.
+# from that disk).  -1 means consider all disks.
+# No return value.
+#
+sub unmount_spurious_boot_mounts {
+  my $dump_dev_index = shift @_;
+  my $disk_index;
+  my $mount_pt;
+
+  for ($disk_index = 3; $disk_index >= 0; $disk_index--) {
+    next if ($disk_index == $dump_dev_index);
+
+    $mount_pt = "$DUMP_BASE_DIR/$disk_index";
+
+    next if (! &is_mounted($mount_pt));
+    
+    &log("Found spurious $mount_pt mount; running umount -f $mount_pt");
+
+    if (system("umount -f $mount_pt") != 0) {
+      &log("Failed to unmount $mount_pt");
+    }
+  }
+}
+
+#
+# Find a disk suitable for dumping and set it up as the dump device.
+#
+# Input: disk index to skip setting up dump on (used when moving dump
+# from that disk).  -1 means consider all disks.
+# Return value: 1 for success, 0 for failure
+#
+sub find_and_setup_dump_device {
+  my $skip_me = shift @_;
+  my $disk_index;
+  my $retval = 0;
+
+  # Try to set up dump files on each disk in turn.
+  # The goal is to find one good one.  We prefer disk 3, since
+  # we usually boot from disk 0 and we want the dump device
+  # on a different disk.
+
+  for ($disk_index = 3; $disk_index >= 0; $disk_index--) {
+    next if ($disk_index == $skip_me);
+
+    # check to see if the disk is present
+    my $result = &confirm_dev_state_poll($boot_to_device{$disk_index},
+					 "configured", 1);
+
+    if (! ($result =~ /^ok: /)) {
+      &log("find_and_setup_dump_device: skipping missing disk $disk_index");
+      next;
+    }
+
+    if (&hc_disabled_or_foreign($disk_index)) {
+      &log("find_and_setup_dump_device: skipping foreign or disabled disk $disk_index");
+      next;
+    }
+
+    # disk is present, try to set up the dump device on it.
+    if (&new_dump_device($disk_index,
+        "$DUMP_BASE_DIR/$disk_index/$DUMP_FILENAME")) {
+      &log("set up dump on disk $disk_index");
+      $retval = 1;
+    }
+  }
+
+  &umount_spurious_boot_mounts($disk_index);
+
+  if ($retval == 0) {
+    &log("Couldn't set up dump on any disk.");
+  }
+
+  return $retval;
+}
+
+#
+# Ensure that the dump file is set up properly.
+# Idempotent -- can be called multiple times without harm.
+#
+# Input: disk index to skip; don't set up dump on this disk if dump
+#        needs to be set up.
+#
+#	 Set to an existing disk when we know that the disk is going away.
+#	 Set to -1 to allow dump to be set up on any disk.
+# 
+sub setup_dump {
+  my $disk_index_to_skip = shift @_;
+
+  &log("setup_dump: index to skip $disk_index_to_skip");
+
+  # do we already have a dump file set up?
+  if (&dump_is_setup($disk_index_to_skip) != -1) {
+    &log("dump is already set up properly");
+    return 1;
+  }
+
+  my $result = &find_and_setup_dump_device($disk_index_to_skip);
+
+  return $result;
+}
+
+#
+# Get the slice no which is configured as swap using the prtvtoc command.
+#
+# See the prtvtoc help for details about Tag. The Tag with value 3 is the 
+# Swap slice. This is what we use here.
+#
+# input parameter:
+#    device name : Takes the device name of disk going offline.
+#
+#  return slice_no or -1 for failure.
+#
+
+sub get_swap_slice_no {
+   my $dev_name = shift @_;
+   my $slice_no = -1;
+   my @slice_out = `prtvtoc /dev/dsk/${dev_name}s0 | grep -v "*" 2>&1`;
+   my $cmd_status = $?;
+   if ($cmd_status != 0) {
+       # this can happen if the disk has been pulled, since the device
+       # is no longer valid; recover by running swap -l 
+       
+       my $swap_out = `swap -l | egrep dsk | head -1`;
+       my $swap_out_status = $?;
+       if ($swap_out_status == 0) {
+	   my @fields = split(/\s+/, $swap_out);
+	   return substr($fields[0], -1);
+       }
+       
+       &log("prtvtoc command failed and couldn't get info from swap -l");
+       return $slice_no;
+   }
+   foreach (@slice_out) {
+       my @fields = split(/\s+/); 
+       if ($fields[2] eq 3) { 
+          $slice_no = $fields[1];
+          &log("Found slice $slice_no for swap on $dev_name");
+          last;
+       }
+   }
+   return $slice_no;
+}
+
+#
+# If a disk goes offline we need to disable the swap on it.
+#
+# input parameter:
+#    device name : Takes the device name of disk going offline.
+#
+# There are no return values.
+# exit(1) if we are not able to disable swap. If a user yanks that disk the 
+# system might panic.
+#
+sub disable_swap_for_disk {
+   my $dev_name = shift @_; # must be of the form cXtXdX, e.g. c0t0d0
+
+   &log("disable_swap_for_disk $dev_name");
+
+    my $swap_pid = open(SWAP, "swap -l |grep $dev_name|")
+	|| die "error: can't run swap -l command\n";
+
+    while (<SWAP>) {
+	$swapfile = "";
+	($swapfile, $rest) = split;
+
+	&log("disable_swap_for_disk: swapfile $swapfile");
+	
+	# disable swap on this device
+	if (system("/usr/sbin/swap -d $swapfile") != 0) {
+	    &log("disable_swap_for_disk: couldn't delete swap on $swapfile");
+	} else {
+	    &log("disable_swap_for_disk: deleted swap on $swapfile");
+	}
+    }
+}
+
+# If a disk goes online we need to enable the swap on it.
+#
+# input parameter:
+#    device name : Takes the device name of disk going online.
+#
+# There are no return values.
+#
+sub handle_swap_enable {
+   my $dev_name = shift @_;
+   # check if there is a swap slice and if it is being used.
+   my $slice_no = &get_swap_slice_no($dev_name);
+   if ($slice_no == -1) {
+      &log("No swap slice found on $dev_name");
+      return;
+   }
+   my $swap_path = "/dev/dsk/${dev_name}s${slice_no}";
+   # enable swap on this device
+   my @cmd_output = `/usr/sbin/swap -a $swap_path  2>&1`;
+   my $cmd_ret_val = $?;
+   if ($cmd_ret_val != 0 ) {
+       &log("Failed to enable the swap on $dev_name that is going online");
+       &log("Swap command output:");
+       &log("@cmd_output"); 
+       # not enabling swap is not catastrophic, so no exit(1).
+   }
+   &log("Succesfully enabled swap on disk $dev_name going online");
+}
+
+#
+# Bring any zpool mirrors corresponding to the device online.
+# There may not be any such mirrors, in which case this subroutine
+# should return success.
+#
+sub online_mirrors {
+  my $dev_name = shift @_;
+  my $retval = 0;
+
+  $retval += &online_mirror($dev_name, $MIRROR_SLICE_A);
+  $retval += &online_mirror($dev_name, $MIRROR_SLICE_B);
+
+  return $retval;
+}
+
+#
+# See if the slice is in the mirror.  Can partially specify the slice
+# (used when trying to find an existing slice for a given device.
+#
+# Returns the name of the slice if present, "" otherwise.
+#
+sub slice_in_mirror {
+  my $dev = shift @_;
+  my $exist_slice = "";
+  my $junk = "";
+
+  my $zp_status=`zpool status tank 2>/dev/null | grep $dev |head -1`;
+  if ($zp_status eq "") {
+    &log("slice_in_mirror: null zp_status");
+    return "";
+  }
+
+  ($exist_slice, $junk) = split(' ', $zp_status);
+
+  &log("slice_in_mirror: <$exist_slice>");
+  &log("slice_in_mirror: <$dev>");
+
+  $exist_slice = "" unless ($exist_slice =~ /$dev/);
+
+  return $exist_slice;
+}
+
+#
+# Put any zpool mirrors corresponding to the device online.
+# There may not be any such mirrors, in which case this subroutine
+# should return success.
+#
+# Returns non-zero (errno) in the case of error, 0 otherwise.
+#
+sub online_mirror {
+  my $dev_nm = shift @_;
+  my $slice_nm = shift @_;
+  my $full_slice_nm = "${dev_nm}${slice_nm}";
+
+  my $exist_slice = "";
+  my $junk = "";
+  my $zpool_status = "";
+  my $zpool_cmd_out = "";
+  my $zpool_cmd_status = 0;
+  my $status = "";
+
+  &log("online_mirror $dev_nm $slice_nm");
+
+  # Is the slice already in the mirror?  If so,
+  # there's nothing to do.
+
+  if (&slice_in_mirror($full_slice_nm) eq $full_slice_nm) {
+    &log("online_mirror: slice $full_slice_nm already in mirror");
+    return 0;
+  }
+
+  # find an existing slice in the mirror; we will attach our
+  # slice to this new slice.  We use the slice name, since a
+  # mirror consists of the same slice on different disks.
+
+  $exist_slice = &slice_in_mirror($slice_nm);
+  &log("online_mirror: existing slice for $dev_nm $slice_nm: $exist_slice");
+
+  if (! ($exist_slice =~ /c\dt\dd\ds\d/)) {
+    &log("error: no existing slice for $dev_nm $slice_nm");
+    return 1;
+  }
+  
+  # we want to capture any stderr output for logging purposes
+  my $zpool_cmd = "zpool attach tank $exist_slice ${dev_nm}${slice_nm} 2>&1";
+
+  $zpool_cmd_out = `$zpool_cmd`;
+  $zpool_cmd_status = $?;
+
+  if ($zpool_cmd_status != 0) {
+    &log(
+	 "error: $zpool_cmd failed errno $?, output: $zpool_cmd_out\n");
+    return $zpool_cmd_status;
+  }
+  
+  # 
+  # paranoia: double-check to see that they are really online
+  #
+
+  $zpool_cmd_out = $_ = `zpool status tank 2>&1 |grep ${dev_nm}${slice_nm}`;
+  $zpool_cmd_status = $?;
+
+  if ($zpool_cmd_status) {
+	  &log("zpool attach worked, but can't confirm slice is online");
+	  &log(`zpool status tank 2>&1`);
+	  return 1;
+  }
+
+  if (! ($zpool_cmd_out =~ /ONLINE/)) {
+    &log("error: ${dev_nm}${slice_nm} isn't ONLINE: $zpool_cmd_out");
+    return 2;
+  }
+
+  return 0;
+}
+
+
+sub offline_mirrors {
+  my $dev_name = shift @_;
+  my $zpool_detach_output = "";
+  my $retval = 0;
+  my $detach_status = 0;
+
+  &log("offline_mirrors $dev_name");
+
+  my $pid = open(ZPOOL, "zpool status tank |grep $dev_name|");
+
+  my ($zp_dev_name, $zp_state, $zp_rd, $zp_wr, $wp_chksum);
+
+  # detach any ONLINE or UNAVAIL mirrors
+  while (<ZPOOL>) {
+    # silence warnings
+    $zp_dev_name = $zp_state = $zp_rd = $zp_wr = $zp_chksum = "";
+
+    ($zp_dev_name, $zp_state, $zp_rd, $zp_wr, $zp_chksum) = split;
+
+    if (($zp_state eq "ONLINE") || ($zp_state eq "UNAVAIL")) {
+      $zpool_detach_output = `zpool detach tank $zp_dev_name 2>&1`;
+      $detach_status = $?;
+
+      if ($detach_status != 0) {
+	&log("zpool detach tank $zp_dev_name failed errno $detach_status");
+	&log(" output $zpool_detach_output\n");
+
+	# In the face of inability to remove the mirror, we continue
+	# on regardless.  zfs must be able to handle the failure of such
+	# a disk in any case.
+	# However, we record the fact that we got an error
+
+	$retval += $detach_status;
+      }
+    }
+  }
+  close ZPOOL;
+
+  return $detach_status if ($detach_status);
+
+  # paranoia: double-check to see that they are really offline
+
+  $pid = open(ZPOOL, "zpool status tank |grep $dev_name|");
+
+  # check that all mirrors are OFFLINE or not found
+  while (<ZPOOL>) {
+    my ($zpool_status_out) = $_;
+    if (! ($zpool_status_out =~ /OFFLINE/)) {
+      &log(
+	"zpool device $dev_name should be OFFLINE, is $zpool_status_out\n");
+      return 1;
+    }
+  }
+  close ZPOOL;
+
+  return 0;
+}
+
+#
+# Handle the online/offline operation.
+# 
+# Input:
+#   dev_name	disk that's going on/offline
+#   op		"online" or "offline"
+#
+# No return value; exits script with zero for success, non-zero for failure.
+# 
+sub do_cfg {
+  my $dev_name = shift @_;
+  my $op = shift @_;
+
+  my ($unused_ok_string, $ap_id);
+  $unused_ok_string = $ap_id = "";
+
+  &log("do_cfg dev $dev_name op $op");
+
+  die "error: bad opcode $op" if ($op ne "online" && $op ne "offline");
+
+  my $expected_state;		# state we expect prior to taking on/offline
+  my $desired_state;		# state we want to get to
+  my $cfg_op;
+
+  if ($op eq "online") {
+    $expected_state = "unconfigured";
+    $desired_state = "configured";
+    $cfg_op = "configure";
+  } else {
+    $expected_state = "configured";
+    $desired_state = "unconfigured";
+    $cfg_op = "unconfigure";
+  }
+
+  # are we already in the desired state?  If so, it's odd,
+  # but a condition we want to be able to deal with in order
+  # to make this operation idempotent.
+
+  $result = confirm_dev_state($dev_name, $desired_state);
+  if ($result =~ /^ok: /) {
+    &log("$dev_name already in desired state $desired_state");
+    &log("result: $result");
+  } elsif ($result =~ /^unusable: /) {
+    &log("$dev_name is unusable");
+  } else {
+    $result = &confirm_dev_state_poll($dev_name, $expected_state, 5);
+  }
+
+  &log("confirm_dev_state_poll($dev_name, $expected_state) result $result");
+
+  if (! (($result =~ /^ok: /) || ($result =~ /^unusable: /))) {
+    # couldn't find device or it wasn't in the correct state
+    &log("$dev_name can't be found or is in an unexpected state: $result");
+    print "$result";
+    exit (1);
+  }
+
+  #
+  # Need to config/unconfig the access pt.
+  #
+
+  # dig out the access pt id
+  
+  ($unused_ok_string, $ap_id) = split(' ', $result, 3);
+  $ap_id = &normalize_ap($ap_id);
+  &log("ap_id from result: $ap_id");
+
+  $result = &cfg_and_confirm($cfg_op, $ap_id, $dev_name);
+  &log("cfg_and_confirm($cfg_op, $ap_id, $dev_name) result: $result");
+
+  if (($result =~ /^ok: /)) {
+    print "$result";
+    exit (0);
+  }
+  
+  # Handle "errors" which result from retrying a command
+  # which succeeded.
+
+  if (($result =~ /Device already configured|No device configured/)) {
+    # this error results from unnecessary retries
+    # and does not indicate a problem
+    print "ok: $ap_id\n";
+    exit (0);
+  }
+
+  # error
+  print "$result";
+  exit (1);
+}
+
+sub dump_swap_mirror {
+  my $dev_name = shift @_;
+  my $op = shift @_;
+
+  my ($unused_ok_string, $ap_id);
+  $unused_ok_string = $ap_id = "";
+
+  &log("dump_swap_mirror dev $dev_name op $op");
+
+  die "error: bad opcode $op" if ($op ne "online" && $op ne "offline");
+
+  if ($op eq "offline") {
+
+    #
+    # When we're going offline, we need to remove
+    # any crash & swap association with the drive before
+    # we unconfig it.
+    #
+
+    &offline_mirrors($dev_name);
+    &handle_crash_dump_configuration($dev_name);
+    &disable_swap_for_disk($dev_name);
+
+  } else {
+
+    # Going online, need to handle assigning
+    # swap to the device after config'ing it.
+    &handle_swap_enable($dev_name);
+
+    # Ensure that dump is set up properly.  Since we set up dump
+    # on a disk when another disk goes away, it should be set up
+    # in all but pathological cases.
+
+    if (! &setup_dump(-1)) {
+      &log("Dump not set up properly after bringing online $dev_name");
+    }
+
+    &online_mirrors($dev_name);
+  }
+}
+
+
+###### main #######
+
+my $op = $ARGV[0];
+$_ = $ARGV[1];
+my $dev_name="";
+
+my $retval="";
+
+# extract devname from 2nd argument;
+# use m|...| so that we do not need to use a lot of "\/" 
+($dev_name) = m|.*(c\dt\dd\d).*|;
+
+die "error: usage: $0: online|offline devicename"
+  unless ((($op eq "online") or ($op eq "offline") or
+	   ($op eq "dumpswap_online") or ($op eq "dumpswap_offline"))
+	  && $dev_name ne "");
+
+&log("$0: $op $dev_name");
+
+# log cfgadm & zpool status output for debugging purposes
+&log("--- before handleOnlineOffline");
+my $cfgadm_output=`cfgadm |egrep sata`;
+&log($cfgadm_output);
+my $zpool_status=`zpool status`;
+&log($zpool_status);
+
+if ($op eq "dumpswap_online") {
+  &dump_swap_mirror($dev_name, "online");
+
+} elsif ($op eq "dumpswap_offline") {
+  &dump_swap_mirror($dev_name, "offline");
+
+} elsif ($op eq "online") {
+  &do_cfg($dev_name, "online");
+
+} elsif ($op eq "offline") {
+  &dump_swap_mirror($dev_name, "offline");
+  &do_cfg($dev_name, "offline");
+
+} else {
+  # should never happen
+  &log("bogus operation $op");
+  exit (1);
+}
+
+# log output afterwards for debug purposes
+&log("--- after handleOnlineOffline");
+$cfgadm_output=`cfgadm |egrep sata`;
+&log($cfgadm_output);
+$zpool_status=`zpool status`;
+&log($zpool_status);
+
+print "ok\n";
+

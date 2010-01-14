@@ -1,0 +1,98 @@
+#!/bin/sh
+#
+# $Id: failure.cluster.reboot.no-load 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+USAGE="Usage: $0 <cluster> <node_num> <sleep_sec>"
+
+if test $# != 3 ; then
+  echo $USAGE
+  exit 1
+fi
+CLUSTER=$1
+NODE_NUM=$2
+SLEEP_SEC=$3
+
+# choose test dir:
+#   cheat nodes have disk mounted at /
+#   test nodes have memory mounted at /
+if test -d /mnt/test ; then
+  # test client
+  TEST_ROOT="/mnt/test"
+else
+  # cheat node
+  TEST_ROOT="/root"
+fi
+
+SCRIPT=`basename $0`
+TESTDIR=$TEST_ROOT/${SCRIPT}_`date +%y-%m-%d_%H:%M`
+
+CLUSTER_NODE=${CLUSTER}-${NODE_NUM}
+echo test dir is $TESTDIR, cluster_host is $CLUSTER_NODE,  sleep_sec is $SLEEP_SEC
+echo exiting for now
+exit
+# get parent dir of script
+ROOT=`dirname $0`
+ROOT=`dirname $ROOT`
+TESTCMD_BIN=$ROOT/bin
+
+
+let c=1
+
+# note - when this loop is done, ideally all the stored data 
+# would be validated
+while [ 1 ]
+do
+
+  echo "Rebooting... (pass ${c})"
+  ${TESTCMD_BIN}/reboot.sh $CLUSTER
+
+  echo "sleeping for ${SLEEP_SEC}"
+
+  sleep $SLEEP_SEC
+
+  echo "Storing..."
+  ${TESTCMD_BIN}/FillData -h $CLUSTER_NODE -o ${TESTDIR}/fill.out-$c \
+          -b -r -p 120 range 50000 100000 50000 
+
+  echo "validating..."
+  ${TESTCMD_BIN}/CheckData -h $CLUSTER_NODE -i ${TESTDIR}/fill.out-${c} \
+          -r -o ${TESTDIR}/check.out-${c}
+
+  echo "Sleeping for ${DELAY}"
+  sleep ${DELAY}
+
+  let c=c+1
+done
+

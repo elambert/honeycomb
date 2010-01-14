@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="hc_regression">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>Honeycomb regression testsuite.</description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT"  path="${dtf.xml.path}/input"/>
+        <createstorage id="TINPUT"  path="${dtf.xml.path}"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+      
+	    <loadproperties uri="storage://INPUT/hc.properties"/> 
+       	<import uri="storage://INPUT/${hc.metadata.filename}"/>
+      	
+		<!-- RunID is used by all subtests -->
+		<property name="runid" value="${dtf.timestamp}"/>
+    </local>
+    
+	<if>
+		<eq op1="${hc.data.verify}" op2="true"/>
+		<then>
+			<local>
+				<echo>Verifying data.</echo>
+			</local>
+		</then>
+		<else>
+			<local>
+				<echo>Not verifying data.</echo>
+			</local>
+		</else>
+	</if>
+
+	<if>
+		<eq op1="${hc.channel.monitoring}" op2="true"/>
+		<then>
+			<local>
+				<echo>Monitoring data channel events.</echo>
+			</local>
+		</then>
+		<else>
+			<local>
+				<echo>Not Monitoring data channel events.</echo>
+			</local>
+		</else>
+	</if>
+
+	<result uri="storage://OUTPUT/regression_results.xml"
+	        type="xml">
+    	<testsuite name="honeycomb_regression_suite">
+            <testscript uri="storage://TINPUT/hc_corruption_detection.xml"/> 
+            <testscript uri="storage://TINPUT/hc_object_lifecycle.xml"/> 
+        </testsuite> 
+    </result>
+</script>

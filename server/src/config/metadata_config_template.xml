@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 
+  $Id: metadata_config_template.xml 10855 2007-05-19 02:54:08Z bberndt $
+
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+-->
+
+
+<!--
+  This template file provides a schema config overlay skeleton.
+  Note that the fsView refers to the namespace of the schema.
+  Refer to the administration guide (chapter 4) for more details
+-->
+
+<metadataConfig>
+
+  <schema>
+    
+    <namespace name="NAMESPACE_NAME">
+      <field name="FIELD1" type="string" length="512"/>
+      <field name="FIELD2" type="long"/>
+      <field name="FIELD3" type="double"/>
+      <field name="FIELD4" type="binary" length="128"/>
+      <field name="FIELD5" type="char" length="128"/>
+      <field name="FIELD6" type="date"/>
+      <field name="FIELD7" type="time"/>
+      <field name="FIELD8" type="timestamp"/>
+    </namespace>
+
+  </schema>
+
+  <fsViews>
+
+    <fsView name="FSVIEW_NAME" filename="${FIELD3}.num" namespace="NAMESPACE_NAME">
+      <attribute name="FIELD1"/>
+      <attribute name="FIELD2"/>
+    </fsView>
+
+  </fsViews>
+
+  <tables>
+    <table name="TABLE1">
+      <column name="NAMESPACE_NAME.FIELD1"/>
+      <column name="NAMESPACE_NAME.FIELD2"/>
+      <column name="NAMESPACE_NAME.FIELD3"/>
+      <column name="NAMESPACE_NAME.FIELD4"/>
+      <column name="NAMESPACE_NAME.FIELD5"/>
+      <column name="NAMESPACE_NAME.FIELD6"/>
+      <column name="NAMESPACE_NAME.FIELD7"/>
+      <column name="NAMESPACE_NAME.FIELD8"/>
+    </table>
+  </tables>
+
+</metadataConfig>

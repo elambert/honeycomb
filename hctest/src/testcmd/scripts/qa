@@ -1,0 +1,2737 @@
+#!/usr/bin/perl -w
+#
+# $Id: qa 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+use strict;
+use Getopt::Long qw(:config no_ignore_case bundling);
+use Term::ANSIColor;
+use IO::Handle;
+use IO::Select;
+use qadb;
+use XML::Simple qw(:strict);
+use Data::Dumper;
+
+################################################################################
+# matrix
+################################################################################
+sub matrix ()
+{
+  my $usage =
+<<EOF
+NAME
+
+    $0 matrix - set the members of a matrix
+
+SYNOPSIS
+
+    $0 matrix [OPTIONS]
+
+OPTIONS
+
+    -f, --file <matrix file>[=<matrix name>]
+        set the members of a matrix.  a matrix file contains a list of test 
+        names, each separated by a newline.  
+
+        optionally, you may specify a matrix name using the '=<matrix name>'
+        syntax.  for example,
+
+        --file foo.mtx=my_matrix
+
+        by default, the matrix is named by the name of the file, stripping off 
+        the '.mtx' suffix if present.
+
+        for example, if passed a file named 'my_matrix.mtx', the members of 
+        the matrix, 'my_matrix', are set to be those listed in the file.
+
+        here is a sample matrix file.
+
+        # a comment
+        test.1
+        test.2
+        test.3
+
+    -l, --list [<matrix>]
+        list the contents of the matrix.  if no matrix is specified, list all
+        known matrices.
+
+    -h, --help
+        print this message.
+
+EOF
+;
+
+  my $file=undef;
+  my $name=undef;
+  my $list=undef;
+  my $help=undef;
+
+  if (!GetOptions("f|file=s" => \$file,
+                  "l|list:s" => \$list,
+                  "h|help" => \$help))
+  {
+    print "${usage}\n";
+    exit 1;
+  }
+
+  if (defined($help))
+  {
+HELP:
+    print "${usage}\n";
+    exit 0;
+  }
+
+  if (defined($file))
+  {
+    if ($file !~ /^([^=]+)(=(.+))?$/)
+    {
+      print "--file option is not valid: ${file}\n";
+      exit 1;
+    }
+    ($file, $name) = ($1, $3);
+    if (!defined($name))
+    {
+      $name =  $file;
+      if ($name =~ /^.*\/(.*)$/)
+      {
+        $name = $1;
+      }
+      if ($name =~ /^(.*)(\.mtx)$/)
+      {
+        $name = $1;
+      }
+    }
+    qadb::connect() or die "connect failed (${qadb::errno}): ${qadb::errstr}";
+    if (!qadb::file_to_matrix($file, $name))
+    {
+      print "Error (${qadb::errno}): ${qadb::errstr}\n";
+    }
+    qadb::disconnect() or die "disconnect failed (${qadb::errno}): ${qadb::errstr}";
+    goto DONE;
+  }
+
+  if (defined($list))
+  {
+    if ($list !~ /^$/)
+    {
+      print
+<<EOF
+#
+# matrix: ${list}
+#
+EOF
+;
+      $list = qadb::quote_replace($list);
+      qadb::connect() or die "connect failed (${qadb::errno}): ${qadb::errstr}";
+      my $matrix_members = undef;
+      if (!($matrix_members = qadb::matrix_member_query("matrix = \"${list}\"")))
+      {
+        print "Error (${qadb::errno}): ${qadb::errstr}\n";
+        exit 1;
+      }
+      foreach my $matrix_member (@$matrix_members)
+      {
+        my ($matrix, $test) = @$matrix_member;
+        print("${test}\n");
+      }
+      qadb::disconnect() or die "disconnect failed (${qadb::errno}): ${qadb::errstr}";
+    }
+    else
+    {
+LIST_ALL:
+      qadb::connect() or die "connect failed (${qadb::errno}): ${qadb::errstr}";
+      my $matrices = undef;
+      if (!($matrices = qadb::matrix_query(undef)))
+      {
+        print "Error (${qadb::errno}): ${qadb::errstr}\n";
+        exit 1;
+      }
+      foreach my $matrix_row (@$matrices)
+      {
+        my ($matrix) = @$matrix_row;
+        print("${matrix}\n");
+      }
+      qadb::disconnect() or die "disconnect failed (${qadb::errno}): ${qadb::errstr}";
+    }
+    goto DONE;
+  }
+
+  goto HELP;
+
+DONE:
+}
+
+################################################################################
+# run
+################################################################################
+sub run ()
+{
+  my $usage =
+<<EOF
+NAME
+
+    $0 run - run a test program and record its result
+
+SYNOPSIS
+
+    $0 run [options] [--] <command> [arg1] [arg2]
+
+OPTIONS
+
+    -t, --test <test name>
+        set the test name associated with this result.
+        by default, the test name is the full command line.
+
+    -c, --cluster <cluster name>
+        set the cluster (system) name.
+
+    -b, --build <build>
+        a string to describe the software being run.
+        defaults to the value of BUILD set in the environment; otherwise, 
+        defaults to "dev".
+
+    -p, --performer <performer>
+        the user associated with this test result.
+        defaults to the value of USER set in the environment.
+
+    -l, --log <log file> ** UNIMPLEMENTED **
+        log stdout and stderr to the given file.  file can be specified as 
+        either local or remote (<user>@<host>:<file>).
+
+    -h, --help
+        print this message.
+
+    --
+        discontinue the processing of run options.  interpret the remaining 
+        arguments as the command to be run.
+
+EOF
+;
+
+  my $test=undef;
+  my $build=undef;
+  my $branch=undef;
+  my $performer=undef;
+  my $logspec=undef;
+  my $help=undef;
+  my $cluster=undef;
+  my $start_config = undef;
+  my $end_config = undef;
+  my $log_summary = undef;
+  my $notes = undef;
+
+  if (!GetOptions("t|test=s" => \$test,
+                  "b|build=s" => \$build,
+                  "l|log=s" => \$logspec,
+                  "p|performer=s" => \$performer,
+                  "c|cluster=s" => \$cluster,
+                  "h|help" => \$help))
+  {
+    print "${usage}\n";
+    exit 1;
+  }
+
+  if (defined($help))
+  {
+    print "${usage}\n";
+    exit 0;
+  }
+
+  if (!defined($build))
+  {
+    $build=$ENV{BUILD};
+  }
+  if (!defined($build))
+  {
+    $build="dev";
+  }
+
+  if (!defined($branch))
+  {
+    $branch=$ENV{BRANCH};
+  }
+  if (!defined($branch))
+  {
+    $branch="?";
+  }
+
+  if (!defined($performer))
+  {
+    $performer = `whoami`;
+    chomp($performer);
+  }
+
+  if (!defined($cluster))
+  {
+    $cluster=$ENV{CLUSTER};
+  }
+  if (!defined($cluster))
+  {
+    $cluster="undefined";
+  }
+
+  my $logs_url = undef;
+
+  my $cmd = shift(@ARGV);
+  if (!defined($cmd))
+  {
+    print "${usage}\n";
+    exit 1;
+  }
+
+  $cmd = "${cmd} " . join(" ", @ARGV);
+
+  if (!defined($test))
+  {
+    $test = $cmd;
+  }
+
+  my $retval = undef;
+  my $pass = undef;
+  my $t0 = time();
+  my $t1 = undef;
+
+  my $test_result = undef;
+  qadb::connect() or die "connect failed (${qadb::errno}): ${qadb::errstr}";
+  if (!($test_result = qadb::test_result_insert($test, $pass, $cluster, $start_config, $end_config, $t0, $t1, $build, $branch, $performer, $retval, $logs_url, $log_summary, $notes)))
+  {
+    print "Error (${qadb::errno}): ${qadb::errstr}\n";
+    exit 1;
+  }
+  qadb::disconnect() or die "disconnect failed (${qadb::errno}): ${qadb::errstr}";
+
+  system($cmd);
+  $t1 = time();
+  $retval = ($? >> 8);
+  if ($retval)
+  {
+    $pass=0;
+  }
+  else
+  {
+    $pass=1;
+  }
+
+  qadb::connect() or die "connect failed (${qadb::errno}): ${qadb::errstr}";
+  if (!(qadb::test_result_update($test_result, $test, $pass, $t0, $t1, $build, $performer, $retval, $logs_url, $log_summary, undef)))
+  {
+    print "Error (${qadb::errno}): ${qadb::errstr}\n";
+  }
+  else
+  {
+    print "Done\n";
+    print "Test Result Added: ${test_result}\n";
+  }
+  qadb::disconnect() or die "disconnect failed (${qadb::errno}): ${qadb::errstr}";
+}
+
+################################################################################
+# add
+################################################################################
+sub add()
+{
+  my $usage =
+<<EOF
+NAME
+
+    $0 add - record a test result
+
+SYNOPSIS
+
+    $0 add [options] <test(s)>
+
+DESCRIPTION
+
+    add a test result.  <test> is either the string name of a test or a file
+    which defines a set of test results. test results are defined in a file
+    using the following syntax.
+
+    <test_results>
+    <test_result 
+      test_name="sample"
+      result="PASS"
+      cluster="dev333"
+      performer="jshmoe"
+      build="1234 5678"
+      start_time="2004/07/12 12:00:00"
+      end_time="2004/07/12 12:00:00"
+      proc_exitcode="0"
+      logs_url="http://hc-logs/">
+
+      <start_config>
+[hwstat, systat..]
+      </start_config>
+      <end_config>
+[hwstat, systat..]
+      </end_config>
+
+      <bug>248</bug>
+      <bug>249</bug>
+
+      <metric name="store-bw">24</metric>
+      <metric name="retrieve-bw">32</metric>
+
+      <notes>
+        This is a sample test result.
+      </notes>
+    </test_result>
+    </test_results>
+
+    Any number of <test_result></test_result> tags can be included.
+
+OPTIONS
+
+    -R, --result <1=pass, 0=fail>
+        the result of the test.  1 indicates PASS, 0 FAILURE.
+        defaults to null, or "unknown".
+
+    -c, --cluster <cluster name>
+        set the cluster (system) name.
+
+    -s, --start <YYYY-MM-DD HH:MM:SS>
+        the start time of the test.  defaults to now.
+
+    -e, --end <YYYY-MM-DD HH:MM:SS>
+        the end time of the test.  defaults to now.
+
+    -b, --build <build>
+        a string to describe the software being run.
+        defaults to "dev".
+
+    -p, --performer <performer>
+        the user associated with this test result.
+        defaults to the value of USER set in the environment.
+
+    -r, --retval <process return value>
+        if the test represents a process which ran, this specifies the return
+        value of the test process.
+
+    -l, --logs <logs url>
+        a url which points to the location of the test logs.
+
+    -n, --notes <string | file>
+        small notes to be included with this result.
+
+    -m, --metric "<name>=<value>"
+        associate a metric with the test result.
+
+    -d, --defect <defect>
+        associate this defect with this test result.  multiple -d options
+        may be specified.
+
+    -h, --help
+        print this message.
+
+EOF
+;
+
+  my $test = undef;
+  my $result = undef;
+  my $cluster = undef;
+  my $start_config = undef;
+  my $end_config = undef;
+  my $start_time = undef;
+  my $end_time = undef;
+  my $build = undef;
+  my $branch = undef;
+  my $performer = undef;
+  my $proc_retval = undef;
+  my $logs_url = undef;
+  my $log_summary = undef;
+  my $notes = undef;
+  my @metrics = ();
+  my @defects = ();
+  my $help=undef;
+  
+  if (!GetOptions("R|result=s" => \$result,
+                  "c|cluster=s" => \$cluster,
+                  "s|start=s" => \$start_time,
+                  "e|end=s" => \$end_time,
+                  "b|build=s" => \$build,
+                  "p|performer=s" => \$performer,
+                  "r|retval=i" => \$proc_retval,
+                  "l|logs=s" => \$logs_url,
+                  "n|notes=s" => \$notes,
+                  "m|metric=s" => \@metrics,
+                  "d|defect=s" => \@defects,
+                  "h|help" => \$help))
+  {
+    print "${usage}\n";
+    exit 1;
+  }
+
+  if (defined($help))
+  {
+    print "${usage}\n";
+    exit 0;
+  }
+
+  my $test_name = undef;
+  $test = shift(@ARGV);
+  if (-f $test || $test =~ /^-$/)
+  {
+    if (-f $test)
+    {
+      if (!open(RESULTS, "<${test}"))
+      {
+        print("unable to open results file: ${test}");
+        exit 1;
+      }
+    }
+    elsif (!open(RESULTS, "<&STDIN"))
+    {
+      print("unable to open standard input");
+      exit 1;
+    }
+    my $results = "";
+    my $state = 0; # 0 = start
+                   # 1 = found <test_result
+                   # 2 = found </test_result>
+                   
+    my $dom = XMLin($test, ForceArray => 1, KeyAttr => "");
+    # print Dumper($dom);
+    if (defined($dom->{test_result}))
+    {
+      foreach my $test_result (@{$dom->{test_result}})
+      {
+        $test_name = $test_result->{test_name};
+        $result = $test_result->{result};
+        $cluster = $test_result->{cluster};
+        $start_time = $test_result->{start_time};
+        $end_time = $test_result->{end_time};
+        $build = $test_result->{build};
+        $branch = $test_result->{branch};
+        $performer = $test_result->{performer};
+        $proc_retval = $test_result->{proc_retval};
+        $logs_url = $test_result->{logs_url};
+        if (defined($test_result->{start_config}))
+        {
+          foreach my $conf (@{$test_result->{start_config}})
+          {
+            $start_config .= "${conf}";
+          }
+        }
+        if (defined($test_result->{end_config}))
+        {
+          foreach my $conf (@{$test_result->{end_config}})
+          {
+            $end_config .= "${conf}";
+          }
+        }
+        if (defined($test_result->{log_summary}))
+        {
+          foreach my $summ (@{$test_result->{log_summary}})
+          {
+            $log_summary .= "${summ}";
+          }
+        }
+#print $start_config, "\n\n===\n\n";
+#print $end_config, "\n\n===\n\n";
+#print $log_summary, "\n\n===\n\n";
+        if (defined($test_result->{notes}))
+        {
+          foreach my $note (@{$test_result->{notes}})
+          {
+            $notes .= "${note}\n";
+          }
+        }
+        if (defined($test_result->{bug}))
+        {
+          @defects = @{$test_result->{bug}};
+        }
+        if (defined($test_result->{metric}))
+        {
+          my $i=0;
+          foreach my $metric (@{$test_result->{metric}})
+          {
+            my $name = $metric->{name};
+            my $value = $metric->{content};
+
+            if (!defined($value))
+            {
+              print("skipping metric w/ undefined value: " . $name . "\n");
+            }
+            else
+            {
+              # print " metric n/v: " . $name . " / " . $value . "\n";
+              $metrics[$i++] = "${name}=${value}";
+            }
+          }
+        }
+        do_add($test_name, $result, $cluster, $start_config, $end_config, $start_time, $end_time, $build, $branch, $performer, $proc_retval, $logs_url, $log_summary, $notes, \@defects, \@metrics);
+        $test = undef;
+        $result = undef;
+        $cluster = undef;
+        $start_config = undef;
+        $end_config = undef;
+        $log_summary = undef;
+        $start_time = undef;
+        $end_time = undef;
+        $build = undef;
+        $branch = undef;
+        $performer = undef;
+        $proc_retval = undef;
+        $logs_url = undef;
+        $notes = undef;
+        @metrics = ();
+        @defects = ();
+      }
+    }
+  } 
+  else 
+  {
+    $test_name = $test;
+
+    if (!defined($test_name))
+    {
+      print("invalid args: must specify a test\n");
+      exit 1;
+    }
+   
+    foreach my $metric (@metrics)
+    {
+      if ($metric !~ /[^=]+=.*/)
+      {
+        print("invalid metric spec: ${metric}\n");
+        exit 1;
+      }
+    }
+
+    if (defined($notes) && -f $notes)
+    {
+      if (!open(NOTES, "<${notes}"))
+      {
+        print("error: unable to open notes file, ${notes}\n");
+        exit(1);
+      }
+      my @_notes = <NOTES>;
+      $notes = join("",@_notes);
+    }
+
+    do_add($test_name, $result, $cluster, $start_config, $end_config, $start_time, $end_time, $build, $branch, $performer, $proc_retval, $logs_url, $log_summary, $notes, \@defects, \@metrics);
+  }
+}
+
+sub do_add($$$$$$$$$$$$$)
+{
+  my ($test_name, $result, $cluster, $start_config, $end_config, $start_time, $end_time, $build, $branch, $performer, $proc_retval, $logs_url, $log_summary, $notes, $_defects, $_metrics) = @_;
+
+  my @defects = @{$_defects};
+  my @metrics = @{$_metrics};
+ 
+  if (!defined($cluster))
+  {
+    $cluster=$ENV{CLUSTER};
+  }
+  if (!defined($cluster))
+  {
+    $cluster="undefined";
+  }
+ 
+  if (!defined($start_time))
+  {
+    $start_time = time();
+  }
+  else
+  {
+    $start_time = `date -d "${start_time}" +%s`;
+    chomp($start_time);
+  }
+
+  if (!defined($end_time))
+  {
+    $end_time = time();
+  }
+  else
+  {
+    $end_time = `date -d "${end_time}" +%s`;
+    chomp($end_time);
+  }
+
+  if (!defined($build))
+  {
+    $build="dev";
+  }
+
+  if (!defined($branch))
+  {
+    $branch="unknown";
+  }
+  if (!defined($performer))
+  {
+    $performer = `whoami`;
+    chomp($performer);
+  }
+
+  my $test_result = undef;
+  qadb::connect() or die "connect failed (${qadb::errno}): ${qadb::errstr}";
+  if (!($test_result = qadb::test_result_insert($test_name, $result, $cluster, $start_config, $end_config, $start_time, $end_time, $build, $branch, $performer, $proc_retval, $logs_url, $log_summary, $notes)))
+  {
+    print "Error (${qadb::errno}): ${qadb::errstr}\n";
+  }
+
+  foreach my $defect (@defects)
+  {
+    if (!qadb::result_bug_insert($test_result, $defect))
+    {
+      print "Error (${qadb::errno}): ${qadb::errstr}\n";
+      last;
+    }
+  }
+  
+  foreach my $metric (@metrics)
+  {
+    # metrics has already been syntax checked above.
+    my ($name, $value) = ($metric =~ /([^=]+)=(.*)$/);
+    if (!qadb::result_metric_insert($test_result, $name, $value))
+    {
+      print "Error (${qadb::errno}): ${qadb::errstr}\n";
+      last;
+    }
+  }
+  
+  print "Test Result Inserted: ${test_result}\n";
+
+  qadb::disconnect() or die "disconnect failed (${qadb::errno}): ${qadb::errstr}";
+}
+
+################################################################################
+# update
+################################################################################
+sub update()
+{
+  my $usage =
+<<EOF
+NAME
+
+    $0 update - update a test result
+
+SYNOPSIS
+
+    $0 update [options] <result id>
+
+DESCRIPTION
+
+    update a test result.
+
+OPTIONS
+
+    -t, --test <test name>
+        set the test name associated with this result.
+
+    -R, --result <1=pass, 0=fail>
+        set the result of the test.  1 indicates PASS,
+        0 FAILURE.
+
+    -s, --start <YYYY-MM-DD HH:MM:SS>
+        set the start time of the test.
+
+    -e, --end <YYYY-MM-DD HH:MM:SS>
+        set the end time of the test.
+
+    -b, --build <build>
+        set the build.
+
+    -p, --performer <performer>
+        set the user associated with this test result.
+
+    -r, --retval <process return value>
+        set the return value of the test.
+
+    -L, --log <log file url> 
+        set the log url
+
+    -l, --log_summary <log summary file>
+        add summary
+
+    -d, --defect <defect id>
+        set the defect list associated with this test result.  
+        multiple -d options may be specified.
+
+    -h, --help
+        print this message.
+
+EOF
+;
+
+  my $result_id = undef;
+  my $test = undef;
+  my $result = undef;
+  my $start_time = undef;
+  my $end_time = undef;
+  my $build = undef;
+  my $performer = undef;
+  my $proc_retval = undef;
+  my $logs_url = undef;
+  my $log_summary = undef;
+  my @defects = ();
+  my $help=undef;
+  
+  if (!GetOptions("t|test=s" => \$test,
+                  "R|result=s" => \$result,
+                  "s|start=s" => \$start_time,
+                  "e|end=s" => \$end_time,
+                  "b|build=s" => \$build,
+                  "p|performer=s" => \$performer,
+                  "r|retval=i" => \$proc_retval,
+                  "L|log=s" => \$logs_url,
+                  "l|log_summary=s" => \$log_summary,
+                  "d|defect=i" => \@defects,
+                  "h|help" => \$help))
+  {
+    print "${usage}\n";
+    exit 1;
+  }
+
+  if (defined($help))
+  {
+    print "${usage}\n";
+    exit 0;
+  }
+
+  $result_id = shift(@ARGV);
+  if (!defined($result_id))
+  {
+    print "${usage}\n";
+    exit 1;
+  }
+
+  if (defined($start_time))
+  {
+    $start_time = `date -d "${start_time}" +%s`;
+    chomp($start_time);
+  }
+
+  if (defined($end_time))
+  {
+    $end_time = `date -d "${end_time}" +%s`;
+    chomp($end_time);
+  }
+
+  if (defined($log_summary))
+  {
+    $log_summary = `cat $log_summary`;
+  }
+
+  qadb::connect() or die "connect failed (${qadb::errno}): ${qadb::errstr}";
+  if (!qadb::test_result_update($result_id, $test, $result, $start_time, $end_time, $build, $performer, $proc_retval, $logs_url, $log_summary, \@defects))
+  {
+    print "Error (${qadb::errno}): ${qadb::errstr}\n";
+  }
+
+  print "Test Result Updated: ${result_id}\n";
+
+  qadb::disconnect() or die "disconnect failed (${qadb::errno}): ${qadb::errstr}";
+}
+
+################################################################################
+# results
+################################################################################
+sub results()
+{
+  my $usage =
+<<EOF
+NAME
+
+    $0 results - list test results
+
+SYNOPSIS
+
+    $0 results [options]
+
+DESCRIPTION
+
+    list test results.
+
+OPTIONS
+
+    -i, --id <test id>
+
+        Print results of <test id>. Incompatible with -w and -c.
+        Default orderby is "id asc", default format is 
+
+            %d %I %T %R %b %C (%S - %E) %P %M %D %B %A %Z %L %l %N
+
+    -s  --summary
+
+        Print summary before list of results. Summary includes total
+        pass/fail and deltas.
+
+    -c, --checkpoint <branch>
+        selects where end_date is >= last date in checkpoint file in
+        \$HOME/.qadate/c_last.<branch> and updates the file. If the file
+        does not exist, the user is requested to create it. 
+        Use of the 'id' or 'where' option is not allowed with -c. Default 
+        sort order is 'id asc' instead of 'id desc'.
+
+    -C, --Checkpoint
+        an all-branches version of -c, checkpoint file is \$HOME/.qadate/c_last.
+
+    -w, --where <where clause>
+        an sql where clause used as a filter over the results.  variables 
+        available in the where clause are...
+
+            id - the id of the test result
+            pass - 1=pass 0=fail
+            test - the string name of the test
+            start_time - YYYY-MM-DD HH:MM:SS
+            end_time - YYYY-MM-DD HH:MM:SS
+            build - the string name of the build
+            performer - the string name of the user who performed the test
+            proc_retval - the return value of a test process
+
+        by default $0 results will list all results.
+        examples.
+
+            --where "test='foo'"
+            --where "(test='foo' and build='bar')"
+            --where "(test='foo' and start_time >= '2003-01-13 12:00:00')"
+            --where "test='foo' and pass=0"
+
+    -m, --matrix <matrix>
+        filter the result to only include items from the given 
+        matrix.  any number of matrix options can be specified.  $0 results
+        will list test results from any of the matrices specified.
+
+    -o, --orderby <order by clause>
+        an sql order by clause used to order the test results.  variables
+        available in the order by clause are...
+
+            id - the id of the test result
+            pass - 1=pass 0=fail
+            test - the string name of the test
+            start_time - YYYY-MM-DD HH:MM:SS
+            end_time - YYYY-MM-DD HH:MM:SS
+            build - the string name of the build
+            performer - the string name of the user which performed the test
+            proc_retval - the return value of a test process
+
+        by default $0 sorts results by id in descending order.
+        examples.
+
+            --orderby "test desc"
+            --orderby "end_time asc"
+
+    -F, --format
+        specify a custom format string for each test result.
+            %I - test result ID
+            %T - test name
+            %R - test result (1=pass, 0=fail)
+            %C - cluster/host name
+            %A - start config
+            %Z - end config
+            %S - start time
+            %E - end time
+            %r - process retval
+            %B - build
+            %b - branch
+            %P - performer
+            %L - log url
+            %l - log summary
+            %N - notes
+            %D - defect list
+            %d - change since previous test on this branch
+            %M - metric list
+            %% - print a percent
+        an integer specified after the '%' forces the number of 
+        characters printed for the value.  eg, "%16T" prints 16 characters
+        per test name.  if the test name is longer than 16 characters, the
+        name gets truncated.  if it is shorter, the name is padded by spaces.
+        setting the environment variable QB_RESULT_FORMAT is equivalent
+        to using this option. The variable QB_RESULT_COLOR can be used to 
+        set every other line of result output to some other ansi color. For
+        example QB_RESULT_COLOR='red' will print every other result in red
+        and QB_RESULT_COLOR='black on_yellow' will print every other result
+        in black on a yellow background.
+
+    -h, --help
+        print this message.
+
+EOF
+;
+
+  my $in_id = undef;
+  my $where = undef;
+  my $checkpoint_all = undef;
+  my $checkpoint_branch = undef;
+  my $checkpoint = undef;
+  my $matrix = undef;
+  my $orderby = undef;
+  my $format = undef;
+  my $summary = undef;
+  my $help = undef;
+  my $newdate = undef;
+
+  if (!GetOptions("i|id=s" => \$in_id,
+                  "w|where=s" => \$where,
+                  "C|Checkpoint" => \$checkpoint_all,
+                  "c|checkpoint=s" => \$checkpoint_branch,
+                  "m|matrix=s" => \$matrix,
+                  "o|orderby=s" => \$orderby,
+                  "F|format=s" => \$format,
+                  "s|summary" => \$summary,
+                  "h|help" => \$help))
+  {
+    print "${usage}\n";
+    exit 1;
+  }
+  if (defined($help))
+  {
+    print "${usage}\n";
+    exit 0;
+  }
+  if (defined($checkpoint_all) && defined($checkpoint_branch))
+  {
+    print "Only 1 checkpoint allowed (-c or -C)\n";
+    exit 1;
+  }
+
+  if (defined($checkpoint_all) || defined($checkpoint_branch))
+  {
+    $checkpoint = "yes";
+  }
+
+  if (defined($in_id))
+  {
+    if (defined($checkpoint)  ||  defined($where))
+    {
+      print("'-i' is incompatible with -w and -c\n\n");
+      exit 1;
+    }
+
+    $where = "id = " . $in_id;
+
+    if (!defined($orderby))
+    {
+      $orderby = "id asc";
+    }
+    if (!defined($format))
+    {
+      $format = "%d %I %T %R %b %C (%S - %E) %P %M %D %B %A %Z %L %l %N";
+    }
+  }
+  my $checkpoint_file = undef;
+  if (defined($checkpoint))
+  {
+    if (defined($where))
+    {
+      print("'checkpoint' and 'where' options are incompatible\n\n");
+      exit 1;
+    }
+    if (!defined($orderby))
+    {
+      $orderby = "id asc";
+    }
+    if (defined($checkpoint_all))
+    {
+      $checkpoint_file = "$ENV{HOME}/.qadata/c_last";
+    }
+    else
+    {
+      $checkpoint_file = "$ENV{HOME}/.qadata/c_last." . $checkpoint_branch;
+    }
+    if ( (-r $checkpoint_file) && (-w $checkpoint_file) && 
+         ( -s $checkpoint_file) )
+    {
+      my $cpdate = `cat $checkpoint_file`;
+      chomp($cpdate);
+      print("Tests completed since ", $cpdate, "\n\n");
+      $where = "end_time >= '";
+      $where .= $cpdate;
+      $where .= "'";
+      $newdate = `date +"%F %T"`;
+      if (defined($checkpoint_branch))
+      {
+        $where .= " and branch=\"$checkpoint_branch\"";
+      }
+    }
+    else
+    {
+      print("\tCheckpoint file $checkpoint_file must exist\n");
+      print("\tand be readwrite.\n");
+      print("\tThe option will select all tests that ended after the date\n");
+      print("\tand update it to the current one.\n");
+      print("\tDate format is CCYY-MM-DD HH:MM:SS (24-hour clock)\n");
+      print("\t(as in 'date +\"%F %T\"').\n\n");
+      exit 1;
+    }
+  }
+  if (!defined($orderby))
+  {
+    $orderby = "id desc";
+  }
+
+  if (!defined($format))
+  {
+    $format = $ENV{QB_RESULT_FORMAT};
+  }
+  if (!defined($format))
+  {
+    $format = "%I %R %C %E %B %T";
+  }
+
+  my $header = "";
+  my $get_delta = undef;
+  my $index = 0;
+  while ($index < length($format))
+  {
+    my $next = substr($format, $index);
+    if ($next !~ /^(\%([0-9]*)([ITRCAZSErBbPLlNDdM\%]))/)
+    {
+      my ($chars) = ($next =~ /^([^\%]+)/);
+      $header .= $chars;
+      $index += length($chars);
+    }
+    else
+    {
+      my ($format_str, $num_chars, $placeholder) = ($1, $2, $3);
+      #print("format_str(${format_str}), num_chars(${num_chars}), placeholder(${placeholder})\n");
+      $index += length($format_str);
+      if ($placeholder =~ /I/)
+      {
+        $header .= "test_id";
+      }
+      elsif ($placeholder =~ /T/)
+      {
+            $header .= "test_name";
+      }
+      elsif ($placeholder =~ /R/)
+      {
+            $header .= "result";
+      }
+      elsif ($placeholder =~ /C/)
+      {
+            $header .= "cluster";
+      }
+      elsif ($placeholder =~ /A/)
+      {
+            $header .= "start_config";
+      }
+      elsif ($placeholder =~ /Z/)
+      {
+            $header .= "end_config";
+      }
+      elsif ($placeholder =~ /S/)
+      {
+            $header .= "start_time";
+      }
+      elsif ($placeholder =~ /E/)
+      {
+            $header .= "end_time";
+      }
+      elsif ($placeholder =~ /r/)
+      {
+            $header .= "proc_retval";
+      }
+      elsif ($placeholder =~ /B/)
+      {
+            $header .= "build";
+      }
+      elsif ($placeholder =~ /b/)
+      {
+            $header .= "branch";
+      }
+      elsif ($placeholder =~ /P/)
+      {
+            $header .= "performer";
+      }
+      elsif ($placeholder =~ /L/)
+      {
+            $header .= "log_url";
+      }
+      elsif ($placeholder =~ /l/)
+      {
+            $header .= "log_summary";
+      }
+      elsif ($placeholder =~ /D/)
+      {
+            $header .= "bugs";
+      }
+      elsif ($placeholder =~ /d/)
+      {
+        $header .= "delta";
+        $get_delta = "Y";
+      }
+      elsif ($placeholder =~ /M/)
+      {
+        $header .= "metrics";
+      }
+    }
+  }
+
+  if (defined($where) && $where =~/today/)
+  {
+    my $today = `date "+%h %d %Y"`;
+    chomp($today);
+    $today = "'$today  12:01AM'";
+    $where =~ s/today/$today/;
+  }
+
+  qadb::connect() or die "connect failed (${qadb::errno}): ${qadb::errstr}";
+  my ($success, $rows) = qadb::test_result_query($where, $matrix, $orderby);
+
+  if (!$success)
+  {
+    print "Error (${qadb::errno}): ${qadb::errstr}\n";
+  }
+  else
+  {
+    my @tests = ();
+
+    my $i = 0;
+
+    my $pass_total = 0;
+    my $fail_total = 0;
+    my $no_delta = 0;
+    my $bad_to_good = 0;
+    my $good_to_bad = 0;
+
+    foreach my $row (@$rows)
+    {
+      # get data
+      my ($id, $test, $pass, $cluster, $start_config, $end_config, $start_time, $end_time, $build, $branch, $performer, $proc_retval, $logs_url, $log_summary, $notes) = @$row;
+
+      if ( $pass == 1 )
+      {
+        $pass_total++;
+      }
+      else
+      {
+        $fail_total++;
+      }
+
+      my $delta = undef;
+      if ((defined($get_delta) || defined($summary)) && defined($branch))
+      {
+        my ($ok, $rows2) = qadb::prev_result($id, $test, $branch);
+        if ($ok)
+        {
+          my $gotone = undef;
+          foreach my $row2 (@$rows2)
+          {
+             $gotone = "yes";
+             my ($o_id, $prev) = @$row2;
+
+             if ( $pass == 1 )
+             {
+               if ( $prev == 1)
+               {
+                 $no_delta++;
+                 $delta = "==";
+               }
+               else
+               {
+                 $delta = ":)";
+                 $bad_to_good++;
+               }
+             }
+             else
+             {
+               if ( $prev == 1)
+               {
+                 $delta = ":(";
+                 $good_to_bad++;
+               }
+               else
+               {
+                 $no_delta++;
+                 $delta = "==";
+               }
+             }
+             last;
+          }
+          if (!defined($gotone))
+          {
+            if ( $pass == 1 )
+            {
+              $delta = ":)";
+              $bad_to_good++;
+            }
+            else
+            {
+              $delta = ":(";
+              $good_to_bad++;
+            }
+          }
+        }
+        else
+        {
+          print "Error prev_result() (${qadb::errno}): ${qadb::errstr}\n";
+        }
+      }
+      if (!defined($delta))
+      {
+        $delta = "__";
+      }
+
+      my $bug_rows = qadb::result_bug_query("result = ${id}");
+      my @bugs = ();
+      foreach my $bug_row (@$bug_rows)
+      {
+        my ($result, $bug) = @$bug_row;
+        push(@bugs, $bug);
+      }
+
+      my $metric_rows = qadb::result_metric_query("result = ${id}");
+      my @metrics = ();
+      foreach my $metric_row (@$metric_rows)
+      {
+        push(@metrics, $metric_row);
+      }
+
+      # format data
+
+      my $test_info = "";
+
+      my $index = 0;
+      while ($index < length($format))
+      {
+        my $next = substr($format, $index);
+        if ($next !~ /^(\%([0-9]*)([ITRCAZSErBbPLlNDdM\%]))/)
+        {
+          my ($chars) = ($next =~ /^([^\%]+)/);
+          $test_info .= ${chars};
+          # print(${chars});
+          $index += length($chars);
+        }
+        else
+        {
+          my ($format_str, $num_chars, $placeholder) = ($1, $2, $3);
+          #print("format_str(${format_str}), num_chars(${num_chars}), placeholder(${placeholder})\n");
+          $index += length($format_str);
+          my $value = "";
+          if ($placeholder =~ /I/)
+          {
+            $value = $id;
+          }
+          elsif ($placeholder =~ /T/)
+          {
+            $value = $test;
+          }
+          elsif ($placeholder =~ /R/)
+          {
+            # pass
+            if (!defined($pass))
+            {
+              $value = "-";
+            }
+            else
+            {
+              ($value) = ($pass =~ /^([01])$/);
+              if ($value == "1")
+              {
+                ($value) = "PASS";
+              }
+              else 
+              {
+                ($value) = "FAIL";
+              }
+            }
+          }
+          elsif ($placeholder =~ /C/)
+          {
+            $value = $cluster;
+          }
+          elsif ($placeholder =~ /A/)
+          {
+            $value = $start_config;
+          }
+          elsif ($placeholder =~ /Z/)
+          {
+            $value = $end_config;
+          }
+          elsif ($placeholder =~ /S/)
+          {
+            # start_time
+            $start_time = `echo $start_time | sed 's/200.-//'`;
+            chomp($start_time);
+            $value = $start_time;
+          }
+          elsif ($placeholder =~ /E/)
+          {
+            $end_time = `echo $end_time | sed 's/200.-//'`;
+            chomp($end_time);
+            $value = $end_time;
+          }
+          elsif ($placeholder =~ /r/)
+          {
+            $value = $proc_retval;
+          }
+          elsif ($placeholder =~ /B/)
+          {
+            $value = $build;
+          }
+          elsif ($placeholder =~ /b/)
+          {
+            $value = $branch;
+          }
+          elsif ($placeholder =~ /P/)
+          {
+            $value = $performer;
+          }
+          elsif ($placeholder =~ /L/)
+          {
+            $value = $logs_url;
+          }
+          elsif ($placeholder =~ /l/)
+          {
+            $value = $log_summary;
+          }
+          elsif ($placeholder =~ /N/)
+          {
+            $value = $notes;
+          }
+          elsif ($placeholder =~ /d/)
+          {
+            $value = $delta;
+          }
+          elsif ($placeholder =~ /D/)
+          {
+            foreach my $bug (@bugs)
+            {
+              $value .= "${bug} ";
+            }
+          }
+          elsif ($placeholder =~ /M/)
+          {
+            # metrics
+            foreach my $metric (@metrics)
+            {
+# %%
+              $value .= "\n\t";
+              $value .= $$metric[0];
+              $value .= "\t";
+              my $len = length($$metric[0]);
+              if ( $len < 16) 
+              {
+                $value .= "\t";
+              }
+              $value .= $$metric[1];
+              if (index($$metric[0], "rate") != -1  &&  index($$metric[0], "bytes") == -1)
+              {
+                $value .= " bytes/sec";
+              }
+              elsif (index($$metric[0], "thruput") != -1  &&  index($$metric[0], "msec") == -1)
+              {
+                $value .= " msec/record";
+              }
+            }
+            $value .= "\n";
+          }
+          elsif ($placeholder =~ /\%/)
+          {
+            $value = "%";
+          }
+          if (!defined($value))
+          {
+            $value = "?";
+          }
+          if (length($num_chars) > 0)
+          {
+            $value = substr($value, 0, scalar($num_chars));
+          }
+          $test_info .= $value;
+          # printf("%${num_chars}s", $value);
+        }
+      }
+      $test_info .= "\n";
+      push(@tests, $test_info);
+      # print("\n");
+      $i++;
+    }
+
+    # output
+
+    if ( $i > 0 )
+    {
+      if (defined($summary))
+      {
+        print "============== summary\n";
+        print "total: " . $i . "\n";
+        print "pass:  " . $pass_total . "\n";
+        print "fail:  " . $fail_total . "\n";
+        if (defined($get_delta))
+        {
+          print "====== deltas\n";
+          print ":)     " . $bad_to_good . "\n";
+          print ":(     " . $good_to_bad . "\n";
+          print "==     " . $no_delta . "\n";
+        }
+        print "==============\n";
+      }
+      print($header, "\n\n");
+
+      $i = 0;
+      foreach my $test_info (@tests)
+      {
+        # print "GOT " . $line);
+        if (defined($ENV{'QB_RESULT_COLOR'}))
+        {
+          if ( ($i % 2 ) == 0)
+          {
+            print color $ENV{'QB_RESULT_COLOR'};
+          }
+          else
+          {
+            print color 'reset';
+          }
+        }
+
+        print $test_info;
+
+        if (defined($ENV{'QB_RESULT_COLOR'}))
+        {
+          print color 'reset';
+        }
+        $i++;
+      }
+      if (defined($ENV{'QB_RESULT_COLOR'}))
+      {
+        print color 'reset';
+      }
+      print "======================\n";
+    }
+    if (defined($checkpoint)  &&  $i > 0)
+    {
+      if (!defined($newdate))
+      {
+        print "prgraomemr error: newdate not defined\n";
+      }
+      else
+      {
+        open(DAT,">$checkpoint_file") || 
+	  die("Cannot open checkpoint file for write (", $checkpoint_file, ")");
+        print DAT "$newdate";
+        close(DAT);
+      }
+    }
+
+  }
+  qadb::disconnect() or die "disconnect failed (${qadb::errno}): ${qadb::errstr}";
+}
+
+################################################################################
+# report
+################################################################################
+sub report()
+{
+  my $usage =
+<<EOF
+NAME
+
+    $0 report - generate a test report
+
+SYNOPSIS
+
+    $0 report [OPTIONS]
+
+DESCRIPTION
+
+    for each matrix specified, $0 report will analyze the latest test results
+    and generate statistics for
+
+        # tests
+        # pass
+        # fail
+        # regressions
+        # new passes
+
+OPTIONS
+
+    -m, --matrix <matrix>
+        generate a report for the given matrix.  any number of matrix
+        options can be specified.  if <matrix> points to a file, read the file
+	and generate reports for each newline-separated matrix listed.
+        # comments can be used.  empty lines are ignored.
+
+    -b, --build <build>
+        generate a report for the given build.  any number of build
+        options can be specified.
+
+    -w, --where <where clause>
+        an sql where clause used as a filter over the results.
+        available in the where clause are...
+
+            id - the id of the test result
+            pass - 1=pass 0=fail
+            test - the string name of the test
+            start_time - YYYY-MM-DD HH:MM:SS
+            end_time - YYYY-MM-DD HH:MM:SS
+            build - the string name of the build
+            performer - the string name of the user which performed the test
+            proc_retval - the return value of a test process
+
+        examples.
+
+            --where "test='foo'"
+            --where "(test='foo' and build='bar')"
+            --where "(test='foo' and start_time >= '2001-01-13 12:00:00')"
+            --where "test='foo' and pass=0"
+
+    -v, --verbose
+        in addition to printing the stats above, print a listing of each
+        latest test result in the matrix.
+
+        at the beginning of each line, a string of characters is printed to
+        indicate other interesting information about the given test result.
+
+        new pass 
+        the status string containing a '*' indicates that the test has
+        transitioned from a fail to a pass between the previous and
+        most recent build.
+
+        regression
+        the status string containing a '!' indicates that the test has
+        transitioned from a pass to a fail between the previous and
+        most recent build.
+
+        pass/fail fluctuation
+        the status string containing a '~' indicates that the test has
+        both passed and failed for the latest build.
+
+    -F, --format
+        specify a custom format string for each test result.
+            %s - status string
+            %I - test result ID
+            %T - test name
+            %R - test result (1=pass, 0=fail)
+            %C - cluster/host
+            %A - start config
+            %Z - end config
+            %S - start time
+            %E - end time
+            %r - process retval
+            %B - build
+            %b - branch
+            %P - performer
+            %L - log url
+            %l - log summary
+            %N - notes
+            %D - defect list
+            %M - metric list
+            %% - print a percent
+        an integer specified after the '%' forces the number of 
+        characters printed for the value.  eg, "%16T" prints 16 characters
+        per test name.  if the test name is longer than 16 characters, the
+        name gets truncated.  if it is shorter, the name is padded by spaces.
+        setting the environment variable QB_RESULT_FORMAT is equivalent
+        to using this option.
+
+    -h, --help
+        print this message
+
+EOF
+;
+
+  my @matrix_opts = ();
+  my $where = undef;
+  my $verbose = undef;
+  my $format = undef;
+  my $help = undef;
+  
+  if (!GetOptions("m|matrix=s" => \@matrix_opts,
+                  "w|where=s" => \$where,
+                  "v|verbose" => \$verbose,
+                  "F|format=s" => \$format,
+                  "h|help" => \$help))
+  {
+    print "${usage}\n";
+    exit 1;
+  }
+
+  if (defined($help))
+  {
+    print "${usage}\n";
+    exit 0;
+  }
+
+  if (!defined($format))
+  {
+    $format = $ENV{QB_RESULT_FORMAT};
+  }
+  if (!defined($format))
+  {
+    $format = "%2s %I %R %E %B %b %T";
+  }
+
+  my $matrices = "";
+  my $total = "";
+
+  my $total_tests = 0;
+  my $total_pass = 0;
+  my $total_fail = 0;
+  my $total_regressions = 0;
+  my $total_new_passes = 0;
+  my $total_pass_percentage = 0; 
+  my $total_fail_percentage = 0;
+  my $total_not_run = 0;
+
+  my @matrices = ();
+  foreach my $matrix_opt (@matrix_opts)
+  {
+    if ( -f $matrix_opt)
+    {
+      if (!open(FILE, "<${matrix_opt}"))
+      {
+        print("ERROR: unable to open file: ${matrix_opt}\n") ;
+        exit 1;
+      }
+      while (<FILE>)
+      {
+        my $line = $_;
+        chomp($line);
+    
+        if (!$line || $line =~ /^\s*#/ || $line =~ /^\s*$/)
+        {
+          next;
+        }
+        
+        my ($leading_space, $trailing_space);
+    
+        ($leading_space, $line, $trailing_space) = ($line =~ /^(\s*)(.+\S)(\s*)$/);
+
+        push(@matrices, $line);
+      }
+    }
+    else
+    {
+      push(@matrices, $matrix_opt);
+    }
+  }
+
+  if ($#matrices == -1)
+  {
+    print "no matrices defined\n";
+    return;
+  }
+  qadb::connect() or die "connect failed (${qadb::errno}): ${qadb::errstr}";
+
+  foreach my $matrix (@matrices)
+  {
+    #print
+    $matrices .=
+<<EOF
+********************************************************************************
+matrix: ${matrix}
+
+EOF
+;
+    my ($success, $matrix_rows) = qadb::matrix_member_query("matrix = '${matrix}'");
+    if (!$success)
+    {
+      print "Error (${qadb::errno}): ${qadb::errstr}\n";
+    }
+    else
+    {
+      my $mtx_total_tests = 0;
+      my $mtx_total_pass = 0;
+      my $mtx_total_fail = 0;
+      my $mtx_total_regressions = 0;
+      my $mtx_total_new_passes = 0;
+      my $mtx_total_not_run = 0;
+      my $i = 0;
+      foreach my $matrix_row (@$matrix_rows)
+      {
+        if (defined($ENV{'QB_RESULT_COLOR'}))
+        {
+          $i++;
+          if ($i % 2 == 0)
+          {
+            print color $ENV{'QB_RESULT_COLOR'};
+          }
+          else
+          {
+            print color 'reset';
+          }
+        }
+        $mtx_total_tests++;
+
+        my $test = undef;
+        ($matrix, $test) = (@$matrix_row);
+
+        my $_where = "(test = \"${test}\") and (pass != null)";
+        if (defined($where))
+        {
+          $_where = "(${_where}) and (${where})";
+        }
+        my $test_result_rows = undef;
+        ($success, $test_result_rows) = qadb::test_result_query($_where, undef, undef);
+  
+        my $new_change = 0;
+        my $num_pass = 0;
+        my $num_fail = 0;
+  
+        my ($id, $pass, $cluster, $start_config, $end_config, $start_time, $end_time, $build, $branch, $performer, $proc_retval, $logs_url, $log_summary, $notes) = (undef, undef, undef, undef, undef, undef, undef, undef, undef, undef, undef, undef, undef, undef);
+        my @bugs = ();
+        my @metrics = ();
+    
+        my $test_result_row = $test_result_rows->[0];
+        if (defined($test_result_row))
+        {
+          ($id, $test, $pass, $cluster, $start_config, $end_config, $start_time, $end_time, $build, $branch, $performer, $proc_retval, $logs_url, $log_summary, $notes) = @$test_result_row;
+  
+          if ($pass =~ /^01$/)
+          {
+            $num_pass++;
+            $mtx_total_pass++;
+          }
+          else
+          {
+            $num_fail++;
+            $mtx_total_fail++;
+          }
+
+          my $bug_rows = qadb::result_bug_query("result = ${id}");
+          my @bugs = ();
+          foreach my $bug_row (@$bug_rows)
+          {
+            my ($result, $bug) = @$bug_row;
+            push(@bugs, $bug);
+          }
+  
+          my $metric_rows = qadb::result_metric_query("result = ${id}");
+          my @metrics = ();
+          foreach my $metric_row (@$metric_rows)
+          {
+            push(@metrics, $metric_row);
+          }
+
+          shift(@$test_result_rows);
+  
+          foreach $test_result_row (@$test_result_rows)
+          {
+            #print("NEXT!\n");
+            my ($nextid, $nexttest, $nextpass, $nextcluster, $nextstart_config, $nextend_config,  $nextstart_time, $nextend_time, $nextbuild, $nextperformer, $nextproc_retval, $nextlogs_url, $nextlog_summary, $next_notes) = @$test_result_row;
+  
+            if ((!defined($build) && defined($nextbuild)) || (defined($build) && !defined($nextbuild)) || ($build !~ $nextbuild))
+            {
+              #print("${build} != ${nextbuild}\n");
+              last;
+            }
+            else
+            {
+              #print("${pass}\n");
+  
+              # check for new change.
+              if (($num_pass + $num_fail) == 1 && ($nextpass !~ $pass))
+              {
+                #print("\$newchange = 1\n");
+                $new_change = 1;
+              }
+            }
+          }
+        }
+
+        my $status = "";
+        # new change 
+        if ($new_change)
+        {
+          if ($pass =~ /^01$/)
+          {
+            $status .= "*";
+            $mtx_total_new_passes++;
+          }
+          else
+          {
+            $status .= "!";
+            $mtx_total_regressions++;
+          }
+        }
+        # build flux
+        if ($num_pass != 0 && $num_fail != 0)
+        {
+          $status .= "~";
+        }
+  
+        #print("${new_change} ${num_pass} ${num_fail}\n");
+        my $i = 0;
+  
+        if (defined($verbose))
+        {
+          my $index = 0;
+          my $delta = "unimpl";
+          while ($index < length($format))
+          {
+            my $next = substr($format, $index);
+            if ($next !~ /^(\%([0-9]*)([sITRCAZSErBbPLlNDdM\%]))/)
+            {
+              my ($chars) = ($next =~ /^(\%?[^\%]+)/);
+              print(${chars});
+              $index += length($chars);
+            }
+            else
+            {
+              my ($format_str, $num_chars, $placeholder) = ($1, $2, $3);
+              #print("format_str(${format_str}), num_chars(${num_chars}), placeholder(${placeholder})\n");
+              $index += length($format_str);
+              my $value = "";
+              if ($placeholder =~ /s/)
+              {
+                $value = $status;
+              }
+              if ($placeholder =~ /I/)
+              {
+                $value = $id;
+              }
+              elsif ($placeholder =~ /T/)
+              {
+                $value = $test;
+              }
+              elsif ($placeholder =~ /R/)
+              {
+                # pass
+                if (defined($pass))
+                {
+                  ($value) = ($pass =~ /^0([01])$/);
+                }
+              }
+              elsif ($placeholder =~ /C/)
+              {
+                $value = $cluster;
+              }
+              elsif ($placeholder =~ /A/)
+              {
+                $value = $start_config;
+              }
+              elsif ($placeholder =~ /Z/)
+              {
+                $value = $end_config;
+              }
+              elsif ($placeholder =~ /S/)
+              {
+                $value = $start_time;
+              }
+              elsif ($placeholder =~ /E/)
+              {
+                $value = $end_time;
+              }
+              elsif ($placeholder =~ /r/)
+              {
+                $value = $proc_retval;
+              }
+              elsif ($placeholder =~ /B/)
+              {
+                $value = $build;
+              }
+              elsif ($placeholder =~ /b/)
+              {
+                $value = $branch;
+              }
+              elsif ($placeholder =~ /P/)
+              {
+                $value = $performer;
+              }
+              elsif ($placeholder =~ /L/)
+              {
+                $value = $logs_url;
+              }
+              elsif ($placeholder =~ /l/)
+              {
+                $value = $log_summary;
+              }
+              elsif ($placeholder =~ /N/)
+              {
+                $value = $notes;
+              }
+              elsif ($placeholder =~ /d/)
+              {
+                $value = $delta;
+              }
+              elsif ($placeholder =~ /D/)
+              {
+                foreach my $bug (@bugs)
+                {
+                  $value .= "${bug} ";
+                }
+              }
+              elsif ($placeholder =~ /M/)
+              {
+                foreach my $metric (@metrics)
+                {
+                  $value .= $$metric[0];
+                  $value .= "=";
+                  $value .= $$metric[1];
+                  $value .= " ";
+                }
+              }
+              elsif ($placeholder =~ /\%/)
+              {
+                $value = "%";
+              }
+              if (!defined($value))
+              {
+                $value = "?";
+              }
+              if (length($num_chars) > 0)
+              {
+                $value = substr($value, 0, scalar($num_chars));
+              }
+              printf("%${num_chars}s", $value);
+            }
+          }
+          print("\n");
+        }
+      }
+
+      $mtx_total_not_run = $mtx_total_tests - $mtx_total_pass - $mtx_total_fail;
+
+      #print
+      $matrices .=
+<<EOF
+\# tests:       ${mtx_total_tests}
+\# pass:        ${mtx_total_pass}
+\# fail:        ${mtx_total_fail}
+\# not run:     ${mtx_total_not_run}
+\# new passes:  ${mtx_total_new_passes}
+\# regressions: ${mtx_total_regressions}
+********************************************************************************
+EOF
+;
+
+      $total_tests += $mtx_total_tests;
+      $total_pass += $mtx_total_pass;
+      $total_fail += $mtx_total_fail;
+      $total_regressions += $mtx_total_regressions;
+      $total_new_passes += $mtx_total_new_passes;
+      $total_not_run += $mtx_total_not_run;
+
+      if ($total_tests > 0)
+      {
+        $total_pass_percentage = sprintf("%.2f",$total_pass / $total_tests * 100 ); 
+        $total_fail_percentage = sprintf("%.2f",$total_fail / $total_tests * 100 );
+      }
+    }
+  }
+
+  if ($#matrices > 0)
+  {
+    print
+<<EOF
+********************************************************************************
+TOTALS
+
+\# tests:       ${total_tests} 
+\# pass:        ${total_pass} ($total_pass_percentage%)
+\# fail:        ${total_fail} ($total_fail_percentage%)
+\# not run:     ${total_not_run}
+\# new passes:  ${total_new_passes}
+\# regressions: ${total_regressions}
+********************************************************************************
+EOF
+;
+  }
+  print(${matrices});
+
+  qadb::disconnect() or die "disconnect failed (${qadb::errno}): ${qadb::errstr}";
+}
+
+################################################################################
+# report2
+################################################################################
+sub report2()
+{
+  my $usage =
+<<EOF
+NAME
+
+    $0 report - generate a test report
+
+SYNOPSIS
+
+    $0 report [OPTIONS]
+
+DESCRIPTION
+
+    for each matrix specified, $0 report will analyze the latest test results
+    and generate statistics for
+
+        # tests
+        # pass
+        # fail
+        # regressions
+        # new passes
+
+OPTIONS
+
+    -m, --matrix <matrix>
+        generate a report for the given matrix.  any number of matrix
+        options can be specified.
+
+    -b, --build <build>
+        generate a report for the given build.  any number of build
+        options can be specified.
+
+    -w, --where <where clause>
+        an sql where clause used as a filter over the results.
+        available in the where clause are...
+
+            id - the id of the test result
+            pass - 1=pass 0=fail
+            test - the string name of the test
+            start_time - YYYY-MM-DD HH:MM:SS
+            end_time - YYYY-MM-DD HH:MM:SS
+            build - the string name of the build
+            performer - the string name of the user which performed the test
+            proc_retval - the return value of a test process
+
+        examples.
+
+            --where "test='foo'"
+            --where "(test='foo' and build='bar')"
+            --where "(test='foo' and start_time >= '2003-01-13 12:00:00')"
+            --where "test='foo' and pass=0"
+
+    -v, --verbose
+        in addition to printing the stats above, print a listing of each
+        latest test result in the matrix.
+
+        at the beginning of each line, a string of characters is printed to
+        indicate other interesting information about the given test result.
+
+        new pass 
+        the status string containing a '*' indicates that the test has
+        transitioned from a fail to a pass between the previous and
+        most recent build.
+
+        regression
+        the status string containing a '!' indicates that the test has
+        transitioned from a pass to a fail between the previous and
+        most recent build.
+
+        pass/fail fluctuation
+        the status string containing a '~' indicates that the test has
+        both passed and failed for the latest build.
+
+    -F, --format
+        specify a custom format string for each test result.
+            %s - status string
+            %I - test result ID
+            %T - test name
+            %R - test result (1=pass, 0=fail)
+            %C - cluster/host
+            %A - start config
+            %Z - end config
+            %S - start time
+            %E - end time
+            %r - process retval
+            %B - build
+            %b - branch
+            %P - performer
+            %L - log url
+            %l - log summary
+            %N - notes
+            %D - bug list
+            %% - print a percent
+        an integer specified after the '%' forces the number of 
+        characters printed for the value.  eg, "%16T" prints 16 characters
+        per test name.  if the test name is longer than 16 characters, the
+        name gets truncated.  if it is shorter, the name is padded by spaces.
+        setting the environment variable QB_RESULT_FORMAT is equivalent
+        to using this option.
+
+    -h, --help
+        print this message
+
+EOF
+;
+
+  my @matrices = ();
+  my $where = undef;
+  my $verbose = undef;
+  my $format = undef;
+  my $help = undef;
+  
+  if (!GetOptions("m|matrix=s" => \@matrices,
+                  "w|where=s" => \$where,
+                  "v|verbose" => \$verbose,
+                  "F|format=s" => \$format,
+                  "h|help" => \$help))
+  {
+    print "${usage}\n";
+    exit 1;
+  }
+
+  if (defined($help))
+  {
+    print "${usage}\n";
+    exit 0;
+  }
+
+  if (!defined($format))
+  {
+    $format = $ENV{QB_RESULT_FORMAT};
+  }
+  if (!defined($format))
+  {
+    $format = "%2s %I %R %E %B %b %T";
+  }
+
+  my $total_tests = 0;
+  my $total_pass = 0;
+  my $total_fail = 0;
+  my $total_regressions = 0;
+  my $total_new_passes = 0;
+  my $total_pass_percentage = 0; 
+  my $total_fail_percentage = 0;
+  my $total_not_run = 0;
+
+  if ($#matrices > -1)
+  {
+    foreach my $matrix (@matrices)
+    {
+      print
+<<EOF
+********************************************************************************
+${matrix}
+
+EOF
+;
+      qadb::connect() or die "connect failed (${qadb::errno}): ${qadb::errstr}";
+      my ($success, $matrix_rows) = qadb::matrix_member_query("matrix = '${matrix}'");
+      if (!$success)
+      {
+        print "Error (${qadb::errno}): ${qadb::errstr}\n";
+      }
+      else
+      {
+        my $mtx_total_tests = 0;
+        my $mtx_total_pass = 0;
+        my $mtx_total_fail = 0;
+        my $mtx_total_regressions = 0;
+        my $mtx_total_new_passes = 0;
+        my $i = 0;
+        foreach my $matrix_row (@$matrix_rows)
+        {
+          if (defined($ENV{'QB_RESULT_COLOR'}))
+          {
+            $i++;
+            if ($i % 2 == 0)
+            {
+              print color $ENV{'QB_RESULT_COLOR'};
+            }
+            else
+            {
+              print color 'reset';
+            }
+          }
+          $mtx_total_tests++;
+  
+          my $test = undef;
+          ($matrix, $test) = (@$matrix_row);
+  
+          my $_where = "(test = \"${test}\") and (pass != null)";
+          if (defined($where))
+          {
+            $_where = "(${_where}) and (${where})";
+          }
+          my $test_result_rows = undef;
+          ($success, $test_result_rows) = qadb::test_result_query($_where, undef, undef);
+  
+          my $new_change = 0;
+          my $num_pass = 0;
+          my $num_fail = 0;
+    
+          my ($id, $pass, $cluster, $start_config, $end_config, $start_time, $end_time, $build, $branch, $performer, $proc_retval, $logs_url, $log_summary, $notes) = (undef, undef, undef, undef, undef, undef, undef, undef, undef, undef, undef, undef, undef, undef);
+          my @bugs = ();
+          my @metrics = ();
+    
+          my $test_result_row = $test_result_rows->[0];
+          if (defined($test_result_row))
+          {
+            ($id, $test, $pass, $cluster, $start_config, $end_config, $start_time, $end_time, $build, $branch, $performer, $proc_retval, $logs_url, $log_summary, $notes) = @$test_result_row;
+    
+            if ($pass =~ /^01$/)
+            {
+              $num_pass++;
+              $mtx_total_pass++;
+            }
+            else
+            {
+              $num_fail++;
+              $mtx_total_fail++;
+            }
+    
+            my $bug_rows = qadb::result_bug_query("result = ${id}");
+            my @bugs = ();
+            foreach my $bug_row (@$bug_rows)
+            {
+              my ($result, $bug) = @$bug_row;
+              push(@bugs, $bug);
+            }
+    
+            shift(@$test_result_rows);
+    
+            foreach $test_result_row (@$test_result_rows)
+            {
+              #print("NEXT!\n");
+              my ($nextid, $nexttest, $nextpass, $nextcluster, $nextstart_config, $nextend_config, $nextstart_time, $nextend_time, $nextbuild, $nextperformer, $nextproc_retval, $nextlogs_url, $nextlog_summary, $next_notes) = @$test_result_row;
+  
+              if ((!defined($build) && defined($nextbuild)) || (defined($build) && !defined($nextbuild)) || ($build !~ $nextbuild))
+              {
+                #print("${build} != ${nextbuild}\n");
+                last;
+              }
+              else
+              {
+                #print("${pass}\n");
+    
+                # check for new change.
+                if (($num_pass + $num_fail) == 1 && ($nextpass !~ $pass))
+                {
+                  #print("\$newchange = 1\n");
+                  $new_change = 1;
+                }
+              }
+            }
+          }
+  
+          my $status = "";
+          # new change 
+          if ($new_change)
+          {
+            if ($pass =~ /^01$/)
+            {
+              $status .= "*";
+              $mtx_total_new_passes++;
+            }
+            else
+            {
+              $status .= "!";
+              $mtx_total_regressions++;
+            }
+          }
+          # build flux
+          if ($num_pass != 0 && $num_fail != 0)
+          {
+            $status .= "~";
+          }
+    
+          #print("${new_change} ${num_pass} ${num_fail}\n");
+          my $i = 0;
+		  
+          if (defined($verbose))
+          {
+            my $index = 0;
+            my $delta = "unimpl";
+            while ($index < length($format))
+            {
+              my $next = substr($format, $index);
+              if ($next !~ /^(\%([0-9]*)([sITRCAZSErBbPLlNDd\%]))/)
+              {
+                my ($chars) = ($next =~ /^(\%?[^\%]+)/);
+                print(${chars});
+                $index += length($chars);
+              }
+              else
+              {
+                my ($format_str, $num_chars, $placeholder) = ($1, $2, $3);
+                #print("format_str(${format_str}), num_chars(${num_chars}), placeholder(${placeholder})\n");
+                $index += length($format_str);
+                my $value = "";
+                if ($placeholder =~ /s/)
+                {
+                  $value = $status;
+                }
+                if ($placeholder =~ /I/)
+                {
+                  $value = $id;
+                }
+                elsif ($placeholder =~ /T/)
+                {
+                  $value = $test;
+                }
+                elsif ($placeholder =~ /R/)
+                {
+                  # pass
+                  if (!defined($pass))
+                  {
+                    $value = "?";
+                  }
+                  else
+                  {
+                    ($value) = ($pass =~ /^0([01])$/);
+                  }
+                }
+                elsif ($placeholder =~ /C/)
+                {
+                  $value = $cluster;
+                }
+                elsif ($placeholder =~ /A/)
+                {
+                  $value = $start_config;
+                }
+                elsif ($placeholder =~ /Z/)
+                {
+                  $value = $end_config;
+                }
+                elsif ($placeholder =~ /S/)
+                {
+                  # start_time
+                  if (!defined($start_time))
+                  {
+                    $value = "?";
+                  }
+                  else
+                  {
+                    $value = $start_time;
+                  }
+                }
+                elsif ($placeholder =~ /E/)
+                {
+                  # end_time
+                  if (!defined($end_time))
+                  {
+                    $value = "?";
+                  }
+                  else
+                  {
+                    $value = $end_time;
+                  }
+                }
+                elsif ($placeholder =~ /r/)
+                {
+                  # proc_retval
+                  if (!defined($proc_retval))
+                  {
+                    $value = "?";
+                  }
+                  else
+                  {
+                    $value = $proc_retval;
+                  }
+                }
+                elsif ($placeholder =~ /B/)
+                {
+                  # build
+                  if (!defined($build))
+                  {
+                    $value = "?";
+                  }
+                  else
+                  {
+                    $value = $build;
+                  }
+                }
+                elsif ($placeholder =~ /b/)
+                {
+                  if (!defined($branch))
+                  {
+                    $value = "?";
+                  }
+                  else
+                  {
+                    $value = $branch;
+                  }
+                }
+                elsif ($placeholder =~ /P/)
+                {
+                  # performer
+                  if (!defined($performer))
+                  {
+                    $value = "?";
+                  }
+                  else
+                  {
+                    $value = $performer;
+                  }
+                }
+                elsif ($placeholder =~ /L/)
+                {
+                  if (!defined($logs_url))
+                  {
+                    $value = "?";
+                  }
+                  else
+                  {
+                    $value = $logs_url;
+                  }
+                }
+                elsif ($placeholder =~ /l/)
+                {
+                  if (!defined($log_summary))
+                  {
+                    $value = "?";
+                  }
+                  else
+                  {
+                    $value = $log_summary;
+                  }
+                }
+                elsif ($placeholder =~ /d/)
+                {
+                  if (!defined($delta))
+                  {
+                    $value = "?";
+                  }
+                  else
+                  {
+                    $value = $delta;
+                  }
+                }
+                elsif ($placeholder =~ /N/)
+                {
+                  if (!defined($notes))
+                  {
+                    $value = "?";
+                  }
+                  else
+                  {
+                    $value = $notes;
+                  }
+                }
+                elsif ($placeholder =~ /D/)
+                {
+                  foreach my $bug (@bugs)
+                  {
+                    $value .= "${bug} ";
+                  }
+                }
+                elsif ($placeholder =~ /\%/)
+                {
+                  $value = "%";
+                }
+                if (length($num_chars) > 0)
+                {
+                  $value = substr($value, 0, scalar($num_chars));
+                }
+                printf("%${num_chars}s", $value);
+              }
+            }
+            print("\n");
+          }
+        }
+
+        print
+<<EOF
+\# tests: ${mtx_total_tests}
+\# pass: ${mtx_total_pass}
+\# fail: ${mtx_total_fail}
+\# regressions: ${mtx_total_regressions}
+\# new passes: ${mtx_total_new_passes}
+********************************************************************************
+EOF
+;
+
+        $total_tests += $mtx_total_tests;
+        $total_pass += $mtx_total_pass;
+        $total_fail += $mtx_total_fail;
+        $total_regressions += $mtx_total_regressions;
+        $total_new_passes += $mtx_total_new_passes;
+        $total_not_run = $total_tests - $total_pass - $total_fail;
+
+        if ($total_tests > 0)
+        {
+          $total_pass_percentage = sprintf("%.2f",$total_pass / $total_tests * 100 ); 
+          $total_fail_percentage = sprintf("%.2f",$total_fail / $total_tests * 100 );
+        }
+      }
+    }
+
+    if ($#matrices > 0)
+    {
+      print
+<<EOF
+********************************************************************************
+TOTALS
+
+\# tests: ${total_tests} 
+\# pass: ${total_pass} ($total_pass_percentage%)
+\# fail: ${total_fail} ($total_fail_percentage%)
+\# not run: ${total_not_run}
+\# regressions: ${total_regressions}
+\# new passes: ${total_new_passes}
+********************************************************************************
+EOF
+;
+    }
+  }
+
+  qadb::disconnect() or die "disconnect failed (${qadb::errno}): ${qadb::errstr}";
+}
+
+################################################################################
+# main
+################################################################################
+
+STDOUT->autoflush(1);
+
+my $usage =
+<<EOF
+NAME
+
+    $0 - run the qb command line utility
+
+SYNOPSIS
+
+    $0 <cmd>
+
+DESCRIPTION
+
+    the qb utility allows you to interact with qb's test results database.
+    valid <cmd> arguments are listed below.  issuing `$0 <cmd> --help` will
+    provide detailed help on each command.
+
+    run
+        run a test program and insert a test result into the qb database.
+
+    add
+        add a test result into the qb database.  
+        often used for manual tests.
+
+    update
+        update a previously recorded test result.
+
+    results
+        list test results.
+
+    matrix
+        define a test matrix.
+
+    report
+        generate a matrix report.
+
+EOF
+;
+
+my $cmd = undef;
+$cmd = shift(@ARGV);
+
+if (!defined($cmd))
+{
+  print $usage;
+  exit 1;
+}
+
+if ($cmd =~ /matrix/)
+{
+  matrix();
+}
+elsif ($cmd =~ /run/)
+{
+  run();
+}
+elsif ($cmd =~ /add/)
+{
+  add();
+}
+elsif ($cmd =~ /results/)
+{
+  results();
+}
+elsif ($cmd =~ /update/)
+{
+  update();
+}
+elsif ($cmd =~ /report2/)
+{
+  report2();
+}
+elsif ($cmd =~ /report/)
+{
+  report();
+}
+else
+{
+  print $usage;
+  exit 1;
+}
+
+
+#
+#  TODO:
+#
+#  + headers for qb results.
+#
+#  + migrate current test results / matrices.
+#
+#  + BUILD env var.  others?
+#
+#  + when inserting a result, automatically roll-up bug entries if the result has the same
+#    proc_retval, and result as the previous test_result.
+#
+#  + qb results --format
+#    allows the user to specify their own format for print out.  eg: "%T   %P"  would just print the <test> and <pass>
+#    also have an env var that sets the default format.
+#
+#  + c++ api for test_result insertion
+#
+#  + add --log option on qb run
+#
+#  + add result notes.  should be stored in db, or on the web server?
+#
+#  + add --defect option to "qb add". (DONE 1/14/2003)
+# 
+#  + edit test results (DONE 1/14/2003)
+#    implemented qb update
+#
+#  + bugs attached to test results. (DONE 1/14/2003)
+#  
+#  + view which matrices are present. (DONE 1/23/03)
+#
+#  + qb report [options] (DONE 1/22/03)
+#    -m, --matrix  specifiy any number of matrices to be included in the report.
+#    -b, --build   only include test results from the given build.
+#    for each test in the matrix, show...
+#    <id> <pass> <start_time> <end_time> <proc_retval> <test> <build> <performer> <logs_url> for the latest test result
+#    also identify new passes and regressions.
+#  
+#  + Add --sort=<some_col> to result command so results can be sorted in fun and exciting ways (JM)
+#    (DONE 1/28/03)
+#  
+#  + results should indicate clearly which test is running (perhaps an R instead of a ?
+#
+#  + result updates should be possible (if only to reap out aborted tests that never got
+#    to insert their complete results) 
+# 
+#  + qb report totals are misleading tests that appear in multiple matricies are counted 
+#    multiple times 
+#    bug fix with 20049 (DONE 1/28/03)
+#
+#  + reporting should allow for macros like --where start_time >= today() 
+#    use getdate() (DONE 1/28/03)
+#
+#  + add some sort of ANSI color to qb results to make lots of stuff easier to read 
+#    (like ls --color) (DONE 1/28/03) 
+# 
+#  + conditional result reporting fer instance if a test fails I want to see the log but if it 
+#    passes I am not so interested - 
+
+# also would like by day results.
+#................................last run     //dss/branches/dss-atlas2.0/
+#................................pass, pass%, fail, fail%, not-run, not-run%
+#S8Test.libs8pr
+#S8Test.dlvm
+#S8Test.libcluster
+#S8Test.8fs

@@ -1,0 +1,405 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 42;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		8D11072A0486CEB800E47090 /* MainMenu.nib in Resources */ = {isa = PBXBuildFile; fileRef = 29B97318FDCFA39411CA2CEA /* MainMenu.nib */; };
+		8D11072B0486CEB800E47090 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 089C165CFE840E0CC02AAC07 /* InfoPlist.strings */; };
+		8D11072D0486CEB800E47090 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 29B97316FDCFA39411CA2CEA /* main.m */; settings = {ATTRIBUTES = (); }; };
+		8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */; };
+		D864152D09D490D600C69AFE /* Icon.icns in Resources */ = {isa = PBXBuildFile; fileRef = D864152C09D490D600C69AFE /* Icon.icns */; };
+		D867D4F409D310A40029E373 /* libtag.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = D867D4F309D310A40029E373 /* libtag.1.dylib */; };
+		D867D4F609D310A70029E373 /* libtag.1.dylib in Copy libs */ = {isa = PBXBuildFile; fileRef = D867D4F309D310A40029E373 /* libtag.1.dylib */; };
+		D87E9DCA09D45E1E0029DBC3 /* Store.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = D87E9DC809D45E1E0029DBC3 /* Store.h */; };
+		D87E9DCB09D45E1E0029DBC3 /* Store.m in Sources */ = {isa = PBXBuildFile; fileRef = D87E9DC909D45E1E0029DBC3 /* Store.m */; };
+		D8BA87EA09CF72740098C9BE /* DropBox.m in Sources */ = {isa = PBXBuildFile; fileRef = D8BA87E809CF72740098C9BE /* DropBox.m */; };
+		D8BA87F209CF73930098C9BE /* Controller.m in Sources */ = {isa = PBXBuildFile; fileRef = D8BA87F109CF73930098C9BE /* Controller.m */; };
+		D8BA893B09D02B950098C9BE /* Id3Wrapper.m in Sources */ = {isa = PBXBuildFile; fileRef = D8BA893A09D02B950098C9BE /* Id3Wrapper.m */; };
+		D8CE0E7809D0D17A0086FC7B /* libhoneycomb.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = D8CE0E7709D0D17A0086FC7B /* libhoneycomb.dylib */; };
+		D8CE0E7B09D0D17E0086FC7B /* libhoneycomb.dylib in Copy libs */ = {isa = PBXBuildFile; fileRef = D8CE0E7709D0D17A0086FC7B /* libhoneycomb.dylib */; };
+		D8F0070909E0F40C00B4342A /* ThreadArg.h in CopyFiles */ = {isa = PBXBuildFile; fileRef = D8F0070709E0F40C00B4342A /* ThreadArg.h */; };
+		D8F0070A09E0F40C00B4342A /* ThreadArg.m in Sources */ = {isa = PBXBuildFile; fileRef = D8F0070809E0F40C00B4342A /* ThreadArg.m */; };
+		D8F007D309E11AB100B4342A /* button_info-N.tiff in Resources */ = {isa = PBXBuildFile; fileRef = D8F007D209E11AB100B4342A /* button_info-N.tiff */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXBuildStyle section */
+		4A9504CCFFE6A4B311CA0CBA /* Debug */ = {
+			isa = PBXBuildStyle;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		4A9504CDFFE6A4B311CA0CBA /* Release */ = {
+			isa = PBXBuildStyle;
+			buildSettings = {
+			};
+			name = Release;
+		};
+/* End PBXBuildStyle section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		D89E0F5809D0ABBA0069001C /* Copy libs */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = ../libs;
+			dstSubfolderSpec = 6;
+			files = (
+				D8CE0E7B09D0D17E0086FC7B /* libhoneycomb.dylib in Copy libs */,
+				D867D4F609D310A70029E373 /* libtag.1.dylib in Copy libs */,
+			);
+			name = "Copy libs";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D8BA89F209D097600098C9BE /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 6;
+			files = (
+				D87E9DCA09D45E1E0029DBC3 /* Store.h in CopyFiles */,
+				D8F0070909E0F40C00B4342A /* ThreadArg.h in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		089C165DFE840E0CC02AAC07 /* English */ = {isa = PBXFileReference; fileEncoding = 10; lastKnownFileType = text.plist.strings; name = English; path = English.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = /System/Library/Frameworks/Cocoa.framework; sourceTree = "<absolute>"; };
+		13E42FB307B3F0F600E4EEF1 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = /System/Library/Frameworks/CoreData.framework; sourceTree = "<absolute>"; };
+		29B97316FDCFA39411CA2CEA /* main.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		29B97319FDCFA39411CA2CEA /* English */ = {isa = PBXFileReference; lastKnownFileType = wrapper.nib; name = English; path = English.lproj/MainMenu.nib; sourceTree = "<group>"; };
+		29B97324FDCFA39411CA2CEA /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = /System/Library/Frameworks/AppKit.framework; sourceTree = "<absolute>"; };
+		29B97325FDCFA39411CA2CEA /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = /System/Library/Frameworks/Foundation.framework; sourceTree = "<absolute>"; };
+		32CA4F630368D1EE00C91783 /* MusicDrop_Prefix.pch */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MusicDrop_Prefix.pch; sourceTree = "<group>"; };
+		8D1107310486CEB800E47090 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		8D1107320486CEB800E47090 /* MusicDrop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MusicDrop.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D864152C09D490D600C69AFE /* Icon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = Icon.icns; sourceTree = "<group>"; };
+		D867D4F309D310A40029E373 /* libtag.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libtag.1.dylib; path = 3rdparty/build/lib/libtag.1.dylib; sourceTree = "<group>"; };
+		D87E9DC809D45E1E0029DBC3 /* Store.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Store.h; sourceTree = "<group>"; };
+		D87E9DC909D45E1E0029DBC3 /* Store.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Store.m; sourceTree = "<group>"; };
+		D8BA87E809CF72740098C9BE /* DropBox.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = DropBox.m; sourceTree = "<group>"; };
+		D8BA87E909CF72740098C9BE /* DropBox.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = DropBox.h; sourceTree = "<group>"; };
+		D8BA87F009CF73930098C9BE /* Controller.h */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.h; path = Controller.h; sourceTree = "<group>"; };
+		D8BA87F109CF73930098C9BE /* Controller.m */ = {isa = PBXFileReference; fileEncoding = 30; lastKnownFileType = sourcecode.c.objc; path = Controller.m; sourceTree = "<group>"; };
+		D8BA893909D02B950098C9BE /* Id3Wrapper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Id3Wrapper.h; sourceTree = "<group>"; };
+		D8BA893A09D02B950098C9BE /* Id3Wrapper.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = Id3Wrapper.m; sourceTree = "<group>"; };
+		D8CE0E7709D0D17A0086FC7B /* libhoneycomb.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libhoneycomb.dylib; path = honeycomb/libhoneycomb.dylib; sourceTree = "<group>"; };
+		D8F0070709E0F40C00B4342A /* ThreadArg.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ThreadArg.h; sourceTree = "<group>"; };
+		D8F0070809E0F40C00B4342A /* ThreadArg.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ThreadArg.m; sourceTree = "<group>"; };
+		D8F007D209E11AB100B4342A /* button_info-N.tiff */ = {isa = PBXFileReference; lastKnownFileType = image.tiff; path = "button_info-N.tiff"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		8D11072E0486CEB800E47090 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8D11072F0486CEB800E47090 /* Cocoa.framework in Frameworks */,
+				D8CE0E7809D0D17A0086FC7B /* libhoneycomb.dylib in Frameworks */,
+				D867D4F409D310A40029E373 /* libtag.1.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		080E96DDFE201D6D7F000001 /* Classes */ = {
+			isa = PBXGroup;
+			children = (
+				29B97316FDCFA39411CA2CEA /* main.m */,
+				D8BA87E809CF72740098C9BE /* DropBox.m */,
+				D8BA87E909CF72740098C9BE /* DropBox.h */,
+				D8BA87F009CF73930098C9BE /* Controller.h */,
+				D8BA87F109CF73930098C9BE /* Controller.m */,
+				D8BA893909D02B950098C9BE /* Id3Wrapper.h */,
+				D8BA893A09D02B950098C9BE /* Id3Wrapper.m */,
+				D87E9DC809D45E1E0029DBC3 /* Store.h */,
+				D87E9DC909D45E1E0029DBC3 /* Store.m */,
+				D8F0070709E0F40C00B4342A /* ThreadArg.h */,
+				D8F0070809E0F40C00B4342A /* ThreadArg.m */,
+			);
+			name = Classes;
+			sourceTree = "<group>";
+		};
+		1058C7A0FEA54F0111CA2CBB /* Linked Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				1058C7A1FEA54F0111CA2CBB /* Cocoa.framework */,
+			);
+			name = "Linked Frameworks";
+			sourceTree = "<group>";
+		};
+		1058C7A2FEA54F0111CA2CBB /* Other Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				29B97324FDCFA39411CA2CEA /* AppKit.framework */,
+				13E42FB307B3F0F600E4EEF1 /* CoreData.framework */,
+				29B97325FDCFA39411CA2CEA /* Foundation.framework */,
+			);
+			name = "Other Frameworks";
+			sourceTree = "<group>";
+		};
+		19C28FACFE9D520D11CA2CBB /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				8D1107320486CEB800E47090 /* MusicDrop.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		29B97314FDCFA39411CA2CEA /* MusicDrop */ = {
+			isa = PBXGroup;
+			children = (
+				D867D3F909D294EA0029E373 /* taglib */,
+				D8BA891209D028E00098C9BE /* Honeycomb */,
+				080E96DDFE201D6D7F000001 /* Classes */,
+				29B97315FDCFA39411CA2CEA /* Other Sources */,
+				29B97317FDCFA39411CA2CEA /* Resources */,
+				29B97323FDCFA39411CA2CEA /* Frameworks */,
+				19C28FACFE9D520D11CA2CBB /* Products */,
+			);
+			name = MusicDrop;
+			sourceTree = "<group>";
+		};
+		29B97315FDCFA39411CA2CEA /* Other Sources */ = {
+			isa = PBXGroup;
+			children = (
+				32CA4F630368D1EE00C91783 /* MusicDrop_Prefix.pch */,
+			);
+			name = "Other Sources";
+			sourceTree = "<group>";
+		};
+		29B97317FDCFA39411CA2CEA /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				D8F007D209E11AB100B4342A /* button_info-N.tiff */,
+				D864152C09D490D600C69AFE /* Icon.icns */,
+				8D1107310486CEB800E47090 /* Info.plist */,
+				089C165CFE840E0CC02AAC07 /* InfoPlist.strings */,
+				29B97318FDCFA39411CA2CEA /* MainMenu.nib */,
+			);
+			name = Resources;
+			sourceTree = "<group>";
+		};
+		29B97323FDCFA39411CA2CEA /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				1058C7A0FEA54F0111CA2CBB /* Linked Frameworks */,
+				1058C7A2FEA54F0111CA2CBB /* Other Frameworks */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		D867D3F909D294EA0029E373 /* taglib */ = {
+			isa = PBXGroup;
+			children = (
+				D867D4F309D310A40029E373 /* libtag.1.dylib */,
+			);
+			name = taglib;
+			sourceTree = "<group>";
+		};
+		D8BA891209D028E00098C9BE /* Honeycomb */ = {
+			isa = PBXGroup;
+			children = (
+				D8CE0E7709D0D17A0086FC7B /* libhoneycomb.dylib */,
+			);
+			name = Honeycomb;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		8D1107260486CEB800E47090 /* MusicDrop */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C01FCF4A08A954540054247B /* Build configuration list for PBXNativeTarget "MusicDrop" */;
+			buildPhases = (
+				8D1107290486CEB800E47090 /* Resources */,
+				D8BA89F209D097600098C9BE /* CopyFiles */,
+				8D11072C0486CEB800E47090 /* Sources */,
+				8D11072E0486CEB800E47090 /* Frameworks */,
+				D89E0F5809D0ABBA0069001C /* Copy libs */,
+			);
+			buildRules = (
+			);
+			buildSettings = {
+			};
+			dependencies = (
+			);
+			name = MusicDrop;
+			productInstallPath = "$(HOME)/Applications";
+			productName = MusicDrop;
+			productReference = 8D1107320486CEB800E47090 /* MusicDrop.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		29B97313FDCFA39411CA2CEA /* Project object */ = {
+			isa = PBXProject;
+			buildConfigurationList = C01FCF4E08A954540054247B /* Build configuration list for PBXProject "MusicDrop" */;
+			buildSettings = {
+			};
+			buildStyles = (
+				4A9504CCFFE6A4B311CA0CBA /* Debug */,
+				4A9504CDFFE6A4B311CA0CBA /* Release */,
+			);
+			hasScannedForEncodings = 1;
+			mainGroup = 29B97314FDCFA39411CA2CEA /* MusicDrop */;
+			projectDirPath = "";
+			targets = (
+				8D1107260486CEB800E47090 /* MusicDrop */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		8D1107290486CEB800E47090 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8D11072A0486CEB800E47090 /* MainMenu.nib in Resources */,
+				8D11072B0486CEB800E47090 /* InfoPlist.strings in Resources */,
+				D864152D09D490D600C69AFE /* Icon.icns in Resources */,
+				D8F007D309E11AB100B4342A /* button_info-N.tiff in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		8D11072C0486CEB800E47090 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8D11072D0486CEB800E47090 /* main.m in Sources */,
+				D8BA87EA09CF72740098C9BE /* DropBox.m in Sources */,
+				D8BA87F209CF73930098C9BE /* Controller.m in Sources */,
+				D8BA893B09D02B950098C9BE /* Id3Wrapper.m in Sources */,
+				D87E9DCB09D45E1E0029DBC3 /* Store.m in Sources */,
+				D8F0070A09E0F40C00B4342A /* ThreadArg.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		089C165CFE840E0CC02AAC07 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				089C165DFE840E0CC02AAC07 /* English */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		29B97318FDCFA39411CA2CEA /* MainMenu.nib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				29B97319FDCFA39411CA2CEA /* English */,
+			);
+			name = MainMenu.nib;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		C01FCF4B08A954540054247B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = ppc;
+				COPY_PHASE_STRIP = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_FIX_AND_CONTINUE = YES;
+				GCC_INPUT_FILETYPE = sourcecode.cpp.objcpp;
+				GCC_MODEL_TUNING = G5;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				INFOPLIST_FILE = Info.plist;
+				INSTALL_PATH = "$(HOME)/Applications";
+				LIBRARY_SEARCH_PATHS = (
+					"$(LIBRARY_SEARCH_PATHS)",
+					"$(SRCROOT)/honeycomb",
+					"$(SRCROOT)/3rdparty/build/lib",
+				);
+				OTHER_CFLAGS = (
+					"-Ihoneycomb",
+					"-I3rdparty/build/include/taglib",
+				);
+				PRODUCT_NAME = MusicDrop;
+				WRAPPER_EXTENSION = app;
+				ZERO_LINK = YES;
+			};
+			name = Debug;
+		};
+		C01FCF4C08A954540054247B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = ppc;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_INPUT_FILETYPE = sourcecode.cpp.objcpp;
+				GCC_MODEL_TUNING = G5;
+				INFOPLIST_FILE = Info.plist;
+				INSTALL_PATH = "$(HOME)/Applications";
+				LIBRARY_SEARCH_PATHS = (
+					"$(LIBRARY_SEARCH_PATHS)",
+					"$(SRCROOT)/honeycomb",
+					"$(SRCROOT)/3rdparty/build/lib",
+				);
+				OTHER_CFLAGS = (
+					"-Ihoneycomb",
+					"-I3rdparty/build/include/taglib",
+				);
+				PRODUCT_NAME = MusicDrop;
+				WRAPPER_EXTENSION = app;
+			};
+			name = Release;
+		};
+		C01FCF4F08A954540054247B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				PREBINDING = NO;
+				SDKROOT = /Developer/SDKs/MacOSX10.4u.sdk;
+			};
+			name = Debug;
+		};
+		C01FCF5008A954540054247B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				OTHER_CFLAGS = "-I.";
+				PREBINDING = NO;
+				SDKROOT = /Developer/SDKs/MacOSX10.4u.sdk;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		C01FCF4A08A954540054247B /* Build configuration list for PBXNativeTarget "MusicDrop" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C01FCF4B08A954540054247B /* Debug */,
+				C01FCF4C08A954540054247B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C01FCF4E08A954540054247B /* Build configuration list for PBXProject "MusicDrop" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C01FCF4F08A954540054247B /* Debug */,
+				C01FCF5008A954540054247B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 29B97313FDCFA39411CA2CEA /* Project object */;
+}

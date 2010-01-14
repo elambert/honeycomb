@@ -1,0 +1,24 @@
+<filesystem.gid, long>
+<filesystem.mimetype, string, length=256>
+<filesystem.mode, long>
+<filesystem.mtime, long>
+<filesystem.uid, long>
+<mp3.album, string, length=150>
+<mp3.artist, string, length=150>
+<mp3.date, long, length=150>
+<mp3.title, string, length=150>
+<mp3.type, string, length=150>
+<system.object_ctime, long>
+<system.object_hash, binary, length=20>
+<system.object_hash_alg, string, length=4>
+<system.object_id, objectid>
+<system.object_layoutMapId, long>
+<system.object_size, long>
+<system.test.type_binary, binary, length=512>
+<system.test.type_char, char, length=512>
+<system.test.type_date, date>
+<system.test.type_double, double>
+<system.test.type_long, long>
+<system.test.type_string, string, length=512>
+<system.test.type_time, time>
+<system.test.type_timestamp, timestamp>

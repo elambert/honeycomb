@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="file">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>
+               Unit test for the getfile mechanism on remote components. The
+               Getfile extends a Returnfile class that can be used to create
+               other remote actions that can collect logs and/or return file
+               objects to the executor that later need to be processed and/or
+               verified.
+        </description>
+    </info>
+
+	<local>
+    	<createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+    	<createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+	    <loadproperties uri="storage://INPUT/ut.properties"/>
+	</local> 
+ 
+	<local>
+        <lockcomponent id="DTFA1">
+        	<attrib name="type" value="dtfa"/>
+        </lockcomponent>
+    </local>
+   
+   	<component id="DTFA1"> 
+		<getfile uri="storage://OUTPUT/build.copy.xml" remotefile="build.xml"/>
+	</component>
+</script>

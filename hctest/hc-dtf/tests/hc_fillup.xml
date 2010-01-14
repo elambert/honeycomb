@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="hc_fillup">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>Honeycomb fillup script</description>
+    </info>
+
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input" />
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+        <createstorage id="TINPUT" path="${dtf.xml.path}" />
+
+        <loadproperties uri="storage://INPUT/hc.properties" />
+        <import uri="storage://INPUT/${hc.metadata.filename}" />
+       
+        <!-- Loading the performance monitoring utilities --> 
+        <import uri="storage://TINPUT/perfmonitor_util.xml" />
+        <!-- Loading utility functions for calculating stats and printing -->
+        <import uri="storage://TINPUT/hc_perf_stats.xml" />
+
+        <!-- RunID is used by all subtests -->
+        <property name="runid" value="${dtf.timestamp}" />
+        <property name="continueOnFailure" value="true" />
+    </local>
+
+    <local>
+        <lockcomponent id="CLUSTER" timeout="${hc.lockcomponent.timeout}">
+            <attrib name="hc.cluster.type" value="${hc.cluster.type}" />
+        </lockcomponent>
+    </local>
+
+    <testsuite name="honeycomb_performance_suite">
+        <for property="hc.filesize" range="${hc.perf.filesizes}">
+            <local>
+                <echo>Running with ${hc.filesize} byte objects.</echo>
+            </local>
+            
+            <call function="startPerfMonitor">
+                <property name="cluster.id" value="CLUSTER"/>
+            </call>
+
+            <testscript uri="storage://TINPUT/store.xml" />
+            <call function="collectLogs">
+                <property name="cluster.id" value="CLUSTER"/>
+                <property name="towhere" 
+                          value="storage://OUTPUT/server_store_stats_${hc.filesize}.log"/>
+            </call>
+
+            <testscript uri="storage://TINPUT/mdstore.xml" />
+            <call function="collectLogs">
+                <property name="cluster.id" value="CLUSTER"/>
+                <property name="towhere" 
+                          value="storage://OUTPUT/server_mdstore_stats_${hc.filesize}.log" />
+            </call>
+        </for>
+    </testsuite>
+  
+    <local> 
+        <property name="hc.perf.print" value="notexpected" overwrite="true"/> 
+    </local>
+    
+    <for property="filesize" range="${hc.perf.filesizes}">
+        <call function="calcOps">
+            <property name="event.name" value="hc.store"/>
+            <property name="event.file"
+                      value="storage://OUTPUT/store_perf_${filesize}.txt"/>
+            <property name="result"  value="storeperf.${filesize}"/>
+        </call>
+        
+        <call function="calcOps">
+            <property name="event.name" value="hc.store"/>
+            <property name="event.file"
+                      value="storage://OUTPUT/mdstore_perf_${filesize}.txt"/>
+            <property name="result"  value="mdstoreperf.${filesize}"/>
+        </call>
+    </for> 
+   
+    <for property="filesize" range="${hc.perf.filesizes}">
+        <!-- These operations are printed differently based on size -->
+        <local>
+            <echo/>
+            <echo>${filesize} objects</echo>
+        </local>
+
+        <for property="operation" range="store,mdstore">
+            <if>
+                <lt op1="${filesize}"
+                    op2="${hc.perf.analysis.threshold}" />
+                <then>
+                    <call function="printResults">
+                        <property name="expected"
+                            value="${${operation}.${filesize}.ops}" />
+                        <property name="actual"
+                            value="${${operation}perf.${filesize}.success.avg_occ}" />
+                        <property name="operation" value="${operation}" />
+                        <property name="units" value="ops/s" />
+                    </call>
+                </then>
+                <else>
+                    <call function="printResults">
+                        <property name="expected"
+                                  value="${${operation}.${filesize}.bytesPerSec}" />
+                        <property name="actual"
+                                  value="${${operation}perf.${filesize}.success.size.avg_val}" />
+                        <property name="operation" value="${operation}" />
+                        <property name="units" value="bytes/s" />
+                    </call>
+                </else>
+            </if>
+        </for>
+    </for> 
+</script>

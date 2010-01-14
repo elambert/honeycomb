@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+
+<!-- This is a sample XML file for test purpose.
+
+$Id: config_test.xml 10855 2007-05-19 02:54:08Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+  -->
+
+<node>
+    <service
+	type="PROCESS"
+	start_cmd="1"
+	heartbeat="1"
+	mailbox_tag="1"
+	mailbox_size="5"/>
+
+    <service
+	type="PROCESS"
+	start_cmd="2"
+	heartbeat="2"
+	mailbox_tag="2"
+	mailbox_size="5">
+	
+	<service
+	    type="PROCESS"
+	    start_cmd="3"
+	    heartbeat="3"
+	    mailbox_tag="3"
+	    mailbox_size="5"/>
+
+	<service
+	    type="PROCESS"
+	    start_cmd="4"
+	    heartbeat="4"
+	    mailbox_tag="4"
+	    mailbox_size="5"/>
+
+    </service>
+
+    <service
+	type="PROBE"
+	start_cmd="config_test_probe"/>
+</node>

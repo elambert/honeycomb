@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="metadata">
+    <info>
+        <author> 
+        	<name>Rodney Gomes</name>
+        	<email>rodney.gomes@sun.com</email>
+        </author>
+        <description>
+        	Empty metadata reference file for the hc_perf suite that can be used
+        	to execute tests with empty metadata objects.
+        </description>
+    </info>
+    
+    <local>
+   		<!-- Create the metadata reference element that will be used
+             by all test cases below this one. --> 
+        <metadata id="MDREF"/>
+        <metadata id="MDCMP"/>
+    </local>
+</script>

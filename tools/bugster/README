@@ -1,0 +1,64 @@
+ $Id: README 10853 2007-05-19 02:50:20Z bberndt $
+    
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+
+The bugsbydate scripts was copied from the Solaris Nevada gate:
+   /ws/onnv-gate/public/gate/bin/
+and modified for honeycomb.  They must run on hc-dev3. 
+sql access isn't supported on x86 Solaris at this time.
+
+Currently, they live on hc-dev3:/export/home/bugster/bugscripts
+and are kicked off via a cron script every day.
+The cron script is currently run as user sarahg,
+since I didn't want to run as root if it didn't have
+to.  See crontab.hc-dev3
+
+I believe the SPARC platform is required to run this.
+
+The passwd file is in bugaccess.sh.
+The Powers That Be don't like random folks
+running sql queries against their DB, so see sarahg
+if you have a query need.  
+
+For testing purposes, edit bugscommon.sh to use the 
+
+ TARGETBTDB=$TESTDB
+
+For production data, use this
+
+ TARGETBTDB=$PRODUCTIONDB
+
+Output is in /export/home/bugster/dailystats
+
+
+How to push new bits:
+---------------------
+NOTE: you can move the target directory, but you must update cron to point
+to the new dir and make sure bugaccess.sh exists in the new dir
+
+* scp -r tools/bugster username@hc-dev3:/export/home/bugster/bugscripts
+(dir is currently owned by sarahg)
+
+
+To Update for a New Release:
+----------------------------
+* change awk/awkcurfilter for right regexp
+* bugscommon.sh TYPECUR, TYPENEXT, TYPEFUTURE should be adjusted
+* Manually do first run to have something to diff against:
+
+cd /export/home/bugster/dailystats/
+rm latest
+mv currdate currdate.orig
+/usr/local/bugster/cronbugs.sh
+-> this will get an error: /export/home/bugster/bugscripts/cronbugs.sh:
+/export/home/bugster/dailystats/latest/lastcompare/dailybugactivitysummary.out:
+cannot create
+mv currdate currdate.fake
+ln -s /export/home/bugster/dailystats/currdate.fake latest
+/usr/local/bugster/cronbugs.sh
+
+Then you'll have an empty diff in the currdate directory, but the next
+one will have diffs for the remainder of the day to the next.  Things
+will be back on track on the 2nd day.

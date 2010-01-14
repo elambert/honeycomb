@@ -1,0 +1,4 @@
+com.sun.honeycomb.coordinator.Coordinator,com.sun.honeycomb.coordinator.CoordinatorPerf
+com.sun.honeycomb.protocol.server.XMLStoreHandler,com.sun.honeycomb.protocol.server.XMLStoreHandlerPerf
+com.sun.honeycomb.oa.OAClient,com.sun.honeycomb.oa.OAClientPerf
+com.sun.honeycomb.oa.FragmentFileSet,com.sun.honeycomb.oa.FragmentFileSetPerf

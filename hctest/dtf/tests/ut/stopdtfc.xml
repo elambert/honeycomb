@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="component">
+    <info>
+         <author>
+             <name>Rodney Gomes</name>
+             <email>rodney.gomes@sun.com</email>
+         </author> 
+         <description>
+             Test the basic functionality of the component tag which is used to
+             execute remote tasks on remote components in the DTF architecture.
+         </description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <loadproperties uri="storage://INPUT/ut.properties"/>
+    </local>
+    
+    <component id="DTF-DTFC">
+        <stopcomponent/>
+    </component>
+    
+</script>

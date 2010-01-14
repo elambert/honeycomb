@@ -1,0 +1,56 @@
+#!/usr/bin/perl -w
+#
+# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+
+# Make sure version is 1.4 or greater.
+my $ok = 1;
+my $min_version = "1.4";
+my ($current_version) = (`java -version 2>&1` =~ /^java version "([^"]+)"/);
+my @min = split(/\./, $min_version);
+my @current = split(/\./, $current_version);
+my $done = 0;
+my $token = 0;
+while ($ok == 1 && $done == 0)
+{
+  my $tmin = $min[$token];
+  my $tcurrent = $current[$token];
+
+  if (defined($tmin) && defined($tcurrent))
+  {
+    if ($tcurrent < $tmin)
+    {
+      $ok = 0;
+      $done = 1;
+    }
+  }
+  elsif (defined($tmin) && !defined($tcurrent))
+  {
+    $ok = 0;
+    $done = 1;
+  }
+  elsif (!defined($tmin) && defined($tcurrent))
+  {
+    $ok = 1;
+    $done = 1;
+  }
+  else
+  {
+    $ok = 1;
+    $done = 1;
+  }
+  $token++;
+}
+
+if ($ok == 0)
+{
+  print(STDERR "\nThe version of the java binary in your PATH is ${current_version}.\n");
+  print(STDERR "This application requires version 1.4 or greater.\n\n");
+  exit(1);
+}
+
+my $whereami = `dirname $0`; chomp($whereami);
+my $hc_lib = "${whereami}/../lib";
+
+exec("../dist/c/examples/Win32/build/RetrieveData", @ARGV);

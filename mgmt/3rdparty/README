@@ -1,0 +1,33 @@
+$Id: README 11177 2007-07-11 01:19:40Z jr152025 $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+BUILD INSTRUCTIONS
+------------------------------
+
+This file contains the instructions on how to build wiseman from the source
+files available in that directory.
+
+We note SRC to directory that contains all the files and DEST the directory
+where the build will be performed.
+
+1. Extract wiseman-src.tgz
+   wiseman-src.tgz is a checkout of the wiseman cvs repository as of
+   08/22/2006.
+   Go in the directory where you extracted the sources (DEST)
+
+2. Patch the sources
+   gpatch -Np3 < SRC/cvscheckout.diff
+
+3. Put the libs needed by se
+   tar xfz SRC/se-libs.tgz
+
+4. Copy the junit jar over:
+   cp SRC/junit.jar se/test/lib
+
+5. Put the libs needed by tools:
+   tar xfz SRC/tools-libs.tgz
+
+6. Compile !!!
+   ant

@@ -1,0 +1,49 @@
+
+NAME
+       Query - Query for metadata records
+
+SYNOPSIS
+       java Query <IP | HOST>  <QUERY>  [OPTIONS]
+
+DESCRIPTION
+       Query metadata records. QUERY is of the form:
+              "<name1>='<value1>' AND <name2>='<value2>' OR ..."
+       (See examples below for formatting of various types of values.)
+       The OID and any specified fields of metadata records which match 
+       the query are printed to stdout.
+
+       <name> should be specified in the format <namespace>.<attribute>
+
+       Note that names that are keywords need to be enclosed in 
+       escaped double quotes ("\\"<name>\\"='<value>'"). (See list of
+       keywords in Chapter 4 of the Client API Reference Guide.)  Also
+       note that some shells (csh) may not accept the escaped quotes
+       because they are embedded in other quotes.
+
+OPTIONS
+       -s   <select term>
+              Specify a field to return in the results
+
+       -n   <number of results>
+              The maximum number of metadata records or OIDs
+              that will be returned. The default is 1000.
+
+       -h   
+            print this message
+
+EXAMPLES
+       Note: 'first' is a keyword.
+
+       java Query server "book.author='King'"
+       java Query server "\"first\"='a'"
+       java Query 10.152.0.12 "mp3.artist='The Beatles' AND mp3.album='Abbey Road'"
+       java Query 10.152.0.12 "mp3.artist='The Beatles'" -s mp3.album -s mp3.title
+       java Query 10.152.0.12 system.test.type_char="'do re mi'"
+       java Query 10.152.0.12 system.test.type_string="'fa so la'"
+       java Query 10.152.0.12 system.test.type_long=123
+       java Query 10.152.0.12 system.test.type_double=1.23
+       java Query 10.152.0.12 system.test.type_binary="x'0789abcdef'"
+       java Query 10.152.0.12 system.test.type_date="'2010-10-20'"
+       java Query 10.152.0.12 system.test.type_time="'23:30:29'"
+       java Query 10.152.0.12 system.test.type_timestamp="{timestamp'2010-10-20T23:30:29.123Z'}"
+

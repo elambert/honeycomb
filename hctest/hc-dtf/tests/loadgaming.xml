@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="store">
+	<info>
+		<author>
+			<name>Rodney Gomes</name>
+			<email>rodney.gomes@sun.com</email>
+		</author>
+		<description>Honeycomb store test.</description>
+	</info>
+
+	<local>
+		<createstorage id="INPUT" path="${dtf.xml.path}/input" />
+		<createstorage id="TINPUT" path="${dtf.xml.path}" />
+		<createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+		<loadproperties uri="storage://INPUT/hc.properties" />
+	</local>
+
+	<local>
+        <lockcomponent id="CL1">
+        	<attrib name="hc.client.type" value="${hc.client.type}"/>
+        </lockcomponent>
+	</local>
+
+    <local>
+        <echo> Gaming load to node 5 </echo>
+    </local> 
+	<record type="object"
+	        event="hc"
+		    uri="property://stored">
+			<component id="CL1">
+               <loop property="thread" range="1..5" type="parallel">
+                    <loop property="iteration" range="1..10"> 
+        				<store datavip="${hc.cluster.datavip}"
+        					   port="${hc.cluster.dataport}"
+                               node="5">
+        					<file length="${hc.filesize}" type="random"/>
+        				</store>
+                    </loop>
+                </loop>
+			</component>
+	</record>
+    	
+    <local>
+        <echo> Gaming to load node 2 </echo>
+    </local> 
+	<record type="object"
+	        event="hc"
+		    uri="property://stored">
+			<component id="CL1">
+               <loop property="thread" range="1..5" type="parallel">
+                    <loop property="iteration" range="1..10"> 
+        				<store datavip="${hc.cluster.datavip}"
+        					   port="${hc.cluster.dataport}"
+                               node="2">
+        					<file length="${hc.filesize}" type="random"/>
+        				</store>
+                    </loop>
+                </loop>
+			</component>
+	</record>
+    
+    <local>
+        <echo> Gaming disabled </echo>
+    </local> 
+	<record type="object"
+	        event="hc"
+		    uri="property://stored">
+			<component id="CL1">
+               <loop property="thread" range="1..5" type="parallel">
+                    <loop property="iteration" range="1..10"> 
+        				<store datavip="${hc.cluster.datavip}"
+        					   port="${hc.cluster.dataport}"
+                               node="-1">
+        					<file length="${hc.filesize}" type="random"/>
+        				</store>
+                    </loop>
+                </loop>
+			</component>
+	</record>
+</script>

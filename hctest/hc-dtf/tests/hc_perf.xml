@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="hc_perf">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>Honeycomb performance testsuite.</description>
+    </info>
+
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input" />
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+        <createstorage id="TINPUT" path="${dtf.xml.path}" />
+
+        <loadproperties uri="storage://INPUT/hc.properties" />
+        <import uri="storage://INPUT/${hc.metadata.filename}" />
+        
+        <import uri="storage://TINPUT/perfmonitor_util.xml" />
+
+        <!-- RunID is used by all subtests -->
+        <property name="runid" value="${dtf.timestamp}" />
+        <property name="continueOnFailure" value="true" />
+    </local>
+
+    <local>
+        <lockcomponent id="CLUSTER" timeout="${hc.lockcomponent.timeout}">
+            <attrib name="hc.cluster.type" value="${hc.cluster.type}" />
+        </lockcomponent>
+    </local>
+
+    <testsuite name="honeycomb_performance_suite">
+        <for property="hc.filesize" range="${hc.perf.filesizes}">
+            <local>
+                <echo>Running with ${hc.filesize} byte objects.</echo>
+            </local>
+            
+            <call function="startPerfMonitor">
+                <property name="cluster.id" value="CLUSTER"/>
+            </call>
+
+            <testscript uri="storage://TINPUT/store.xml" />
+            <call function="collectLogs">
+                <property name="cluster.id" value="CLUSTER"/>
+                <property name="towhere" 
+                          value="storage://OUTPUT/server_store_stats_${hc.filesize}.log"/>
+            </call>
+
+            <testscript uri="storage://TINPUT/mdstore.xml" />
+            <call function="collectLogs">
+                <property name="cluster.id" value="CLUSTER"/>
+                <property name="towhere" 
+                          value="storage://OUTPUT/server_mdstore_stats_${hc.filesize}.log" />
+            </call>
+            
+            <testscript uri="storage://TINPUT/retrieve.xml" />
+            <call function="collectLogs">
+                <property name="cluster.id" value="CLUSTER"/>
+                <property name="towhere" 
+                          value="storage://OUTPUT/server_retrieve_stats_${hc.filesize}.log" />
+            </call>
+
+            <testscript uri="storage://TINPUT/addmd.xml" />
+            <call function="collectLogs">
+                <property name="cluster.id" value="CLUSTER"/>
+                <property name="towhere" 
+                          value="storage://OUTPUT/server_addmd_stats_${hc.filesize}.log" />
+            </call>
+        </for>
+        
+        <for property="md.type" range="empty,simple,unique,complex2">
+            <local>
+                <echo>Running ${md.type} queries</echo>
+            </local>
+            <testscript uri="storage://TINPUT/hcquery.xml" />
+            <call function="collectLogs">
+                <property name="cluster.id" value="CLUSTER"/>
+                <property name="towhere" 
+                          value="storage://OUTPUT/server_hcquery_simple_stats.log" />
+            </call>
+        </for>
+
+        <for property="hc.filesize" range="${hc.perf.filesizes}">
+            <local>
+                <property name="hc.storewithmd" value="true" overwrite="true"/> 
+            </local>
+            <testscript uri="storage://TINPUT/delete.xml" />
+            <call function="collectLogs">
+                <property name="cluster.id" value="CLUSTER"/>
+                <property name="towhere" 
+                          value="storage://OUTPUT/server_delete_md_stats_${hc.filesize}.log" />
+            </call>
+            
+            <local>
+                <property name="hc.storewithmd" value="false" overwrite="true"/> 
+            </local>
+            <testscript uri="storage://TINPUT/delete.xml" />
+            <call function="collectLogs">
+                <property name="cluster.id" value="CLUSTER"/>
+                <property name="towhere" 
+                          value="storage://OUTPUT/server_delete_data_stats_${hc.filesize}.log"/>
+            </call>
+        </for>
+    </testsuite>
+  
+    <local> 
+        <property name="hc.perf.validation" value="false" overwrite="true"/> 
+        <property name="hc.perf.print" value="notexpected" overwrite="true"/> 
+    </local>
+    <testscript uri="storage://TINPUT/hc_perf_stats.xml"/>
+   
+</script>

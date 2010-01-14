@@ -1,0 +1,18 @@
+
+NAME
+       RemoveLegalHold - remove a legal hold from a previously stored object
+
+SYNOPSIS
+       java RemoveLegalHold <IP | HOST> <OID> <LEGAL_HOLD_STRING> [OPTIONS]
+
+DESCRIPTION
+       Remove a legal hold from a stored object. LEGAL_HOLD_STRING describes
+       the legal hold to be removed from the object. Spaces can be included,
+       but the entire string must be placed within double or single quotes.
+
+OPTIONS
+       -h, --help
+              print this message
+
+EXAMPLES
+       java RemoveLegalHold server @SampleOID@ "Dogs vs. Cats" 

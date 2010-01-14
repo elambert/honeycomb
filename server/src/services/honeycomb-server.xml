@@ -1,0 +1,110 @@
+<?xml version='1.0'?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<!--
+	Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+	Use is subject to license terms.
+
+	$Id: honeycomb-server.xml 10855 2007-05-19 02:54:08Z bberndt $
+
+	Service manifest for the Honeycomb Server Service.
+-->
+
+<service_bundle type='manifest' name='SUNWhcserver:honeycomb-server'>
+
+<service
+	name='application/honeycomb-server'
+	type='service'
+	version='1'>
+
+        <create_default_instance enabled='true' />
+
+	<single_instance />
+
+        <dependency
+                name="honeycomb_ntp"
+                type="service"
+                grouping="require_all"
+                restart_on="none">
+                <!-- service_fmri value="svc:/network/ntp:default" / -->
+                <service_fmri value="svc:/site/ntpd" />
+        </dependency>
+
+	<dependency
+		name='config_data'
+		grouping='require_all'
+		restart_on='restart'
+		type='path'>
+		<service_fmri value='file:///config/config_defaults.properties' />
+	</dependency>
+
+        <dependency
+                name='start_flag'
+                grouping='exclude_all'
+                restart_on='restart'
+                type='path'>
+                <service_fmri value='file:///config/nohoneycomb' />
+        </dependency>
+
+	<dependency
+	        name='restart_flag'
+		grouping='exclude_all'
+		restart_on='restart'
+		type='path'>
+		<service_fmri value='file:///var/run/nmstarted' />
+	</dependency> 
+
+        <dependency
+                name='kernel_flag'
+                grouping='exclude_all'
+                restart_on='restart'
+                type='path'>
+                <service_fmri value='file:///tmp/nohoneycomb' />
+        </dependency>
+
+	<dependency
+		name='honeycomb-verification'
+		grouping='require_all'
+		restart_on='none'
+		type='service'>
+		<service_fmri value='svc:/application/honeycomb-verification' />
+	</dependency>
+
+	<exec_method
+		type='method'
+		name='start'
+		exec='/opt/honeycomb/etc/init.d/honeycomb start'
+		timeout_seconds='360' />
+
+	<exec_method
+		type='method'
+		name='stop'
+		exec='/opt/honeycomb/etc/init.d/honeycomb stop'
+		timeout_seconds='360' />
+
+	<exec_method
+	        type='method'
+		name='refresh'
+		exec='/opt/honeycomb/etc/init.d/honeycomb restart'
+		timeout_seconds='360' />
+
+	<stability value='Unstable' />
+
+	<template>
+		<common_name>
+			<loctext xml:lang='C'>
+				Honyecomb Server
+			</loctext>
+		</common_name>
+		<description>
+			<loctext xml:lang='C'>
+This is the Honeycomb Server Service.
+			</loctext>
+		</description>
+		<documentation>
+			<manpage title='honeycomb-server' section='1M'
+				manpath='/usr/share/man' />
+		</documentation>
+	</template>
+</service>
+
+</service_bundle>

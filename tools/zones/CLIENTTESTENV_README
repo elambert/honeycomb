@@ -1,0 +1,58 @@
+
+Scripts:-
+1. create_testenv.sh - creates test environment 
+   create_testenv.sh creates 2 test zones 'test-zone1 and test-zone2' with 2 
+   file systems /testfs1 and /testfs2. Each of the test zone is configured
+   on nge0 and nge1 with IP addresses 10.7.227.94 and 10.7.227.95 respectively.
+  
+2. create_zone.sh - creates solaris zones with the specified parameter
+   create_zone.sh -z test-zone1 -> Name of the zone 
+                  -d /export/home/zones -> Zone path 
+                  -f /testfs1 -> File System to be mounted 
+                  -i nge0 -> interface
+                  -n 10.7.227.94/22  -> IP address
+                  -m /mnt/testfs1 -> Mount point
+
+References:-
+1. Solaris Zones documentation
+
+   http://learningsolaris.com/docs/ContainersLowRes.pdf
+   http://www.logiqwest.com/dataCenter/Demos/RunBooks/Zones/index.html
+   http://www.sun.com/software/solaris/howtoguides/zfshowto.jsp
+   http://www.sun.com/software/solaris/containers_learning_center.jsp
+   http://www.solarisinternals.com/wiki/index.php/Zones_Resource_Controls
+   http://wiki.its.queensu.ca/display/JES/Solaris+10+Containers+and+Fair+Share+Scheduling
+
+2. Halt (shutdown) a zone
+
+   # zoneadm -z test-zone halt
+
+   http://www.logiqwest.com/dataCenter/Demos/RunBooks/Zones/shutdownZone.html
+   
+3. List zones and their status from the global zone
+
+   # zoneadm list -vi
+
+   If running this from within a zone, you will only see that zone
+   listed. Otherwise you will see all the zones.
+
+4. Check the number of shares in the global zone
+
+   # prctl -n zone.cpu-shares -i zone global
+
+5. Deleting a zone property
+
+   # zonecfg -z test-zone
+   zonecfg:test-zone> remove fs
+
+6. List properties of a zone
+
+   # zonecfg -z production-zone-1
+   zonecfg:test-zone> info
+
+7. Delete a zone
+
+   # zoneadm -z test-zone halt
+   # zoneadm -z test-zone uninstall
+   # zonecfg -z test-zone delete
+

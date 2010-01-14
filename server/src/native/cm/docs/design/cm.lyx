@@ -1,0 +1,2042 @@
+#LyX 1.3 created this file. For more info see http://www.lyx.org/
+\lyxformat 221
+\textclass article
+\language english
+\inputencoding auto
+\fontscheme times
+\graphics default
+\paperfontsize default
+\spacing single 
+\papersize Default
+\paperpackage a4
+\use_geometry 0
+\use_amsmath 0
+\use_natbib 0
+\use_numerical_citations 0
+\paperorientation portrait
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\defskip medskip
+\quotes_language english
+\quotes_times 2
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+
+\layout Title
+
+Cluster Management
+\newline 
+Requirements and specifications
+\layout Author
+
+The Cluster Management team
+\layout Date
+
+Version 1.1
+\layout Standard
+
+
+\begin_inset LatexCommand \tableofcontents{}
+
+\end_inset 
+
+
+\layout Standard
+
+
+\begin_inset ERT
+status Collapsed
+
+\layout Standard
+
+\backslash 
+clearpage
+\end_inset 
+
+
+\layout Section
+
+Requirements
+\layout Standard
+
+The Cluster Management is responsible for handling the following tasks inside
+ the HoneyComb cluster :
+\layout Enumerate
+
+managing the state of all the components in the cluster.
+ This includes starting, monitoring and stopping these components.
+\layout Enumerate
+
+providing a cluster wide interface for administrative operations.
+ For example, if an administrator wants to shutdown the cluster, it will
+ invoke a Cluster Management API.
+\layout Enumerate
+
+detecting errors in the cluster.
+ If a component fails, the Cluster management detects and reports these
+ errors.
+\layout Enumerate
+
+recovering from errors.
+ The cluster management triggers appropriate actions to recover from software
+ and hardware failures.
+\layout Enumerate
+
+providing a global view of the cluster.
+ This view includes different level of management elements, such as the
+ list of active nodes and the current status of every component.
+\layout Section
+
+Terminology
+\layout Description
+
+Cell\SpecialChar ~
+manager .
+ The cell manager handles policies at the cell level.
+ It coordinates actions but does not directly interface with services.
+ It uses the node managers to perform the actions.
+\layout Description
+
+CMM .
+ The CMM is the Cluster Membership Monitor.
+ It is responsible for managing the state of the cluster at the machine
+ level (list of available hosts, detection of node leaves / node joins).
+ CMM provides a strong and consistent view of the available nodes in the
+ cluster.
+ It elects and guarantees that only one instance of the master node is running
+ at any point of time The response time of CMM is around 1.5s
+\layout Description
+
+Mailboxes Mailboxes provide an IPC framework for service management and
+ state propagation in the cluster.
+ A mailbox is a container handling the management state of a honeycomb service
+ (running, disabled) as well as service specific information (space disk
+ available, system load average).
+ A mailbox daemon is responsible for propagating the state of each component
+ to every nodes in the cell.
+ Mailboxes provide a weak view of all the available services running on
+ every node in the cluster.
+ Theses views are propagated periodically every ~10s or explicitly during
+ a service state change or an API call.
+\layout Description
+
+Node\SpecialChar ~
+manager .
+ The node manager is the management entity running on every node of the
+ cell.
+ It is responsible for managing the local node and serves as proxy for incoming
+ / outgoing communications with the cell manager.
+\layout Description
+
+Service .
+ A service (or component) is the basic entity managed by the cluster management.
+ There is 3 different types of services running on a honeycomb node:
+\begin_deeper 
+\layout Itemize
+
+system services are components essential for the management framework and
+ are started at a early stage during initialization.
+ Theses services never stop until the node reboot.
+\layout Itemize
+
+master node services are running only on the master node.
+ They are appropriately stopped and started by the node manager during the
+ election of a new master node.
+\layout Itemize
+
+application services correspond to components providing a set of functionalities
+ in the honeycomb software.
+\layout Standard
+
+Every service has to implement the management interface.
+ This includes: 
+\layout Itemize
+
+implementing the API called by the node manager
+\layout Itemize
+
+implementing the management state transitions 
+\layout Itemize
+
+emitting heartbeats.
+ 
+\end_deeper 
+\layout Section
+
+Architecture overview
+\layout Standard
+
+The following drawing gives an high level overview of an honeycomb cell.
+\layout Standard
+
+
+\begin_inset Float figure
+placement H
+wide false
+collapsed false
+
+\layout Standard
+
+
+\begin_inset Graphics
+	filename cm.eps
+	BoundingBox 0bp 300bp 410bp 575bp
+	clip
+	rotateOrigin leftTop
+
+\end_inset 
+
+
+\layout Caption
+
+Honeycomb cell overview
+\end_inset 
+
+
+\layout Standard
+
+The following drawing details the various services running on a honeycomb
+ node.
+\layout Standard
+
+
+\begin_inset Float figure
+placement H
+wide false
+collapsed false
+
+\layout Standard
+
+
+\begin_inset Graphics
+	filename cm_services.eps
+	BoundingBox 0bp 280bp 410bp 700bp
+	clip
+
+\end_inset 
+
+
+\layout Caption
+
+Services running on a honeycomb node
+\end_inset 
+
+
+\layout Standard
+
+Following is a brief description of the honeycomb services that are not
+ described in the cluster management document:
+\layout Itemize
+
+Protocol Service interfaces with the client library to provide the entry
+ point for the datapath.
+\layout Itemize
+
+MD server handles system metadata and provide object fragments location.
+\layout Itemize
+
+Layout Mgr is responsible to collect and publish the current disks layout
+ of the cluster.
+ In the current implementation, only one instance of the Layout manager
+ is running on the master node.
+\layout Itemize
+
+DiskServer is responsible to manage the local disks of the node.
+\layout Itemize
+
+Stat server provides basic run-time statistics.
+\layout Standard
+
+The rest of this document describes more precisely the services that are
+ specific to the cluster management.
+\layout Section
+
+The Cluster Membership Monitor
+\layout Subsection
+
+Design overview
+\layout Standard
+
+The Cluster Membership Monitor (CMM) is responsible for monitoring the nodes
+ within a cell.
+ Its purpose is to detect and report as fast as possible any node failure
+ in the cell and guarantee that one and only one cell manager is always
+ available.
+ The design relies on a ring transport layer similar to a token ring architectur
+e; All CMM agents are organized in a ring.
+ Each CMM has a next and a previous element.
+ By nature, the cluster membership provides a strong consistent view of
+ the cluster and relies on a connection oriented protocol with short and
+ finely tuned timeouts.
+ It also requires to have a ordered map of potential nodes in the cell in
+ order to establish the ring (no peer-to-peer discovery).
+ 
+\newline 
+Having a global consistent state in the cluster is an important feature
+ that can be leverage by other components.
+ On the other hand, while the current CMM implementation has shown to be
+ fairly stable and robust, it is well known that this kind of algorithm
+ is hard to tune, does not scale well and becomes overly complex when dealing
+ with partial failure.
+\newline 
+In the current Bumble implementation, CMM only provides the list of active
+ nodes in the cell and there is no dynamic election of the master node.
+ More precisely, only one node called the 
+\begin_inset Quotes eld
+\end_inset 
+
+cheat
+\begin_inset Quotes erd
+\end_inset 
+
+ node is master eligible.
+\layout Subsection
+
+API overview
+\layout Standard
+
+The API of CMM is only available in C and provides the following functionalities
+:
+\layout Itemize
+
+Cell view to retrieve the state of all the nodes in the cluster and/or the
+ state of a given node.
+\layout Itemize
+
+Node status notifications.
+ CMM sends a notification to the registered clients when the state of a
+ given node changes.
+ The possible events are:
+\begin_deeper 
+\layout Itemize
+
+a node joined / left
+\layout Itemize
+
+a master node has been elected / demoted; 
+\layout Itemize
+
+a node has been disqualified / qualified.
+\end_deeper 
+\layout Itemize
+
+Qualifying / Disqualifying a node.
+ An API to change the state of a node is provided.
+\layout Standard
+
+The complete CMM API is given in annex.
+ In the current Bumble implementation, the Qualifying / Disqualifying mechanism
+ is not used and only the cheat node can be elected master node.
+\layout Section
+
+The Mbox daemon - Mailboxes
+\layout Subsection
+
+Design overview
+\layout Standard
+
+Mailbox is a distributed IPC mechanism used to share state information across
+ different address spaces in a cell.
+ The design is similar to a distributed shared memory; A mailbox is a shared
+ memory segment that records the necessary information to manage a component
+ and includes specific data that need to be accessible to others services
+ in the cell (disk available size, node load average).
+ A mailbox is protected by a locking mechanism that guarantees data consistency
+ during update and is propagated in the cell through multicast.
+ All mailboxes are accessible cluster wide, enabling a component to have
+ a read-only access of a service mailbox regardless of its location.
+ The global view of the mailboxes is not guarantee to be consistent across
+ the cluster (a view of a mailbox can be different on two different nodes),
+ but the cluster management guarantees that the local view of a remote mailbox
+ is updated atomically.
+ Mailboxes are propagated in the cluster periodically or when a state change
+ occurs for the component.
+\newline 
+The main advantage of the mailbox framework is its simplicity and robustness
+ to failure.
+ On the other hand, it does not provide a global view of the cluster and
+ requires the honeycomb software to deal with inconsistent states.
+\layout Subsection
+
+Mailbox namespace
+\layout Standard
+
+Mailboxes use a hierarchic namespace of the form [nodeId]/[tagMailbox].
+ Where [nodeId] is the unique node identifier and [tagMailbox] is the mailbox
+ name identifying the service.
+ The special name 0/NodeMgr identifies the node manager mailbox on the local
+ node and can be used to access any service running on any node.
+ The node manager mailbox [NodeMgr] includes the mailbox names of all the
+ services running on that node as well as the list of active nodes in the
+ cluster.
+ The typical steps involved in the discovery of a remote service are:
+\layout Itemize
+
+access the mailbox of the local node manager by opening: 0/NodeMgr
+\layout Itemize
+
+get the list of active nodes in the cluster from the node manager mailbox
+\layout Itemize
+
+access the remote node manager mailbox by opening: <nodeId>/NodeMgr
+\layout Itemize
+
+get the list of running services and mailbox tags on the remote node
+\layout Itemize
+
+access the remote service mailbox by opening: <nodeId>/<tagMailbox>
+\layout Subsection
+
+API overview
+\layout Standard
+
+Services communicate with the node manager asynchronously through a mailbox
+ API.
+ The details of this API is given in annex and rely on two basic mechanisms;
+ A set of callbacks provided by the service and triggered by the node manager
+ to request a state change.
+ An heartbeat function that needs to be called periodically by the service
+ to insure its health.
+ The data section of a mailbox is encoded in UTF-8 format and includes the
+ following header:
+\layout Itemize
+
+a version number used for compatibility
+\layout Itemize
+
+the type of the mailbox identifying the corresponding component
+\layout Itemize
+
+a sequence number incremented every time the data section is updated
+\layout Section
+
+The Node manager
+\layout Standard
+
+Each node will boot up and one of the first honeycomb application it runs
+ is the node manager.
+ The node manager is responsible for:
+\layout Itemize
+
+Starting, stopping and monitoring services.
+\layout Itemize
+
+Performing management operations on behalf of the cell manager.
+\layout Subsection
+
+Service abstraction
+\layout Standard
+
+A service can be a process or a honeycomb component inside a process.
+ A service maintains a manageable state and communicates asynchronously
+ with the node manager to periodically report its current state.
+ The node manager can ask asynchronously a service to change its behavior.
+\newline 
+A service can have the following states :
+\layout Description
+
+Disabled The service is not yet started, has crashed or is known to fail.
+ Any service can spontaneously move to the disabled state when it detects
+ an internal error that cannot be recovered.
+\layout Description
+
+Init The service is initializing including any cleanup or recovery phase.
+\layout Description
+
+Ready The service initialization is complete and is ready to start accepting
+ incoming requests.
+\layout Description
+
+Running The service is running and currently processes requests.
+\layout Standard
+
+A service is required to heartbeat in the Init, Ready or Running state.
+\layout Subsection
+
+Service state machine
+\layout Standard
+
+The following drawing shows the transition states of a service.
+ Some states are spontaneous and decided by the service.
+ Others are triggered by the node manager to explicitly change the behaviour
+ of a service.
+\layout Standard
+
+
+\begin_inset Float figure
+placement H
+wide false
+collapsed false
+
+\layout Standard
+\align center 
+
+\begin_inset Graphics
+	filename states.eps
+	height 5cm
+	keepAspectRatio
+
+\end_inset 
+
+
+\layout Caption
+
+Service State Machine
+\end_inset 
+
+
+\layout Subsection
+
+Node manager state machine
+\layout Standard
+
+To dynamically manage the services running on a node, the node manager uses
+ a model that takes into account the relations that components may have
+ with each other.
+ Such relationships include: 
+\layout Itemize
+
+containment relationship.
+ A process is a service and can contain more than one manageable service.
+\layout Itemize
+
+dependency relationship.
+ A service relies on an another service to be functional.
+ 
+\layout Subsection
+
+The Node manager configuration file
+\layout Standard
+
+The node manager is configured through a static XML file that is embedded
+ in the CORE initrd image.
+ This file contains the hierarchy of all the services to be started.
+ For example :
+\layout LyX-Code
+
+<node>
+\layout LyX-Code
+
+<service
+\layout LyX-Code
+
+        type="PROCESS"
+\layout LyX-Code
+
+        start_cmd="A"
+\layout LyX-Code
+
+        .../>
+\layout LyX-Code
+
+    
+\layout LyX-Code
+
+<service
+\layout LyX-Code
+
+        type="JVM"
+\layout LyX-Code
+
+        start_cmd="B"
+\layout LyX-Code
+
+        ...>
+\layout LyX-Code
+
+\layout LyX-Code
+
+        <service
+\layout LyX-Code
+
+            type="JAVA_SERVICE"
+\layout LyX-Code
+
+            start_cmd="C"
+\layout LyX-Code
+
+            .../>
+\layout LyX-Code
+
+</service>
+\layout LyX-Code
+
+</node>
+\layout Standard
+
+means that :
+\layout Itemize
+
+service 
+\emph on 
+A
+\emph default 
+ is a stand alone process that doesn't depend on anyone ;
+\layout Itemize
+
+service 
+\emph on 
+B
+\emph default 
+ is a service containing some other services (typically a JVM) and does
+ not depend on anyone ;
+\layout Itemize
+
+service 
+\emph on 
+C
+\emph default 
+ is a service contained in an other one (type 
+\emph on 
+JAVA_SERVICE
+\emph default 
+) and depends on service 
+\emph on 
+B
+\emph default 
+ (this is a child of service 
+\emph on 
+B
+\emph default 
+ in the tree structure).
+\layout Standard
+
+When the node manager will start this node, it will therefore start services
+ 
+\emph on 
+A
+\emph default 
+ and 
+\emph on 
+B
+\emph default 
+ in parallel and then service 
+\emph on 
+C
+\emph default 
+ once 
+\emph on 
+B
+\emph default 
+ will have reached its expected state.
+\layout Subsubsection
+
+List of possible attributes for a service tag
+\layout Standard
+
+Each service is configurable and can have several attributes (such as 
+\emph on 
+type
+\emph default 
+ or 
+\emph on 
+start_cmd
+\emph default 
+).
+ Here is an exhaustive list of them :
+\layout Description
+
+type Describes the kind of service.
+ It can have the values :
+\layout Itemize
+
+PROCESS, for a stand alone process ;
+\layout Itemize
+
+JVM for a Java Virtual Machine (process containing some other services)
+ ;
+\layout Itemize
+
+JAVA_SERVICE for a Java Service inside a JVM ;
+\layout Itemize
+
+PROBE for leaves that will trigger a probe routine (see below).
+\layout Description
+
+group The group defines under which model a service is running.
+ Today, there are 2 groups :
+\layout Itemize
+
+the SYSTEM group.
+ Services in that group won't be stopped (even with a stop_node request)
+ as long as the node manager is running.
+\layout Itemize
+
+the USER group.
+ This group contains most of the services and the lifecyle of these services
+ follows the instructions given to the node manager.
+\layout Description
+
+location The location attribute defines on which node(s) this service has
+ to be running.
+ The accepted values are :
+\layout Itemize
+
+MASTER : the service will be running only on the master node ;
+\layout Itemize
+
+ANY : the service will be running on all the nodes (including the master).
+\layout Description
+
+heartbeat Gives the time the node manager will wait for a service heartbeat
+ before putting it in the disabled state
+\layout Description
+
+start_cmd describes the way to start a service
+\layout Itemize
+
+This is a PATH to a valid binary in the case of the PROCESS and JVM types
+ ;
+\layout Itemize
+
+This is a class name implementing the ManagedService interface in the case
+ of JAVA_SERVICE type ;
+\layout Itemize
+
+This is the name of a routine to be executed in the case of a PROBE type
+ service.
+\layout Description
+
+env specifies an environment (in the Unix meaning) to be set up before executing
+ the binary.
+ This is relevant only for PROCESS and JVM services.
+\layout Description
+
+arg specifies a String passed back to the 
+\emph on 
+getInstance
+\emph default 
+ method of the ManagedService class.
+ This is relevant only for the JAVA_SERVICE services.
+\layout Description
+
+restart_nb specifies the number of time the component can be restarted with
+ the window 
+\emph on 
+restart_window
+\emph default 
+ before giving up.
+\layout Description
+
+restart_window specifies the restart window, in seconds (see 
+\emph on 
+restart_nb
+\emph default 
+).
+\layout Description
+
+mailbox_tag specifies the name used for the mailboxes of that service.
+ This string will passed back :
+\layout Itemize
+
+in the 
+\emph on 
+HC_MAILBOX
+\emph default 
+ environment variable in the case of PROCESS and JVM services ;
+\layout Itemize
+
+as an argument to 
+\emph on 
+getInstance
+\emph default 
+ in the JAVA_SERVICE case.
+\layout Description
+
+mailbox_size specifies the size of the mailbox for that service.
+\layout Subsubsection
+
+The PROBE service type
+\layout Standard
+
+There is a special service type, called PROBE, which is used to dynamically
+ modify the configuration tree at run time.
+\newline 
+
+\newline 
+This is used for example to start the appropriate disk server depending
+ on the actual configuration of the host on which the honeycomb software
+ is run.
+ The general idea is that when a PROBE leaf is encountered by the node manager
+ at initialization time, it will call the routine specified by the 
+\emph on 
+start_cmd
+\emph default 
+ attribute.
+\newline 
+
+\newline 
+That routine is then in charge of dynamically completing the service tree
+ and create the appropriate entries.
+ These created entries will replace the PROBE leaf.
+\newline 
+
+\newline 
+When the node manager has been initialized, there is no PROBE service anymore,
+ since all of then have been replaces by 
+\begin_inset Quotes eld
+\end_inset 
+
+real
+\begin_inset Quotes erd
+\end_inset 
+
+ services.
+\newline 
+
+\newline 
+Since the PROBE service type is to be used internally inside Cluster Management,
+ no more details will be given in this document.
+\layout Section
+
+The Config Manager
+\layout Standard
+
+The config manager is a service running on the master node and owns the
+ global cell configuration.
+ The cell configuration is exported as JAVA properties to other components
+ and propagated in the cluster through the mailbox mechanism.
+ The configuration can only be modified by the config manager.
+ In the current Bumble version, the cluster configuration is a static file
+ included with the initrd image and therefore is only persistent on the
+ cheat node (a honeycomb node does not have a local persistent filesystem).
+ This file includes:
+\layout Itemize
+
+The list of subservices managed by the Cell Manager (see 
+\begin_inset LatexCommand \ref{sub:Cell-manager-services}
+
+\end_inset 
+
+)
+\layout Itemize
+
+The mapping between nodes MAC addresses and RPC ports to power on/off individual
+ node
+\layout Itemize
+
+The list of available VIP with the corresponding subnet/network and gateway
+ configuration
+\layout Itemize
+
+The ntp server IP address
+\layout Section
+
+The Cell manager
+\layout Standard
+
+The cell manager is a service running on the master node to provide a user
+ entry point for cluster management.
+ It includes a web interface to view the current state of the cluster and
+ allow administrative commands to be run.
+ The cell manager additionally manages the global resources of the cluster
+ and allows specific Unix services to be run.
+\layout Subsection
+
+The web interface
+\layout Standard
+
+The web interface is accessible on port 8090 of the master node VIP address
+ and provides a global but not necessarily up-to-date view of the cluster.
+ In particular, it shows:
+\layout Itemize
+
+the cell configuration
+\layout Itemize
+
+the list of active nodes
+\layout Itemize
+
+for one given node, the list of services running on that node with their
+ current status; disabled, init, ready, running
+\layout Itemize
+
+the list of all the disks available in the cluster
+\layout Standard
+
+The cell manager communicates synchronously with a node manager to perform
+ the following list of administrative commands:
+\layout Itemize
+
+Reboot the whole cluster
+\newline 
+Individually reboot all nodes in the cluster except the master node (cheat
+ node).
+ During a reboot command, the node manager first tries to shutdown all honeycomb
+ services.
+ It then uses the 
+\begin_inset Quotes eld
+\end_inset 
+
+reboot
+\begin_inset Quotes erd
+\end_inset 
+
+ unix command to cleanly shutdown the node before rebooting.
+ If that fails, a hard reboot is performed.
+ Note that in the current implementation, the cell manager does not try
+ to power off/on the node if the command times out.
+\layout Itemize
+
+Stop the whole cluster
+\begin_inset LatexCommand \label{ite:Stop-the-whole}
+
+\end_inset 
+
+
+\newline 
+Shutdown all node managers in the cluster except the master node and stop
+ the cell manager services.
+ The shutdown command of the node manager shutdowns all honeycomb services
+ except the node manager itself and CMM.
+ By stopping all cell manager services, the cell manager powers off all
+ the nodes.
+ This command is only useful to upgrade the cluster.
+\layout Itemize
+
+Stop a node
+\newline 
+This command is equivalent to suspending a node.
+ The node manager shutdowns all components that are not system bu the node
+ is still part of the cluster.
+\layout Itemize
+
+Start a node
+\newline 
+This command is similar to resuming a node.
+ The node manager restarts all components that are not system.
+ The node must have been stopped with the 
+\begin_inset Quotes eld
+\end_inset 
+
+Stop a node
+\begin_inset Quotes erd
+\end_inset 
+
+ command.
+\layout Subsection
+
+Cell manager services 
+\begin_inset LatexCommand \label{sub:Cell-manager-services}
+
+\end_inset 
+
+
+\layout Standard
+
+The cell manager also handles additional services.
+ At boot time the cell manager gets a list of services from the cluster
+ configuration that need to be started.
+ In the current implementation, the list of services is:
+\layout Itemize
+
+dhcp
+\newline 
+The cell manager first builds a /etc/dhcpd.conf file that reflect the configurati
+on of the clusters and start the dhcpd daemon of the underlying operating
+ system.
+\layout Itemize
+
+ntp
+\newline 
+The cell manager first builds a /etc/ndp.conf and /etc/ntp/step-tickers files
+ with the ntp server specified in the cluster configuration and starts the
+ ntpd daemon of the underlying OS.
+ Note that ntpd is automatically started for a node that is not the master
+ node and is configured with the IP of the cheat node as the ntp server.
+ This assumes that the master node is always the cheat node.
+\layout Itemize
+
+vip
+\newline 
+The cell manager assigns the list of available VIP specified in the configuratio
+n file to a set of nodes in the cell.
+ A non master node retrieves and configures its assigned VIP address at
+ boot time.
+ This assumes that the cell manager is started before all other nodes in
+ the cluster.
+\layout Itemize
+
+power
+\newline 
+The cell manager retrieves all the configured RPC ports from the cluster
+ configuration and power on all the nodes.
+ When this service stops, all the nodes are powered off (see 
+\begin_inset LatexCommand \ref{ite:Stop-the-whole}
+
+\end_inset 
+
+).
+ 
+\layout Section
+
+Failure detection & recovery
+\layout Standard
+
+The bumble implementation only supports software failures.
+ There is no implementation for hardware failure detections and recovery
+ (or repair).
+\layout Subsubsection
+
+Software failure.
+\layout Standard
+
+At run-time, the node manager continuously monitors the mailbox of every
+ service.
+ If the service stops heartbeating or if its state is set to 
+\emph on 
+Disabled
+\emph default 
+, the node manager tries to recover the problem by restarting the service.
+ If the service keeps failing over a configurable period of time, the service
+ is shutdown and all services that depend on it are turned 
+\emph on 
+Disabled
+\emph default 
+.
+ Any failure or state change are immediately reported to the cell by refreshing
+ the distributed view of the mailboxes.
+\layout Section
+
+APIs
+\layout Subsection
+
+The CMM API
+\layout Subsubsection
+
+Common types
+\layout Standard
+
+Each host will be identified by a node id.
+\layout LyX-Code
+
+typedef unsigned char cmm_nodeid_t;
+\newline 
+
+\newline 
+#define CMM_INVALID_NODEID 0
+\layout Standard
+
+This allows to have up to 254 nodes within a cell.
+ The node ids can be identical for 2 nodes in 2 different cells.
+\begin_inset Foot
+collapsed false
+
+\layout Standard
+
+In the future, we'll have to define the notion of cell id and incorporate
+ it in the CMM API
+\end_inset 
+
+
+\layout Standard
+
+The state of the node is defined as follow :
+\layout LyX-Code
+
+typedef unsigned char cmm_nodestate_t;
+\newline 
+
+\layout LyX-Code
+
+#define CMM_MASTER              0x0001
+\layout LyX-Code
+
+#define CMM_OUT_OF_CLUSTER      0x0004
+\layout LyX-Code
+
+#define CMM_FLAG_DISQUALIFIED   0x0800
+\layout Standard
+
+Each node will be described by the following data structure :
+\layout LyX-Code
+
+typedef struct cmm_member_t {
+\layout LyX-Code
+
+        cmm_nodeid_t     nodeid;
+\layout LyX-Code
+
+        cmm_membername_t name;
+\layout LyX-Code
+
+        cmm_memberaddr_t addr;
+\layout LyX-Code
+
+        uint32_t         sflag;
+\layout LyX-Code
+
+} cmm_member_t; 
+\layout Itemize
+
+The name parameter gives a string specified in the CMM configuration file,
+ representing the node name.
+\layout Itemize
+
+The addr field describes the IP address of the node.
+ 
+\layout Standard
+
+Finally the error codes are defined by :
+\layout LyX-Code
+
+typedef enum {
+\layout LyX-Code
+
+    CMM_OK = 0,
+\layout LyX-Code
+
+    CMM_EBADF = -100,
+\layout LyX-Code
+
+    CMM_EBUSY = -100 + 1,
+\layout LyX-Code
+
+    CMM_ECANCELED = -100 + 2,
+\layout LyX-Code
+
+    CMM_EEXIST = -100 + 3,
+\layout LyX-Code
+
+    CMM_EINVAL = -100 + 4,
+\layout LyX-Code
+
+    CMM_ENOENT = -100 + 5,
+\layout LyX-Code
+
+    CMM_ENOMSG = -100 + 6,
+\layout LyX-Code
+
+    CMM_ENOTSUP = -100 + 7,
+\layout LyX-Code
+
+    CMM_EPERM = -100 + 8,
+\layout LyX-Code
+
+    CMM_ERANGE = -100 + 9,
+\layout LyX-Code
+
+    CMM_ESRCH = -100 + 10,
+\layout LyX-Code
+
+    CMM_ENOCLUSTER = -100 + 11,
+\layout LyX-Code
+
+    CMM_ECONN = -100 + 12,
+\layout LyX-Code
+
+    CMM_ETIMEDOUT = -100 + 13,
+\layout LyX-Code
+
+    CMM_EAGAIN = -100 + 14
+\layout LyX-Code
+
+} cmm_error_t;
+\layout Subsubsection
+
+Querying to get the view of the cluster
+\layout Standard
+
+The first call allows a node to get its nodeid : 
+\layout LyX-Code
+
+cmm_error_t cmm_get_nodeid(cmm_nodeid_t *nodeid);
+\layout Standard
+
+The next call retrieves the state of any node in the cluster.
+\layout LyX-Code
+
+cmm_error_t cmm_get_nodeinfo(cmm_nodeid_t nodeid,
+\newline 
+                             cmm_member_t *member);
+\layout Standard
+
+The member structure is a buffer given by the client and is filled by the
+ CMM.
+\newline 
+
+\newline 
+The following 2 calls allow a client to retrieve the whole list of nodes
+ configured in the cluster :
+\layout LyX-Code
+
+cmm_error_t cmm_member_getcount(uint32_t *member_count);
+\layout LyX-Code
+
+cmm_error_t cmm_member_getall(uint32_t      table_size,
+\layout LyX-Code
+
+                              cmm_member_t *member_table,
+\layout LyX-Code
+
+                              uint32_t     *member_count);
+\layout Standard
+
+The logic is the following :
+\layout Enumerate
+
+the client first calls 
+\emph on 
+cmm_member_getcount
+\emph default 
+ to get the total number of nodes in the cluster ;
+\layout Enumerate
+
+it then allocates itself an array of 
+\emph on 
+cmm_member_getcount
+\emph default 
+ elements ;
+\layout Enumerate
+
+it then calls 
+\emph on 
+cmm_member_getall
+\emph default 
+ with that allocated array as a 
+\emph on 
+member_table
+\emph default 
+ parameter ;
+\layout Enumerate
+
+the CMM will fill that array and returns the number of elements really written
+ (the number may be lower than the allocated size if some nodes left the
+ cluster in the meantime) ;
+\layout Enumerate
+
+it is then up to the client to free the 
+\emph on 
+member_table
+\emph default 
+ memory.
+\layout Subsubsection
+
+Qualifying / Disqualifying a node
+\layout Standard
+
+This API allows a component on any node to disqualify an other node.
+\layout LyX-Code
+
+typedef enum {
+\layout LyX-Code
+
+  CMM_QUALIFIED_MEMBER = -150,
+\layout LyX-Code
+
+  CMM_DISQUALIFIED_MEMBER
+\layout LyX-Code
+
+} cmm_qualif_t; 
+\layout LyX-Code
+
+\layout LyX-Code
+
+cmm_error_t cmm_member_setqualif(cmm_nodeid_t const nodeid,
+\layout LyX-Code
+
+                                 cmm_qualif_t const new_qualif);
+\layout Subsubsection
+
+The callback API
+\layout Standard
+
+There are a few steps to get callbacks from the CMM.
+\newline 
+
+\layout Standard
+
+The callback mechanism is the following : 
+\layout Enumerate
+
+a client registers using cmm_register_callback.
+ It gets a fd to poll from ; 
+\layout Enumerate
+
+using either poll or select, the client waits for some datas to be available
+ ; 
+\layout Enumerate
+
+when some datas are available, it calls cmm_dispatch which will in return
+ call the preregistered callback.
+ 
+\layout Standard
+
+This model allows a program to be monothreaded and select on several file
+ descriptors without having a dedicated thread for the CMM.
+\newline 
+
+\newline 
+The calls to register for callbacks are : 
+\layout LyX-Code
+
+typedef enum  {
+\layout LyX-Code
+
+    CMM_MASTER_ELECTED = 250,
+\layout LyX-Code
+
+    CMM_MASTER_DEMOTED,
+\layout LyX-Code
+
+    CMM_VICEMASTER_ELECTED,
+\layout LyX-Code
+
+    CMM_VICEMASTER_DEMOTED,
+\layout LyX-Code
+
+    CMM_MEMBER_JOINED,
+\layout LyX-Code
+
+    CMM_MEMBER_LEFT,
+\layout LyX-Code
+
+    CMM_STALE_CLUSTER,
+\layout LyX-Code
+
+    CMM_INVALID_CLUSTER,
+\layout LyX-Code
+
+    CMM_VALID_CLUSTER
+\layout LyX-Code
+
+} cmm_cmchanges_t;
+\layout LyX-Code
+
+\layout LyX-Code
+
+typedef struct {
+\layout LyX-Code
+
+    cmm_cmchanges_t cmchange;
+\layout LyX-Code
+
+    cmm_nodeid_t    nodeid;
+\layout LyX-Code
+
+} cmm_cmc_notification_t; 
+\layout LyX-Code
+
+\layout LyX-Code
+
+typedef void (*cmm_notify_t)(const cmm_cmc_notification_t *change_notification,
+\layout LyX-Code
+
+                             void *client_data); 
+\layout LyX-Code
+
+\layout LyX-Code
+
+cmm_error_t cmm_notify_getfd(int *fd);
+\layout LyX-Code
+
+\layout LyX-Code
+
+cmm_error_t cmm_cmc_register(cmm_notify_t callback,
+\layout LyX-Code
+
+                             void *client_data);
+\layout LyX-Code
+
+\layout LyX-Code
+
+cmm_error_t cmm_cmc_unregister();
+\layout Standard
+
+The 
+\emph on 
+cmm_notify_getfd
+\emph default 
+ routine allows the client to retrieve the file descriptor to poll from.
+\newline 
+
+\newline 
+Here is the meaning of the parameters of 
+\emph on 
+cmm_cmc_register
+\emph default 
+ : 
+\layout Itemize
+
+
+\emph on 
+callback
+\emph default 
+ defines the routine that will be called when a notification comes in.
+\layout Itemize
+
+
+\emph on 
+client_data 
+\emph default 
+is a parameter that will be passed back as is in the callback.
+ This can be used by the client to store any state.
+\layout Standard
+
+When some datas are available in the fd, the client has to call the following
+ API to get the notifications.
+ The client 
+\emph on 
+cannot
+\emph default 
+ read from the fd directly ! 
+\layout LyX-Code
+
+cmm_error_t cmm_notify_dispatch();
+\layout Subsection
+
+The Mailbox API
+\layout Subsubsection
+
+Java API
+\layout Standard
+
+The Java API for managing services consists of two interfaces and one pre-define
+d initialization method.
+\layout LyX-Code
+
+\layout LyX-Code
+
+/**  
+\layout LyX-Code
+
+ * The ManagedService interface defines a contract that
+\layout LyX-Code
+
+ * needs to be implemented by every java component wishing
+\layout LyX-Code
+
+ * to be manageable through the service mailbox mechanism.
+\layout LyX-Code
+
+ * It provides the various state transitions that a service
+\layout LyX-Code
+
+ * needs to implement.
+\layout LyX-Code
+
+ */
+\layout LyX-Code
+
+public interface ManagedService {
+\layout LyX-Code
+
+     /**      
+\layout LyX-Code
+
+      * This method is invoked to trigger the initialization
+\layout LyX-Code
+
+      * of the service.
+ The service acknowledges that it
+\layout LyX-Code
+
+      * reaches the requested state by calling
+\layout LyX-Code
+
+      * {@link ServiceListener#ready}
+\layout LyX-Code
+
+      */
+\layout LyX-Code
+
+    public void init();
+\layout LyX-Code
+
+\layout LyX-Code
+
+     /**
+\layout LyX-Code
+
+      * Starts processing incoming requests.
+ This method
+\layout LyX-Code
+
+      * is invoked by the cluster management to activate the
+\layout LyX-Code
+
+      * service.
+\layout LyX-Code
+
+      * The service acknowledges that it reaches the requested
+\layout LyX-Code
+
+      * state by calling {@link ServiceListener#running}
+\layout LyX-Code
+
+      */
+\layout LyX-Code
+
+    public void start();
+\layout LyX-Code
+
+\layout LyX-Code
+
+     /**
+\layout LyX-Code
+
+      * Stops accepting incoming requests and waits for
+\layout LyX-Code
+
+      * all current requests to finish.
+\layout LyX-Code
+
+      * The service acknowledges that it reaches the requested
+\layout LyX-Code
+
+      * state by calling {@link ServiceListener#ready}
+\layout LyX-Code
+
+      */
+\layout LyX-Code
+
+    public void stop();
+\layout LyX-Code
+
+\layout LyX-Code
+
+    /**
+\layout LyX-Code
+
+     * Destroys all resources held by the service.
+\layout LyX-Code
+
+     */
+\layout LyX-Code
+
+   public void destroy(); 
+\layout LyX-Code
+
+}
+\layout LyX-Code
+
+\layout LyX-Code
+
+\layout LyX-Code
+
+/**
+\layout LyX-Code
+
+ * The ServiceListener interface defines the contract
+\layout LyX-Code
+
+ * between the cluster management and a managed service
+\layout LyX-Code
+
+ * It is implemented by the cluster management for every
+\layout LyX-Code
+
+ * managed services and provides the callbacks that a service
+\layout LyX-Code
+
+ * calls to adjust its state and access its mailbox.
+\layout LyX-Code
+
+ */
+\layout LyX-Code
+
+public interface ServiceListener {
+\layout LyX-Code
+
+     /**
+\layout LyX-Code
+
+      * Invoked when the service initialization is complete
+\layout LyX-Code
+
+      * but the service does not accept incoming requests.
+\layout LyX-Code
+
+      */
+\layout LyX-Code
+
+     public void ready();
+\layout LyX-Code
+
+\layout LyX-Code
+
+     /**
+\layout LyX-Code
+
+      * Invoked when the service starts accepting incoming requests
+\layout LyX-Code
+
+      *
+\layout LyX-Code
+
+      */
+\layout LyX-Code
+
+     public void running();
+\layout LyX-Code
+
+\layout LyX-Code
+
+     /**
+\layout LyX-Code
+
+      * Invoked when the service detects an internal error that
+\layout LyX-Code
+
+      * cannot be recovered.
+\layout LyX-Code
+
+      *
+\layout LyX-Code
+
+      */
+\layout LyX-Code
+
+     public void disabled();
+\layout LyX-Code
+
+\layout LyX-Code
+
+     /**
+\layout LyX-Code
+
+      * Heartbeats
+\layout LyX-Code
+
+      * This method must be called periodically in order to
+\layout LyX-Code
+
+      * keep the service alive.
+ Failure to do so will result in
+\layout LyX-Code
+
+      * the service being disabled.
+\layout LyX-Code
+
+      *
+\layout LyX-Code
+
+      */
+\layout LyX-Code
+
+     public void heartbeat();
+\layout LyX-Code
+
+\layout LyX-Code
+
+     /**
+\layout LyX-Code
+
+      * Writes a sequence of bytes to the service mailbox
+\layout LyX-Code
+
+      *
+\layout LyX-Code
+
+      * @param src    - The buffer from which bytes are to be transferred
+\layout LyX-Code
+
+      * @param offset - The offset within the mailbox to which bytes are
+\layout LyX-Code
+
+      *                 to be stored
+\layout LyX-Code
+
+      *
+\layout LyX-Code
+
+      * @throws IOException if an I/O error occurs
+\layout LyX-Code
+
+      *
+\layout LyX-Code
+
+      */
+\layout LyX-Code
+
+     public void write(byte[] src, int offset) throws IOException; 
+\layout LyX-Code
+
+}
+\layout LyX-Code
+
+\layout LyX-Code
+
+/**
+\layout LyX-Code
+
+ * A service needs to define a getInstance method
+\layout LyX-Code
+
+ * that is used by the cluster management to create a
+\layout LyX-Code
+
+ * new instance of the service and bind it with its
+\layout LyX-Code
+
+ * corresponding ServiceListener.
+\layout LyX-Code
+
+ *
+\layout LyX-Code
+
+ * @param listener - ServiceListener handle to access the mailbox
+\layout LyX-Code
+
+ * @param argument - Service initialization argument
+\layout LyX-Code
+
+ * 
+\layout LyX-Code
+
+ * @return a new instance of the service
+\layout LyX-Code
+
+ */
+\layout LyX-Code
+
+public static <Service> getInstance(ServiceListener listener, String argument);
+\layout LyX-Code
+
+\layout Standard
+
+A component can access the mailbox of a service through the following API:
+\layout LyX-Code
+
+/**
+\layout LyX-Code
+
+ * The ServiceInfo class provides a read only access of a mailbox's
+\layout LyX-Code
+
+ * service regardless of the location of the service.
+\layout LyX-Code
+
+ * Through this API, a component can check the current status
+\layout LyX-Code
+
+ * of a service and access the content of its mailbox.
+\layout LyX-Code
+
+ */
+\layout LyX-Code
+
+public class ServiceInfo {
+\layout LyX-Code
+
+     /**
+\layout LyX-Code
+
+      * Initializes and opens an existing service mailbox for read
+\layout LyX-Code
+
+      * only access
+\layout LyX-Code
+
+      *
+\layout LyX-Code
+
+      * @param mailboxTag the name of the service mailbox
+\layout LyX-Code
+
+      * @throws MailboxException if the mailbox cannot be opened
+\layout LyX-Code
+
+      */
+\layout LyX-Code
+
+     public ServiceInfo(String mailboxTag) throws MailboxException;
+\layout LyX-Code
+
+\layout LyX-Code
+
+     /**
+\layout LyX-Code
+
+      * Closes the service mailbox reclaiming all resources held
+\layout LyX-Code
+
+      * locally.
+\layout LyX-Code
+
+      *
+\layout LyX-Code
+
+      */
+\layout LyX-Code
+
+     public void close();
+\layout LyX-Code
+
+\layout LyX-Code
+
+     /**
+\layout LyX-Code
+
+      * Checks if the service is active.
+\layout LyX-Code
+
+      *
+\layout LyX-Code
+
+      * @return <code>true</code> is the service is running and
+\layout LyX-Code
+
+      * processes incoming requests, <code>false</code> otherwise.
+\layout LyX-Code
+
+      */
+\layout LyX-Code
+
+     public boolean isActive();
+\layout LyX-Code
+
+\layout LyX-Code
+
+     /**
+\layout LyX-Code
+
+      * Reads a sequence of bytes from the mailbox
+\layout LyX-Code
+
+      *
+\layout LyX-Code
+
+      * @param dst    - The buffers into which bytes are to be transferred
+\layout LyX-Code
+
+      * @param offset - The offset within the mailbox from which bytes are
+\layout LyX-Code
+
+      *                 to be retrieved
+\layout LyX-Code
+
+      * @throws IOException if an I/O error occurs
+\layout LyX-Code
+
+      */
+\layout LyX-Code
+
+     public void read(byte[] dst, int offset) throws IOException;
+\layout LyX-Code
+
+\layout LyX-Code
+
+     /**
+\layout LyX-Code
+
+      * Returns the length of this mailbox
+\layout LyX-Code
+
+      *
+\layout LyX-Code
+
+      * @return the length in bytes of the mailbox data
+\layout LyX-Code
+
+      */
+\layout LyX-Code
+
+     public int length();
+\layout LyX-Code
+
+}
+\layout Subsubsection
+
+The C API
+\layout Standard
+
+The following types are defined as part of the API:
+\layout LyX-Code
+
+/*
+\layout LyX-Code
+
+ * Possible mailbox state 
+\layout LyX-Code
+
+ */
+\layout LyX-Code
+
+typedef enum { 
+\layout LyX-Code
+
+    SRV_INVALID = 0,
+\layout LyX-Code
+
+    SRV_INIT, 
+\layout LyX-Code
+
+    SRV_READY, 
+\layout LyX-Code
+
+    SRV_RUNNING, 
+\layout LyX-Code
+
+    SRV_DISABLED, 
+\layout LyX-Code
+
+    SRV_DESTROY 
+\layout LyX-Code
+
+} mb_state_t;
+\layout LyX-Code
+
+\layout LyX-Code
+
+/*
+\layout LyX-Code
+
+ * Possible transition state
+\layout LyX-Code
+
+ */
+\layout LyX-Code
+
+typedef enum {
+\layout LyX-Code
+
+    ACT_VOID = 0,
+\layout LyX-Code
+
+    ACT_INIT,
+\layout LyX-Code
+
+    ACT_STOP,
+\layout LyX-Code
+
+    ACT_START,
+\layout LyX-Code
+
+    ACT_DESTROY
+\layout LyX-Code
+
+} mb_action_t;
+\layout LyX-Code
+
+\layout LyX-Code
+
+typedef enum { 
+\layout LyX-Code
+
+    MB_OK, 
+\layout LyX-Code
+
+    MB_ERROR 
+\layout LyX-Code
+
+} mb_error_t;
+\layout LyX-Code
+
+\layout LyX-Code
+
+typedef void* mb_id_t; 
+\layout LyX-Code
+
+#define MB_INVALID_ID (void*)0
+\layout LyX-Code
+
+\layout LyX-Code
+
+/*
+\layout LyX-Code
+
+ * Callback triggered when a mailbox state change
+\layout LyX-Code
+
+ * is requested
+\layout LyX-Code
+
+ */ 
+\layout LyX-Code
+
+typedef void (*mb_callback_t)    (mb_id_t, mb_action_t);
+\layout LyX-Code
+
+\layout Standard
+
+The following call creates a mailbox of the given size.
+ This interface is used by the node manager to create the various mailboxes
+ before the actual services.
+ A mailbox is created in the SRV_INIT state.
+ Destroying a mailbox removes it from the namespace.
+\layout LyX-Code
+
+mb_id_t    mb_create(const char *mailboxTag, size_t size);
+\layout LyX-Code
+
+mb_error_t mb_destroy(mb_id_t);
+\layout LyX-Code
+
+\layout Standard
+
+The following calls initialize a mailbox with the given user callback.
+ This interface is called from the service side.
+ After the call returned, the service has to periodically heartbeat and
+ respects any request to change the state of the service.
+\layout LyX-Code
+
+mb_id_t    mb_init(const char *mailboxTag, mb_callback_t stateChange);
+\layout LyX-Code
+
+mb_error_t mb_hbt(mb_id_t);
+\layout LyX-Code
+
+\layout Standard
+
+The state or user data of a mailbox are accessible with the following functions.
+ Only the creator and the owner of a mailbox can change the mailbox state.
+ Only the owner can write to a mailbox.
+\layout LyX-Code
+
+mb_error_t  mb_read(mb_id_t, void *buf, size_t count, off_t off);
+\layout LyX-Code
+
+mb_error_t  mb_write(mb_id_t, const void *buf, size_t count, off_t off);
+\layout LyX-Code
+
+mb_error_t  mb_setstate(mb_id_t, mb_state_t new_state);
+\layout LyX-Code
+
+mb_error_t  mb_getstate(mb_id_t, mb_state_t *cur_state);
+\layout LyX-Code
+
+\layout Standard
+
+Any mailbox can be opened for read access.
+ Closing a mailbox reclaims all resources held locally for the mailbox.
+\layout LyX-Code
+
+mb_id_t     mb_open(const char* mailboxTag);
+\layout LyX-Code
+
+mb_error_t  mb_close(mb_id_t);
+\layout Standard
+
+
+\begin_inset ERT
+status Collapsed
+
+\layout Standard
+
+\backslash 
+clearpage
+\end_inset 
+
+
+\layout Section*
+
+Open issue
+\layout Enumerate
+
+Cheat node needs to be removed.
+\layout Enumerate
+
+There is no hardware failure detection and recovery
+\layout Enumerate
+
+The logging infrastructure is not defined by the Cluster management
+\layout Enumerate
+
+The CM framework is mostly written in native with specific implementation.
+\layout Enumerate
+
+Multi-cell management is not addressed.
+\the_end

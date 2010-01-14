@@ -1,0 +1,14 @@
+$Id: README 10854 2007-05-19 02:52:12Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms. 
+
+Follow these install steps:
+1. cd trunk/unit_tests/performance/src/tests/ 
+2. make
+3. scp read write runtests.sh root@devXXX-cheat:
+4. ssh to devXXX-cheat
+5. scp read write runtests.sh hcb1xx:
+6. ssh to hcb1xx
+7. To run the tests do: ./runtests.sh `pwd`/
+ 

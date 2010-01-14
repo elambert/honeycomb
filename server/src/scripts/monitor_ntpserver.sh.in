@@ -1,0 +1,109 @@
+#! /usr/bin/sh
+#
+# $Id: monitor_ntpserver.sh.in 10855 2007-05-19 02:54:08Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+SSH_SWITCH="/usr/bin/ssh -p 2222 -l nopasswd -o StrictHostKeyChecking=no "
+UPLINK_INTERFACE="zre22"
+NTPDATE="/opt/honeycomb/sbin/ntpdate"
+NTPQ="/opt/honeycomb/sbin/ntpq"
+PING="/usr/sbin/ping"
+
+# STATUS CODES
+USAGE=101
+SERVER_LOCALLY_SYNCED=102
+SERVER_NOT_RUNNING=103
+SERVER_NOT_SYNCED=104
+SERVER_NOT_TRUSTED=105
+SWITCH_NOT_PINGABLE=106
+SWITCH_UPLINK_NOT_CONNECTED=107
+if [ $# -lt 1 ]; then
+    exit $USAGE 
+fi
+
+# Specified NTP server
+NTPSERVER=$1
+
+# Maximum Time Offset tolerated without compromising honeycomb compliance
+if [ "$2" != "" ]; then
+    MAX_SERVER_TIME_OFFSET=$2
+else
+    # Default time offset is 5 seconds
+    MAX_SERVER_TIME_OFFSET=5000
+fi
+
+# Switch Failover IP, by default 10.123.45.1
+if [ "$3" != "" ]; then
+    SWITCH_FAILOVER_IP=$3
+else
+    SWITCH_FAILOVER_IP=10.123.45.1
+fi
+SSH_SWITCH="$SSH_SWITCH $SWITCH_FAILOVER_IP"
+
+# Is Switch pingable? 
+$PING $SWITCH_FAILOVER_IP 2>&1 >> /dev/null 
+if [ $? -ne 0 ]; then
+    exit $SWITCH_NOT_PINGABLE
+fi
+
+# Do we have an uplink connected? Uplinks are connected to zre22 on both switches 
+$SSH_SWITCH zlc $UPLINK_INTERFACE query | grep UP 2>&1 >> /dev/null 
+if [ $? -ne 0 ]; then
+    exit $SWITCH_UPLINK_NOT_CONNECTED
+fi 
+
+# Is NTP daemon running?
+$NTPDATE -q $NTPSERVER 2>&1 >> /dev/null
+if [ $? -ne 0 ]; then
+    exit $SERVER_NOT_RUNNING
+fi
+
+# Is the specified ntp server time synced? 
+$NTPQ -p $NTPSERVER | cut -f 1 | grep '*' 2>&1 >> /dev/null 
+if [ $? -ne 0 ]; then
+    exit $SERVER_NOT_SYNCED
+fi
+
+# Do not trust ntp server synced to their local clocks
+$NTPQ -p $NTPSERVER | grep '*' | awk {'print $1'} | grep -i LOCAL 2>&1 >> /dev/null
+if [ $? -eq 0 ]; then
+    exit $SERVER_LOCALLY_SYNCED
+fi
+
+# Is time difference between the specified ntp server and its source/master tolerable?
+echo "`$NTPQ -p $NTPSERVER | grep '*' | awk {'print $9'} | tail -1` $MAX_SERVER_TIME_OFFSET" | awk {'if ($1 > $2) exit $SERVER_NOT_TRUSTED'}
+
+exit 0
+

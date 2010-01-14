@@ -1,0 +1,98 @@
+NAME:
+    extractor.pl - stk5800 extractor program
+
+SYNOPSIS:
+    extractor.pl [-C [-l level]] [-L [-S scraper_options]] [-M] [-D] [-A]
+            [-c name] [-o logdir] [-R] [-Z true|false] [-T timeout]
+
+    extractor.pl [-h]
+
+DESCRIPTION:
+    Extractor main program for gathering command output, message logs,
+    and crash information for the Service Processor, Nodes, and Switches
+    that are reachable on the internal stk5800 network. extractor.pl
+    then runs background 'subtask' programs to gather this information
+    for each responding subsystem.
+
+WHERE:
+    -C : Gather command output defined by the extractor.cmds file.
+    -L : Gather log scraper output from the Service processor if it is
+         reachable, from each reachable node if it is not.
+    -M : Copy the message logs. This is NOT run by default.
+    -D : Copy the core and crash dump files. This is NOT run by default.
+    -A : Run all of the processing options listed above.
+
+    -l : The assigned 'level' of commands to be run by the subtask processes.
+         The default is 0, run all commands. Levels 0 through 10 are valid.
+    -o : The output directory path for extractor.pl and the 'Summary', command
+         output, messages, and core files for each subtask. All generated
+         files are located under this directory when this option is used.
+         The default output directory is /var/adm/extractor/<data_vip>-<date>
+         and is always cleaned of all content at startup.
+    -c : The 'cluster' name. When used, this string is inserted into the output
+         directory name instead of using the <data_vip>.
+    -S : The 'scraper_options' that will be passed to the log_scraper when it
+         is run. Validation of user supplied options is done by the log_scraper
+         utility. See the NOTES for further information and limitations.
+    -R : Remove the default output directory content and compressed files. The
+         default is NOT to remove the default output directory.
+    -Z : Gzip (true) or do not gzip (false) the output directory.
+         The default is to gzip the output directory.
+    -T : The 'timeout' in minutes used to determine if any subtask are hung.
+         The default is $TIMEOUT minutes. Once the 'timeout' has expired all
+         subtasks are stopped and extractor.pl exits.
+
+NOTES:
+    When any of the -C, -L, -M, or -D  processing options are specified, only
+    the specific output for those options is gathered. Options '$DEFAULT_PROCESS_OPTIONS'
+    are the default when no processor options are specified. Options -L, -M, or
+    -D are ignored on subsystems that do not support these options.
+
+    Option '-C' commands are read from the extractor.cmds file and processed
+    by each subtask according to the subsystem type and the level assigned
+    to each command defined in the extractor.cmds file.
+
+    Log scraper option '-o' is not supported by extractor.pl.
+
+    Log scraper option '-L' is only meaningful for the Service Processor and
+    Node messages. Log scraping of the switches is not supported so all
+    messages are gathered from the switches. The defaults used are:
+      o Service Processor: /var/adm/messages and /var/adm/messages.0
+      o Nodes: All /var/adm/messages* files are scraped
+      o Switches: All /var/log/messages* files ar gathered
+
+    The extractor.pl program can be invoked via cron(1M) if desired.
+
+FILES:
+    extractor.cmds:
+        The command configuration file defining all option '-C' commands for
+        each subsystem type, their output log file, and their processing
+        'level'.
+    Summary:
+        The 'Summary' results for the extractor.pl program. A 'Summary' file
+        is created by each subtask under its assigned subsystem named
+        directory.  For example, the Service Processor will generate a
+        sp/Summary file.
+
+USAGE:
+    1) Run extractor.pl using all default options.
+
+       # extractor.pl
+
+    2) Run extractor.pl specifying a start and end date for the log_scraper.
+
+       # extractor.pl -S "-s Apr:12:13:23:12 -e Apr:13:13:23:12"
+
+    3) Run extractor.pl to capture only the level 20 commands defined by the
+       extractor.cmds.
+
+       # extractor.pl -C -l 20
+
+    4) Run extractor.pl to capture all messages and crash or core dump files
+       and remove all default output directories and gzip files.
+
+       # extractor.pl -M -D -R
+
+    5) Run extractor.pl to capture all information it is capable of gathering.
+
+       # extractor.pl -A

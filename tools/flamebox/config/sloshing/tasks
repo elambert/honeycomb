@@ -1,0 +1,12 @@
+SvnUpdate
+MakeCleanAll
+MakeAll
+AntDvd
+Upgrade
+UpgradeCheck
+UpdateClients
+ResetSchema
+BasicSloshingTest
+SloshingWithLoadTest
+SloshFullCluster
+SloshFullClusterWithFailures

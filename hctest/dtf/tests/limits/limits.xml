@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="limits">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>
+        DTF limits testsuite.
+        This suite is designed to test and verify the limits of the framework 
+        for various operations.
+        </description>
+    </info>
+       
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+    </local>
+   
+   	<testsuite name="limits">
+   	
+   	</testsuite> 
+</script>

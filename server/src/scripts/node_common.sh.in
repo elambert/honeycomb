@@ -1,0 +1,215 @@
+#!/bin/sh
+#
+# $Id: node_common.sh.in 11918 2008-03-16 18:15:23Z ks202890 $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+# Source dumpadm
+DUMP_CONFIG="$INSTALLROOT/config/dumpadm"
+if [ -s $DUMP_CONFIG ]
+then
+    . $DUMP_CONFIG
+else
+    logger -p user.notice "Failed to find $DUMP_CONFIG , creating.."
+    # Use the disk3 as the default for dumpfile. We always try to
+    # boot of the disk0, so using disk3 makes it less risky
+    # so a node will have boot issues due to bad boot partition.
+    DISK_INDEX=3
+    DUMPFILE=dumpfile
+    echo "DISK_INDEX=$DISK_INDEX" > $DUMP_CONFIG
+    echo "DUMPFILE=$DUMPFILE" >> $DUMP_CONFIG
+fi
+
+# Common vars
+BOOTMOUNT=/boot/images
+MOUNTED_BOOTSLICES=
+UPDATE_BOOTMENU=/opt/honeycomb/bin/update_bootmenu
+DISKLABEL=/opt/honeycomb/bin/disklabel.sh
+
+# Disk format and partition temp file 
+FORMATDAT=/tmp/hc_format.dat
+
+# global for logger tag used by log()
+LOGGER_TAG=""
+
+# set the logger tag
+set_logger_tag() {
+    LOGGER_TAG=$1
+}
+
+# Output messages to stdout and the log
+log() {
+    echo "$*"
+    logger -t $LOGGER_TAG -p local0.info "$*"
+}
+
+do_exit() {
+   log "do_exit $1";
+   exit $1
+}
+
+# Does the disk label indicate that it belongs on our node?
+# returns 0 if it does, 1 otherwise
+disk_belongs_on_node() {
+    data_dir=$1
+    node=`hostname`
+
+    # find the vfstab line corresponding to the data dir
+    vfstab_ln=`egrep $BOOTMOUNT/$data_dir /etc/vfstab`
+
+    # extract the raw device and mung it into the label device
+    disklabel_dev=`echo $vfstab_ln | awk '{print $2}' | sed 's/s0$/p0/'`
+
+    # get the label and extract the node name
+    label_node=`$DISKLABEL $disklabel_dev 2>/dev/null | cut -d "," -f3`
+    # make it into hcb<xxx>
+    label_node="hcb$label_node"
+
+    if [ "$label_node" = "$node" ] ; then
+	return 0
+    else
+	return 1
+    fi
+}
+
+# Mount /boot/images/* mounts
+mount_bootslices() {
+    MOUNTED_BOOTSLICES=
+
+    # Try mounting all boot slices, if they belong on the node.
+    # Foreign disks need to be screened out so we don't sync
+    # to them.
+    for i in 0 1 2 3; do
+
+        disk_belongs_on_node $i
+	if [ $? = 0 ] ; then
+	    logger -t disk_replacement -p local0.info "disk $i belongs on node"
+	    mount $BOOTMOUNT/$i
+	else
+	    logger -t disk_replacement -p local0.info "disk $i does not belong on node"
+	fi
+    done
+
+    # Find the available boot slices
+    for i in 0 1 2 3; do
+        mount | grep $BOOTMOUNT/$i 2>&1 > /dev/null
+        if [ $? = 0 ]; then
+            MOUNTED_BOOTSLICES="$MOUNTED_BOOTSLICES $i"
+        fi
+    done
+}
+
+# Umount /boot/images/* mounts
+umount_bootslices() {
+    for i in $MOUNTED_BOOTSLICES; do
+        umount $BOOTMOUNT/$i
+    done
+    MOUNTED_BOOTSLICES=
+}
+
+# Sync the /boot/images/* mounts
+sync_bootslices() {
+    rsync=/opt/sfw/bin/rsync
+    rsynclog=/var/adm/rsync.log
+    mount_bootslices
+    for i in $MOUNTED_BOOTSLICES; do
+        for j in $MOUNTED_BOOTSLICES; do
+            if [ $i != $j ]; then
+                # exclude syncing the dumpfile
+		# exclude syncing the boot default
+                $rsync -avu --exclude ${DUMPFILE:=dumpfile} \
+		    --exclude default \
+                    $BOOTMOUNT/$i/ $BOOTMOUNT/$j/ 2>&1 >> $rsynclog
+            fi
+        done
+    done
+    umount_bootslices
+}
+
+# Update the grub boot menus on all boot slices
+update_bootmenus() {
+    mount_bootslices
+    for i in $MOUNTED_BOOTSLICES; do
+        $UPDATE_BOOTMENU -f $BOOTMOUNT/$i/boot/grub/menu.lst
+    done
+    umount_bootslices
+}
+
+# Install a patched GRUB on the master boot block
+install_grub() {
+    src=$1
+    grubdisk="/dev/rdsk/"$2"s0"
+    echo "Installing GRUB onto $grubdisk..."
+    /sbin/installgrub -m -f $src/stage1 $src/stage2 $grubdisk
+}
+
+# Find a disk with valid grub bits and install them and boot slice contents
+find_install_grub_and_boot_slice() {
+    disk=$1         # device for grub, e.g. c0t1d0
+    boot_slice=$2   # name of the boot slice, e.g. /dev/dsk/c1t1d0s0
+    rsync=/opt/sfw/bin/rsync
+    rsynclog=/var/adm/rsync.log
+
+
+    mount_bootslices
+    for i in $MOUNTED_BOOTSLICES; do
+        if [ -f $BOOTMOUNT/$i/boot/grub/stage1 ]; then
+            echo install_grub $BOOTMOUNT/$i/boot/grub $disk
+	    install_grub $BOOTMOUNT/$i/boot/grub $disk
+
+	    # temporary mount point for syncing
+	    mntpt=/tmp/bootmnt_$$
+	    mkdir $mntpt
+	    mount $boot_slice $mntpt
+
+	    echo $rsync -avu $BOOTMOUNT/$i/ $mntpt
+	    $rsync -avu $BOOTMOUNT/$i/ $mntpt 2>&1 >> $rsynclog
+
+	    umount $mntpt
+	    rmdir $mntpt
+            umount_bootslices
+	    return 0
+        fi
+    done
+
+    # If we get this far then we failed to install grub
+}
+
+# Wipe the Honeycomb disklabel from block 63 on the given disk
+wipe_disklabel() {
+    wipedisk="/dev/rdsk/"$1"p0"
+    echo "Wiping the Honeycomb disklabel from $wipedisk..."
+    dd if=/dev/zero of=$wipedisk bs=512 count=1 seek=62
+}
+

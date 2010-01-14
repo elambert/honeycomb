@@ -1,0 +1,651 @@
+<!--
+ $Id: build.xml 11949 2008-04-02 08:32:24Z ds158322 $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for honeycomb test component.
+--> 
+<project name="hctest" default="hctest">
+  <description>
+    Honeycomb test component. Building this project results in a 
+    Solaris package named SUNWhctestproduct.
+  </description>
+
+  <!-- first, local, user specified .ant.properties files take precedence -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <!-- second, use the build.properties for this package -->
+  <property file="build.properties"/>
+
+  <!-- lastly, use the top-level builds properties file -->
+  <property file="${basedir}/../build/build.properties"/>
+
+  <!-- reference environment variables as env.X -->
+  <!-- ie. ${env.USER} -->
+  <property environment="env"/>
+
+  <!-- INIT ******************************************************** -->
+  <target name="hctest_init">
+    <!-- turn emma on if EMMA=1 -->
+    <condition property="emma.enabled" value="true">
+      <and>
+        <isset property="env.EMMA"/>
+        <equals arg1="${env.EMMA}" arg2="1"/>
+      </and>
+    </condition>
+    <condition property="emma.jar4tar" value="${emma.jar}">
+      <and>
+        <isset property="env.EMMA"/>
+        <equals arg1="${env.EMMA}" arg2="1"/>
+      </and>
+    </condition>
+
+    <path id="classpath">
+      <pathelement
+      location="${hctest.dist.libdir}/${jarname.client}"/>
+      <pathelement location="${hctest.dist.libdir}/${jarname.server}"/>
+      <pathelement location="${hctest.dist.libdir}/${jarname.ndmp}"/>
+      <pathelement location="${hctest.dist.libdir}/${jarname.test}"/>
+      <pathelement location="${hctest.dist.libdir}/jug.jar"/>
+      <pathelement location="${hctest.dist.libdir}/junit-3.8.1.jar"/>
+      <pathelement location="${hctest.dist.libdir}/getopt.jar"/>
+      <pathelement location="${hctest.dist.libdir}/postgresql-8.0-311.jdbc3.jar"/>
+      <pathelement location="${hctest.dist.libdir}/HTTPClient.zip"/>
+      <pathelement location="${hctest.dist.libdir}/xerces.jar"/>
+      <pathelement location="${hctest.dist.libdir}/jdom-1.0.jar"/>
+      <pathelement location="${hctest.dist.libdir}/tar.jar"/>
+      <pathelement location="${hctest.dist.libdir}/${hadb.jar}"/>
+      <pathelement location="${external.dist.libdir}/jetty-4.2.20.jar"/>
+      <pathelement location="${md_clustra.basedir.external}/hadbmgt.jar"/>
+      <pathelement location="${wbsp.dist.libdir}/${jarname.wbsp}"/>
+    </path>    
+    <path id="rmi.classpath">
+      <path refid="classpath"/>
+      <pathelement location="${hctest.java.srcdir}"/>
+    </path>
+    <path id="javah.classpath">
+      <pathelement location="${hctest.dist.libdir}/${jarname.hctest.cclient}"/>
+      <path refid="classpath"/>
+    </path>
+
+    <echo message="emma.jar: ${emma.jar}"/>
+
+  </target>
+
+  <target name="alert_init">
+    <path id="classpath">
+      <pathelement location="${alogger.dist.libdir}/${jarname.server}"/>
+      <pathelement location="${alogger.dist.libdir}/postgresql-8.0-311.jdbc3.jar"/>
+    </path>
+  </target>
+
+  <target name="factory_init">
+    <path id="classpath">
+      <pathelement location="${factory_test.dist.libdir}/${jarname.client}"/>
+    </path>
+  </target>
+
+
+  <!-- PREPARE ************************************************************ -->
+  <target name="hctest_prepare" depends="hctest_init">
+    <condition property="compliantOS">
+      <os name="SunOS"/>
+    </condition>
+
+    <mkdir dir="${hctest.build.basedir}"/>
+    <mkdir dir="${hctest.build.classdir}"/>
+    <mkdir dir="${hctest.build.jnbclassdir}"/>
+    <mkdir dir="${hctest.build.pkgdir}"/>
+    <mkdir dir="${hctest.dist.basedir}"/>
+    <mkdir dir="${hctest.dist.bindir}"/>
+    <mkdir dir="${hctest.dist.libdir}"/>
+    <mkdir dir="${hctest.dist.docdir}"/>
+    <mkdir dir="${hctest.dist.etcdir}"/>
+
+    <!-- copy honeycomb jars -->
+    <!-- copy file="${common.dist.libdir}/${jarname.common}" todir="${hctest.dist.libdir}"/ -->
+    <copy file="${client.dist.libdir}/${jarname.client}" todir="${hctest.dist.libdir}"/>
+
+    <!-- server & jsyslog needed for audit server's logging function -->
+    <!-- common, jetty also needed for ConvertOid utility -->
+    <!-- ndmp needed for Netvault emulator  -->
+    <copy file="${ndmp.dist.libdir}/${jarname.ndmp}"
+          todir="${hctest.dist.libdir}"/>
+    <copy file="${server.dist.libdir}/${jarname.server}"
+          todir="${hctest.dist.libdir}"/>
+    <copy file="${common.dist.libdir}/${jarname.common}"
+          todir="${hctest.dist.libdir}"/>
+    <copy file="${external.dist.libdir}/jetty-4.2.20.jar"
+          todir="${hctest.dist.libdir}"/>
+    <copy file="${server.dist.libdir}/libjsyslog.so"
+          todir="${hctest.dist.libdir}"/>
+
+    
+    <!-- copy honeycomb-test.jar and other needed test jars -->
+    <copy todir="${hctest.dist.libdir}">
+      <fileset dir="${test.dist.libdir}"/>
+    </copy> 
+
+    <!-- copy other hctest-related jars -->
+    <copy todir="${hctest.dist.libdir}">
+      <fileset dir="${hctest.basedir}/lib"/>
+    </copy> 
+
+    <!-- copy the postgres jar -->
+    <copy todir="${hctest.dist.libdir}" file="${postgres.jar}"/>
+
+    <!-- copy the hadb jar -->
+    <copy todir="${hctest.dist.libdir}" file="${md_clustra.build.basedir}/dist/lib/${hadb.jar}"/>
+
+    <!-- java security settings for test RMI -->
+    <copy file="${hctest.basedir}/src/etc/security.policy" 
+          todir="${hctest.dist.libdir}"/>
+    <!-- logging config for sp server -->
+    <copy file="${hctest.basedir}/src/etc/hc_logging.properties" 
+          todir="${hctest.dist.libdir}"/>
+    <!-- AdminResources properties file for CLI testing -->
+    <copy file="${hctest.basedir}/src/etc/AdminResources_en.properties.in"
+          todir="${hctest.dist.etcdir}"/>
+    <!-- CliResources_en.properties.in properties file for CLI testing -->
+    <copy file="${hctest.basedir}/src/etc/CliResources_en.properties.in"
+          todir="${hctest.dist.etcdir}"/>
+    <!-- properties file for test Admin CLI -->
+    <copy file="${hctest.basedir}/src/etc/admin_cli.properties"
+          todir="${hctest.dist.etcdir}"/>
+    <!-- script to power up the cluster from cheat node -->
+    <copy file="${hctest.basedir}/src/etc/powerUp.sh"
+          todir="${hctest.dist.etcdir}"/>
+    <!-- Multicell config file -->
+    <copy file="${hctest.basedir}/src/etc/silo_info.xml"
+          todir="${hctest.dist.etcdir}"/>
+    <!-- Cluster config file -->
+    <copy file="${hctest.basedir}/src/etc/config_defaults.properties"
+          todir="${hctest.dist.etcdir}"/>
+    <!-- xsl stylesheet to parse silo_info.xml file -->
+    <copy file="${hctest.basedir}/src/etc/silo_info.xsl"
+          todir="${hctest.dist.etcdir}"/>
+
+    <!-- ConvertOid uses these external libs -->
+    <copy todir="${hctest.dist.libdir}">
+      <fileset dir="${external.dist.libdir}">
+        <include name="*EtherAddr*"/>
+      </fileset>
+    </copy>
+
+  </target>
+
+  <target name="alert_prepare" depends="alert_init">
+    <condition property="compliantOS">
+      <os name="SunOS"/>
+    </condition>
+
+    <mkdir dir="${alogger.build.basedir}"/>
+    <mkdir dir="${alogger.build.classdir}"/>
+    <mkdir dir="${alogger.build.pkgdir}"/>
+    <mkdir dir="${alogger.dist.basedir}"/>
+    <mkdir dir="${alogger.dist.libdir}"/>
+
+    <!-- copy honeycomb jars -->
+    <copy file="${server.dist.libdir}/${jarname.server}" todir="${alogger.dist.libdir}"/>
+
+    <!-- copy the postgres jar -->
+    <copy todir="${alogger.dist.libdir}" file="${postgres.jar}"/>
+
+  </target>
+
+  <target name="factory_prepare" depends="factory_init">
+    <condition property="compliantOS">
+      <os name="SunOS"/>
+    </condition>
+
+    <mkdir dir="${factory_test.build.basedir}"/>
+    <mkdir dir="${factory_test.build.classdir}"/>
+    <mkdir dir="${factory_test.build.pkgdir}"/>
+    <mkdir dir="${factory_test.dist.basedir}"/>
+    <mkdir dir="${factory_test.dist.libdir}"/>
+    <mkdir dir="${factory_test.dist.cfgdir}"/>
+    <mkdir dir="${factory_test.dist.bindir}"/>
+    <mkdir dir="${factory_test.dist.sshdir}"/>
+
+    <!-- copy honeycomb jars -->
+    <copy file="${client.dist.libdir}/${jarname.client}" todir="${factory_test.dist.libdir}"/>
+
+    <!-- copy factory scripts -->
+    <copy todir="${factory_test.dist.bindir}">
+        <fileset dir="${hctest.srcdir}/factory_test">
+            <include name="**"/>
+        </fileset>
+    </copy>
+
+    <!-- copy ssh key files for wbcluster-->
+    <copy todir="${factory_test.dist.sshdir}">
+        <fileset dir="${hctest.sshdir}">
+            <include name="**"/>
+  	</fileset>
+    </copy>
+
+    <!-- copy CMM Verifier from whitebox pkg -->
+    <copy file="${wbsp.dist.bindir}/cmm_verifier" todir="${factory_test.dist.bindir}"/>
+    <copy file="${wbsp.dist.libdir}/honeycomb-wbsp.jar" todir="${factory_test.dist.libdir}"/>
+    <copy file="${wbsp.dist.libdir}/honeycomb-server.jar" todir="${factory_test.dist.libdir}"/>
+    <copy file="${wbsp.dist.libdir}/honeycomb-common.jar" todir="${factory_test.dist.libdir}"/>
+    <copy file="${wbsp.dist.cfgdir}/config_defaults.properties" todir="${factory_test.dist.cfgdir}"/>
+    <copy file="${wbsp.dist.libdir}/AdminResources_en.properties" todir="${factory_test.dist.libdir}"/>
+
+  </target>
+
+  <!-- COMPILE_JAVA (NO RMI) ********************************************* -->
+  <target name="hctest_compile_java" depends="hctest_prepare">
+
+    <depend
+           srcdir="${hctest.java.srcdir}"
+           destdir="${hctest.build.classdir}"
+           cache="${hctest.build.classdir}"
+           closure="yes">
+        <include name="**/*.java"/>
+        <exclude name="**/AlertLogger.java"/>
+    </depend>
+
+    <javac classpathref="classpath"
+           srcdir="${hctest.java.srcdir}"
+           destdir="${hctest.build.classdir}"
+           debug="${javac.debug}"
+           deprecation="${javac.deprecation}"
+           source="1.4"
+           optimize="${javac.optimize}">
+
+        <!-- exclude hc-server-dependent code from default compile -->
+        <!-- exclude name="**/rmi/spsrv/clnt/**" unless="whitebox" / -->
+        <exclude name="**/rmi/nodesrv/**" unless="whitebox" />
+        <exclude name="**/rmi/spsrv/srv/**" unless="whitebox" />
+        <exclude name="**/sg/TestDataReliability.java" unless="whitebox" />
+        <exclude name="**/util/ConvertOid.java" unless="whitebox" />
+        <exclude name="**/testcmd/cmd/DumpMetadata.java" unless="whitebox" />
+	<exclude name="com/sun/honeycomb/client/Connection.java"/>
+	<exclude name="com/sun/honeycomb/client/QASystemRecord.java"/>
+
+    </javac>
+  
+  </target>
+
+  <target name="alert_compile_java" depends="alert_prepare">
+
+    <depend
+           srcdir="${hctest.java.srcdir}"
+           destdir="${hctest.build.classdir}"
+           cache="${hctest.build.classdir}"
+           closure="yes">
+        <include name="**/AlertLogger.java"/>
+    </depend>
+
+    <javac classpathref="classpath"
+           srcdir="${hctest.java.srcdir}"
+           destdir="${alogger.build.classdir}"
+           debug="${javac.debug}"
+           deprecation="${javac.deprecation}"
+           source="1.4"
+           optimize="${javac.optimize}">
+
+        <!-- exclude hc-server-dependent code from default compile -->
+        <!-- exclude name="**/rmi/spsrv/clnt/**" unless="whitebox" / -->
+	<exclude name="com/sun/honeycomb/client/Connection.java"/>
+	<exclude name="com/sun/honeycomb/client/QASystemRecord.java"/>
+        <include name="**/AlertLogger.java"/>
+    </javac>
+  </target>
+
+  <target name="factory_compile_java" depends="factory_prepare">
+
+    <depend
+           srcdir="${hctest.java.srcdir}"
+           destdir="${factory_test.build.classdir}"
+           cache="${factory_test.build.classdir}"
+           closure="yes">
+        <include name="**/FactoryClientTest.java"/>
+        <include name="**/NFSLoad.java"/>
+    </depend>
+
+    <javac classpathref="classpath"
+           srcdir="${hctest.java.srcdir}"
+           destdir="${factory_test.build.classdir}"
+           debug="${javac.debug}"
+           deprecation="${javac.deprecation}"
+           source="1.4"
+           optimize="${javac.optimize}">
+
+        <!-- exclude hc-server-dependent code from default compile -->
+        <!-- exclude name="**/rmi/spsrv/clnt/**" unless="whitebox" / -->
+	<exclude name="com/sun/honeycomb/client/Connection.java"/>
+	<exclude name="com/sun/honeycomb/client/QASystemRecord.java"/>
+        <include name="**/FactoryClientTest.java"/>
+        <include name="**/NFSLoad.java"/>
+    </javac>
+  </target>
+
+  <!-- COMPILE_JAVA (RMI) ************************************************ -->
+  <target name="compile_java_rmi_wb" depends="hctest_compile_java">
+
+    <!-- javac everything for wb -->
+    <javac classpathref="classpath"
+           srcdir="${hctest.java.srcdir}"
+           destdir="${hctest.build.classdir}"
+           debug="${javac.debug}"
+           deprecation="${javac.deprecation}"
+           source="1.4"
+           optimize="${javac.optimize}">
+	<exclude name="com/sun/honeycomb/client/Connection.java"/>
+	<exclude name="com/sun/honeycomb/client/QASystemRecord.java"/>
+    </javac>
+
+    <rmic classpathref="rmi.classpath"
+           classname="com.sun.honeycomb.hctest.rmi.nodesrv.srv.NodeSrvService"
+           base="${hctest.build.classdir}"
+           verify="Yes"/>
+
+    <rmic classpathref="rmi.classpath"
+           classname="com.sun.honeycomb.hctest.rmi.spsrv.srv.SPSrvService"
+           base="${hctest.build.classdir}"
+           verify="Yes"/>
+
+  </target>
+
+  <target name="compile_std_rmi" depends="hctest_compile_java">
+
+    <rmic classpathref="rmi.classpath"
+           classname="com.sun.honeycomb.hctest.rmi.clntsrv.srv.ClntSrvService"
+           base="${hctest.build.classdir}"
+           verify="Yes"/>
+
+    <rmic classpathref="rmi.classpath"
+           classname="com.sun.honeycomb.hctest.rmi.auditsrv.srv.AuditSrvService"
+           base="${hctest.build.classdir}"
+           verify="Yes"/>
+
+  </target>
+
+  <target name="hctest_jar" depends="hctest_compile_java,compile_std_rmi">
+    <jar jarfile="${hctest.dist.libdir}/${jarname.hctest}">
+      <fileset dir="${hctest.build.classdir}"/>
+    </jar>
+  </target>
+
+  <target name="alert_jar" depends="alert_compile_java">
+    <jar jarfile="${alogger.dist.libdir}/${jarname.alogger}">
+      <fileset dir="${alogger.build.classdir}"/>
+    </jar>
+  </target>
+
+  <target name="factory_jar" depends="factory_compile_java">
+    <jar jarfile="${factory_test.dist.libdir}/${jarname.factory_test}">
+      <fileset dir="${factory_test.build.classdir}"/>
+    </jar>
+  </target>
+
+  <!-- JNI BRIDGE AND C APIS TEST -->
+  <target name="hctest_jni_bridge_compile" depends="hctest_prepare">
+    <depend
+           srcdir="${hctest.java.srcdir}"
+           destdir="${hctest.build.classdir}"
+           cache="${hctest.build.classdir}"
+           closure="yes">
+        <include name="com/sun/honeycomb/client/Connection.java"/>
+        <include name="com/sun/honeycomb/client/QASystemRecord.java"/>
+    </depend>
+
+    <javac classpathref="classpath"
+           srcdir="${hctest.java.srcdir}"
+           destdir="${hctest.build.jnbclassdir}"
+           debug="${javac.debug}"
+           deprecation="${javac.deprecation}"
+           source="1.4"
+           optimize="${javac.optimize}">
+	    <include name="com/sun/honeycomb/client/Connection.java"/>
+	    <include name="com/sun/honeycomb/client/QASystemRecord.java"/>
+    </javac>
+
+  </target>
+
+  <target name="hctest_c_client_jar" depends="hctest_jni_bridge_compile,hctest_prepare">
+    <jar jarfile="${hctest.dist.libdir}/${jarname.hctest.cclient}">
+      <fileset dir="${hctest.build.jnbclassdir}"/>
+    </jar>
+  </target>
+
+  <target name="hctest_jni_h" depends="hctest_c_client_jar">
+  	<javah verbose="true" classpathref="javah.classpath" class="com.sun.honeycomb.client.Connection" destdir="${hctest.dist.libdir}"/>
+  </target>
+
+  <target name="hctest_c_tests" depends="hctest">
+	<exec executable="gmake" dir="${hctest.basedir}/src/native/build" failonerror="true">
+      <arg value="NATIVE_ROOT=${hctest.basedir}/src/native"/>
+      <arg value="HC_SVN_ROOT=${basedir}/.."/>
+      <arg line="all"/>
+	</exec>
+  </target>
+
+  <target name="hctest_c_libraries">
+	<exec executable="gmake" dir="${hctest.basedir}/src/native/build" failonerror="true">
+      <arg value="NATIVE_ROOT=${hctest.basedir}/src/native"/>
+      <arg line="libs"/>
+	</exec>
+  </target>
+
+  <target name="hctestmod">
+	<exec executable="gmake" dir="${hctest.basedir}/src/native/kernel/hctestmod" failonerror="true">
+	</exec>
+  </target>
+
+  <!-- EXTRA DEPENDENCY ON HONEYCOMB FOR WHITEBOX TESTS -->
+
+  <!-- first set whitebox mode -->
+  <target name="whitebox_init">
+    <property name="whitebox" value="yes"/>
+  </target>
+
+  <!-- build honeycomb server and bring over the jar file -->
+  <!-- then proceed to build test with whitebox property set -->
+  <target name="whitebox_jar"
+      depends="hctest_jar,compile_java_rmi_wb" >
+
+    <delete file="${hctest.dist.libdir}/${jarname.hctest}"/>
+    <jar jarfile="${hctest.dist.libdir}/${jarname.hctest}">
+      <fileset dir="${hctest.build.classdir}"/>
+    </jar>
+  </target>
+
+  <!-- quick build of whitebox w/out building rest of hc -->
+  <target name="wb" 
+      depends="hctest,compile_java_rmi_wb,compile_std_rmi" >
+    <delete file="${hctest.dist.libdir}/${jarname.hctest}"/>
+    <jar jarfile="${hctest.dist.libdir}/${jarname.hctest}">
+      <fileset dir="${hctest.build.classdir}"/>
+    </jar>
+  </target>
+
+  <!-- JAVADOC ********************************************************** -->
+  <target name="javadoc" depends="whitebox_jar">
+    <javadoc
+            destdir="${hctest.dist.testdoc}"
+            classpathref="classpath" >
+      <packageset dir="${hctest.java.srcdir}" defaultexcludes="yes">
+        <include name="com/sun/honeycomb/hctest/**" />
+      </packageset>
+      <doctitle><![CDATA[<h1>HCTest</h1>]]></doctitle>
+    </javadoc>
+  </target>
+
+  <!-- SCRIPTS ********************************************************** -->
+  <target name="hctest_scripts" depends="hctest_prepare">
+
+    <!-- ant copy target does not preserve permissions, chmod later -->
+
+    <!-- copy hctest scripts to dist dir -->
+    <copy todir="${hctest.dist.bindir}">
+        <fileset dir="${hctest.scripts.srcdir}"/>
+    </copy>
+
+    <!-- copy runtest scripts from test module -->
+    <copy todir="${hctest.dist.bindir}">
+        <fileset dir="${test.dist.bindir}"/>
+    </copy>
+
+    <!-- all scripts in bindir must be executable -->
+    <chmod dir="${hctest.dist.bindir}" perm="555" includes="*"/>
+
+    <!-- preserve 600 permissions on the ssh-private-key file -->
+    <exec executable="cp" >
+      <arg file="${test.dist.etcdir}/cluster_id_dsa" />
+      <arg path="${hctest.dist.etcdir}"/>
+    </exec>
+
+  </target>
+
+  <!-- TEST ********************************************************** -->
+  <target name="hctest"
+          depends="hctest_jar,hctest_scripts"
+          description="build honeycomb-specific blackbox test setup">
+  	<!--
+  	<ant antfile="build.xml" target="build" dir="${hctest.basedir}/dtf"/>
+  	-->
+  </target>
+
+  <target name="dtf"
+          depends="hctest">
+  	<ant antfile="build.xml" target="build" dir="${hctest.basedir}/dtf"/>
+  </target>
+
+  <target name="whitebox"
+          depends="whitebox_jar,hctest_scripts"
+          description="build honeycomb-specific whitebox test setup">
+  </target>
+
+  <!-- TEST CLIENT IMAGE (WHITEBOX) ************************************ -->
+  <target name="hctest_client" depends="whitebox,javadoc"
+          description="build the test client img incl sdk">
+
+    <!-- include the sdk into the same dist directories -->
+    <copy file="${sdk.dist.javalibdir}/${jarname.sdk}"
+        todir="${hctest.dist.libdir}"/>
+
+    <copy todir="${hctest.dist.docdir}">
+        <fileset dir="${sdk.dist.javaapidocdir}"/>
+    </copy>
+
+    <!-- include sdk scripts -->
+    <copy todir="${hctest.dist.bindir}">
+        <fileset dir="${sdk.scripts.srcdir}"/>
+    </copy>
+    <chmod dir="${hctest.dist.bindir}" perm="555" includes="*"/>
+
+    <!-- include cluster util scripts -->
+    <copy todir="${hctest.dist.utildir}">
+        <fileset dir="${hctest.utils.srcdir}"/>
+    </copy>
+    <chmod dir="${hctest.dist.utildir}" perm="555" includes="*"/>
+
+  </target>
+  
+  <target name="tar" depends="hctest_client" 
+          description="tar up the test client image for linux">
+
+      <!-- XXX: tar task does not preserve file permissions -->
+      <!-- therefore some fileset magic is required -->
+      <!-- note: include/exclude uses paths relative to fileset dir -->
+
+      <tar destfile="${hctest.build.pkgdir}/${tarname.hctest}">
+
+          <!-- executable scripts in bin/ -->
+          <tarfileset dir="${hctest.dist.basedir}" mode="755"
+          prefix="test">
+            <include name="bin/**"/>
+          </tarfileset>
+
+          <!-- restricted permissions for special files in etc/ -->
+          <tarfileset dir="${hctest.dist.basedir}" mode="600" prefix="test">
+            <include name="etc/cluster_id_dsa"/>
+          </tarfileset>
+
+          <!-- default permissions 644 for all other files -->
+          <tarfileset dir="${hctest.dist.basedir}" prefix="test">
+            <include name="**"/>
+            <exclude name="bin/**"/>
+            <exclude name="etc/cluster_id_dsa"/>
+          </tarfileset>
+
+          <!-- emma -->
+          <tarfileset file="${emma.jar}" prefix="test/lib"/>
+
+          <!-- postgres -->
+          <tarfileset file="${postgres.jar}" prefix="test/lib"/>
+
+      </tar>
+  </target>
+
+  <!-- XXX: later this should build Solaris package as well -->
+  <target name="pkg" depends="tar,factory,alert_pkg,hctest_c_tests" />
+
+  <target name="alert_pkg" depends="alert_jar">
+        <exec executable="${pkgmk.bin}" failonerror="yes">
+          <!-- arg value="" does not work here for some reason -->
+          <arg line="-o -d ${alogger.build.pkgdir} -b ${alogger.dist.libdir} -f ${alogger.pkg.src}/prototype -r ${alogger.dist.basedir}"/>
+        </exec>
+
+        <exec executable="${pkgtrans.bin}" failonerror="yes">
+          <arg line="-s ${alogger.build.pkgdir} SUNWhcalogger.pkg SUNWhcalogger"/>
+        </exec>
+  </target>
+
+  <target name="factory" depends="factory_jar">
+        <exec executable="${pkgmk.bin}" failonerror="yes">
+          <!-- arg value="" does not work here for some reason -->
+          <arg line="-o -d ${factory_test.build.pkgdir} -b ${factory_test.dist.basedir} -f ${factory_test.pkg.src}/prototype -r ${factory_test.dist.basedir}"/>
+        </exec>
+
+        <exec executable="${pkgtrans.bin}" failonerror="yes">
+          <arg line="-s ${factory_test.build.pkgdir} SUNWhcfactorytest.pkg SUNWhcfactorytest"/>
+        </exec>
+  </target>
+
+  <!-- ************************************************************** -->
+  <target name="build_pkg" depends="pkg"
+    description="compile sources and create the solaris package" />
+
+  <!-- CLEAN ************************************************************** -->
+  <target name="clean"
+          description="cleans workspace of all generated files">
+    <delete dir="${hctest.build.basedir}"/>
+    <delete file="${hctest.build.pkgdir}/${sun.pkgname.hctest}.pkg"/>
+    <delete file="${hctest.build.pkgdir}/${tarname.hctest}"/>
+  	<ant antfile="build.xml" target="clean" dir="${hctest.basedir}/dtf"/>
+  </target>
+
+</project>

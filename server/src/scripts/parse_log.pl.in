@@ -1,0 +1,310 @@
+#! /usr/bin/perl
+#
+# $Id: parse_log.pl.in 10855 2007-05-19 02:54:08Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+use Time::localtime;
+use Time::Local;
+
+#
+# Open log file and print to the log entries on the stdout.
+#
+# Input arguments:
+#  - start date :  -s "Month date hour:min:sec"
+#  - end date : -e "Month date hour:min:sec"
+#  - level : -l "Month date hour:min:sec"
+#  - logfile : -f <logfile>
+#
+# Format of the Honeycomb log trace
+# 
+# <week_day> <date> <hour:min:sec> <hostname> <prog:> <TRACE_LEVEL> <{Module.func]> <(.)> <msg>
+
+
+
+
+# Hash table for input arguments.
+%opts = {};
+
+# Hash for log level
+%loglevels = {};
+
+$init_date = 0;
+$end_date  = 4294967295;
+$level = "INFO";
+$logfile = "/var/adm/messages";
+$tail = false;
+$all = false;
+
+$cur_date = localtime;
+
+#
+# Usage
+#
+sub usage
+{
+    print STDOUT << "EOF";
+  usage:
+    -s <start_date>
+    -e <end_date>
+    -l <trace_level>
+    -f <log_file>
+    -a <true|false>
+    -t <true|false>
+EOF
+}
+
+
+#
+# Init
+# - Parse arguments
+# - Init hash table for log levels
+#
+sub init
+{
+    use Getopt::Std;
+    my $opt = "s:e:l:f:t:a:";
+    getopts("$opt", \%opts) or usage();
+    if ($opts{s} ne "") {
+	$init_date = convert_date(parse_arg_date($opts{s}));
+    }
+
+    if ($opts{e} ne "") {
+	$end_date = convert_date(parse_arg_date($opts{e}));
+    }
+    if ($opts{l} ne "") {
+	$level = $opts{l};
+	if (($level ne "SEVERE") &&
+	    ($level ne "WARNING") &&
+	    ($level ne "INFO") &&
+	    ($level ne "CONFIG") &&
+	    ($level ne "FINE") &&
+	    ($level ne "FINER") &&
+	    ($level ne "FINEST")) {
+	    # Not a valid log level
+	    exit -2;
+	}
+    }
+    if ($opts{f} ne "") {
+	$logfile = $opts{f};
+    }
+    if ($opts{t} eq "true") {
+	$tail = true;
+    } else {
+	$tail = false;
+    }
+    if ($opts{a} eq "true") {
+	$all = true;
+    } else {
+	$all = false;
+    }
+
+
+    $loglevels{"FINEST"} = 1;
+    $loglevels{"FINER"} = 2;
+    $loglevels{"FINE"} = 3;
+    $loglevels{"CONFIG"} = 4;
+    $loglevels{"INFO"} = 5;
+    $loglevels{"WARNING"} = 6;
+    $loglevels{"SEVERE"} = 7;
+}
+
+#
+# Parse argument date
+#
+# Ex: Apr:12:13:23:12 -> Apr 12 13:23:12
+#
+sub parse_arg_date
+{
+    if ($_[0] =~ /^(\w+):(\d+):(.*)/) {
+        return "$1 $2 $3";
+    } else {
+        exit -5;
+    }
+}
+
+# 
+# Convert month to integer
+#
+sub convert_month
+{
+    if ($_[0] eq "Jan") {
+	return 0;
+    } elsif ($_[0] eq "Feb") {
+	return 1;
+    } elsif ($_[0] eq "Mar") {
+	return 2;
+    } elsif ($_[0] eq "Apr") {
+	return 3;
+    } elsif ($_[0] eq "May") {
+	return 4;
+    }elsif ($_[0] eq "Jun") {
+	return 5;
+    } elsif ($_[0] eq "Jul") {
+	return 6;
+    } elsif ($_[0] eq "Aug") {
+	return 7;
+    } elsif ($_[0] eq "Sep") {
+	return 8;
+    } elsif ($_[0] eq "Oct") {
+	return 9;
+    } elsif ($_[0] eq "Nov") {
+	return 10;
+    } elsif ($_[0] eq "Dec") {
+	return 11;
+    } else {
+	# not a valid month
+	exit -3;
+    }
+}
+
+#
+# Convert date to epoch
+#
+sub convert_date
+{
+    my $month;
+    my $year;
+    $_ = $_[0];
+    if (/^\s*(\w+)\s+(\d+)\s+(\d+):(\d+):(\d+)/) {
+        #
+        # There is no 'year' in syslog.
+        # If the month specified is the current month or before,
+        # we assume this is the current year, otherwise this is for
+        # for the year before, since we don't travel in the future yet...
+        #
+        my $month = convert_month($1);
+        if ($month <= $cur_date->mon) {
+            $year = $cur_date->year;
+        } else {
+            $year = $cur_date->year - 1;
+        }
+	$epoch = timelocal($5, $4, $3, $2, $month, $year); 
+    } else {
+	exit -4;
+    }
+}
+
+#
+#
+# Start here...
+#
+#
+
+init();
+print STDERR "INPUT ARGUMENTS : start = $init_date; stop = $end_date; trace = $level; tail = $tail; logfile = $logfile\n";
+
+
+
+sub parse_line_all {
+    $line = $_[0];
+
+    if  ($line =~ /^(\w+\s+\d+\s+\d+:\d+:\d+)/) {
+
+	$timelog = convert_date($1);
+
+	if (($timelog >= $init_date)  &&
+	    ($timelog <= $end_date)) {
+            print STDERR "$line";
+	}
+    }
+}
+
+
+sub parse_line {
+    $line = $_[0];
+
+    if  ($line =~ /^(\w+\s+\d+\s+\d+:\d+:\d+).*?:.*?\[.*?\]\s+\d+\s+(\w+)/) {
+
+	$timelog = convert_date($1);
+
+	if (($timelog >= $init_date)  &&
+	    ($timelog <= $end_date)) {
+
+	    if ($loglevels{$2} >= $loglevels{$level}) {
+		print STDERR "$line";
+	    }
+	}
+    }
+}
+
+
+
+#
+# Process each line of the log and print the entries that
+# match the criteria.
+#
+if ($tail eq "true") {
+
+
+    # Open file
+    sysopen(file, $logfile, O_RDONLY) || die "Cannot open log file";
+
+    # Seek to end of file
+    sysseek(file, 0, 2);
+
+
+    # Read char by char and recreate the log line
+    while (1) {
+	$line = "";
+	while (sysread(file, $char, 1)) {
+
+	    if ($char eq "\n" ) {
+		$line = $line . $char;
+                if ($all eq "true") {
+                    parse_line_all($line);
+                } else {
+                    parse_line($line);
+                }
+		$line = "";
+	    } else {
+		$line = $line . $char;
+	    }
+
+	 }
+    }
+} else {
+    open(file, $logfile) || die "Cannot open log file";
+    while (<file>) {
+        if ($all eq "true") {
+            parse_line_all($_);
+        } else {
+            parse_line($_);
+        }
+    }
+}
+
+
+
+

@@ -1,0 +1,64 @@
+$Id: ADV_QUERY_RAND_GEN_README 11701 2007-12-13 15:43:18Z dr129993 $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+
+Metadata Pattern Generation File:
+================================
+
+The format of the metadata generated during the store and query is determined by the metadata pattern generation file used. By default the advquery_md_randgen_idx.txt file is used which generates metadata based on the attributes defined in the metadata_config_advquery_onetable.xml file.
+
+The metadata patterns are similar to those used in the multiload tests. 
+Each line in the file specifies a metadata attribute and it's random data generation pattern. Each metadata field/pattern is must be separated by a '/'.
+The format for each metadata field pattern is:
+
+[schema-name.metadata-field-name]pattern-specifier
+
+For example:
+[advquery_onetable_idx.one]fixed{02x:0-255}
+/[advquery_onetable_idx.two]fixedOnly
+/[advquery_onetable_idx.three]{1c:65-90}
+/[advquery_onetable_idx.four]prefix{03d:1,10,50,200,600,750}postfix
+/[advquery_onetable_idx.five]{03d:0-999}
+/[advquery_onetable_idx.six]{06d:0-999999}
+/[advquery_onetable_idx.seven]{4s:10-20:10}
+/[advquery_onetable_idx.twenty_four]{5s:5:5}
+
+
+The pattern-specifier can contain at most one random data pattern. The random data generation pattern is enclosed in {}.
+
+Random Data Pattern Specifier:
+For hex, decimal and character types the format is:
+<optional-fixed-text>{<format-specifier>:<value-list-or-range>}<optional-fixed-text>
+
+<format-specifier> is the PrintWriter format specifier. This is a printf like format string used to write the data to the output string. It consists of a padding character specifier, the minimum number of chars/digits to output and the field type.
+
+<value-list-or-range> is the list or a single range of posssible values to generate. The random values generated will be from this list or range. Right now only a single range is allowed or a list of individual values. You can not specify both a list and range of values.
+
+For the pattern: prefix{03d:1,10,50,200,600,750}postfix some of the values generated could be
+prefix001postfix
+prefix600postfix
+prefix050postfix
+
+
+For string types:
+<optional-fixed-text>{<format-specifier>:<min-value-pattern-size>:<pattern-repeat-size>}<optional-fixed-text>
+
+<format-specifier> is the same as above except that the type must be "s" for string.
+
+<min-and-max-string-size> either a single value or a range that specifies the minimum and maximum length of the strings to generate. Strings will be randomly generated that vary in length between the min and max specified. To ensure all generated strings have the same length you should specify a single value;
+
+<pattern-repeat-size> the number of random characters to generate within the string. The characters generated will be repeated until the size reaches the length specified. This value should be less than the maximum string length specified. 
+
+For the pattern: {4s:10-20:10} some of the values generated could be
+dcejegsdhi
+wieldieituwie
+yrkghbnbcgyrkghbnbcg
+
+Format specifier type codes supported:
+       x - hex   
+       d - decimal
+       s - string
+       c - character
+

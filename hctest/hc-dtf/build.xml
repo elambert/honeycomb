@@ -1,0 +1,180 @@
+<?xml version="1.0" ?>
+<project default="build">
+	<taskdef resource="net/sf/antcontrib/antlib.xml">
+    	<classpath>
+			<pathelement location="../dtf/external/lib/ant-contrib-1.0b3.jar"/>
+		</classpath>
+	</taskdef>
+
+	<target name="build" depends="init, compile, dist" description="Main target">
+		<echo>
+            Building the Honeycomb DTF plugin.
+        </echo>
+	</target>
+
+	<target name="init" description="initialize target">
+		<loadproperties srcfile="build.properties"/>
+
+		<mkdir dir="${build.dir}/${hc.dist.dir}/lib"/>
+		<mkdir dir="${build.dir}/${hc.classes.dir}"/>
+		<mkdir dir="${build.dir}/${hc.dist.dir}"/>
+		 
+		<path id="hc.classpath">
+		    <pathelement location="${dtf.dist.dir}/lib"/>
+		    <pathelement path="${dtf.external.jars}"/>
+	    </path>
+	</target>
+
+	<target name="compile" depends="init" description="Compilation target">
+		<mkdir dir="${build.dir}/classes/dtfhook"/>
+		<javac classpath="${dtf.jar}:${hc.external.jars}"
+   			   srcdir="${hc.src.dir}/java"
+  		   	   destdir="${build.dir}/${hc.classes.dir}/dtfhook"
+   			   includes="**/**"
+   			   excludes="**/actions/**,**/honeycomb/client/**"
+  		       target="${hc.target.java}"
+  		       source="${hc.source.java}"
+   			   debug="on"
+			   encoding="ISO-8859-1"
+   			   debuglevel="lines,vars,source"/>
+		
+		<!-- by referencing the dtfhook compiled classes in the classpath the
+		     javac tool will not recompile these classes and just expects them
+		     to be part of the classpath in any future execution of the byte 
+		     code. This is exactly what we want so that all non release 
+		     depenedent code is compiled into the dtfhook.jar -->
+		<property name="hc.hook.classes" 
+			      value="${build.dir}/${hc.classes.dir}/dtfhook"/>
+
+   		<!-- copy dtd -->
+		<copy todir="${build.dir}/${hc.classes.dir}/dtfhook" file="hc.dtd"/>
+		<echo/>
+	
+		<!-- for now we hardcode the build paths here but this should be 
+		     cleaned up to do the right thing per build -->
+   		<echo>Building against honeycomb current client libraries</echo>	
+        <mkdir dir="${build.dir}/classes/cur"/>
+   		<javac classpath="${dtf.jar}:${hc.client.cur.jars}:${hc.hook.classes}" 
+			   srcdir="${hc.src.dir}/java"
+		   	   destdir="${build.dir}/classes/cur"
+			   includes="**/actions/**,**/honeycomb/client/**"
+			   excludes="**/v1_0/**"
+		       target="1.4"
+		       source="1.4"
+			   debug="on"
+			   encoding="ISO-8859-1"
+			   debuglevel="lines,vars,source"/>
+
+		<echo>Building against honeycomb 1.0 client libraries</echo>	
+   	    <mkdir dir="${build.dir}/classes/1.0"/>
+		<javac classpath="${dtf.jar}:${hc.client.1.0.jars}:${hc.hook.classes}" 
+			   srcdir="${hc.src.dir}/java"
+		   	   destdir="${build.dir}/classes/1.0"
+			   includes="**/actions/**,**/honeycomb/client/**"
+			   excludes="**/v1_1/**"
+		       target="1.4"
+		       source="1.4"
+			   debug="on"
+			   encoding="ISO-8859-1"
+			   debuglevel="lines,vars,source"/>
+        			   
+		<echo>Building against honeycomb 1.1 client libraries</echo>	
+   	    <mkdir dir="${build.dir}/classes/1.1"/>
+		<javac classpath="${dtf.jar}:${hc.client.1.1.jars}:${hc.hook.classes}" 
+			   srcdir="${hc.src.dir}/java"
+		   	   destdir="${build.dir}/classes/1.1"
+			   includes="**/actions/**,**/honeycomb/client/**"
+			   excludes="**/v1_0/**"
+		       target="1.4"
+		       source="1.4"
+			   debug="on"
+			   encoding="ISO-8859-1"
+			   debuglevel="lines,vars,source"/>
+	</target>
+
+	<target name="dist" description="distribution target">
+		<jar jarfile="${build.dir}/${hc.dist.dir}/lib/hc-dtfhook.jar" 
+			 basedir="${build.dir}/${hc.classes.dir}/dtfhook" 
+			 manifest="MANIFEST.MF"
+		     includes="**/**"/>
+		
+		<!-- right now the test cases are in here but as soon as we start 
+		     having a repository for testcases then they will maintained in 
+		     their own module -->
+		<copy todir="${build.dir}/${hc.dist.dir}/tests">
+			<fileset dir="tests"/>	
+		</copy>
+
+		<!-- place the necessary files in the bin directory -->
+		<echo>Copying bin files to ${build.dir}/${hc.dist.dir}/bin</echo>
+		<mkdir dir="${build.dir}/${hc.dist.dir}/bin"/>
+		<for list="${hc.external.bin.files}" delimiter="," param="file">
+			<sequential>
+				<copy todir="${build.dir}/${hc.dist.dir}/bin" 
+				      file="@{file}"/>
+ 			</sequential>
+		</for>
+	
+		<!-- copy the current stable builds into the lib directory -->
+		<copy todir="${build.dir}/${hc.dist.dir}/lib">
+			<fileset dir="${hc.clients.path}"/>
+		</copy>
+		
+		<mkdir dir="${build.dir}/${hc.dist.dir}/lib/cur"/>
+		<copy todir="${build.dir}/${hc.dist.dir}/lib/cur">
+			<fileset dir="${hc.client.cur.build}"/>
+		</copy>
+	
+		<!-- Copy the sources to the build directory so tha DTF can generate 
+		     the documentation nicely. -->
+    	<mkdir dir="${build.dir}/${hc.dist.dir}/src"/>
+		<copy todir="${build.dir}/${hc.dist.dir}/src">
+			<fileset dir="${hc.src.dir}/java"/>
+		</copy>
+	
+		<!-- Copy honeycomb jars along with the framework -->
+		<echo>Copying honeycomb jars to ${build.dir}/${hc.dist.dir}/lib</echo>
+		<for list="${hc.external.jars}" delimiter=":" param="jar">
+			<sequential>
+				<copy todir="${build.dir}/${hc.dist.dir}/lib">
+					<fileset file="@{jar}"/>
+				</copy>
+ 			</sequential>
+		</for>
+		
+		<!-- Copy honeycomb config files along with the framework -->
+		<echo>Copying config files to ${build.dir}/${hc.dist.dir}/lib/hc/config</echo>
+		<mkdir dir="${build.dir}/${hc.dist.dir}/lib/hc/config"/>
+		<for list="${hc.external.config.dirs}" delimiter=":" param="config">
+			<sequential>
+				<copy todir="${build.dir}/${hc.dist.dir}/lib/hc/config">
+					<fileset dir="@{config}" 
+						     includes="${hc.external.config.filetypes}"/>
+				</copy>
+ 			</sequential>
+		</for>
+		
+		<!-- Copy external scripts that will be copied to the honeycomb nodes -->
+		<echo>Copying scipts to ${build.dir}/${hc.dist.dir}/lib/hc/scripts</echo>
+		<mkdir dir="${build.dir}/${hc.dist.dir}/lib/hc/scripts"/>
+		<copy todir="${build.dir}/${hc.dist.dir}/lib/hc/scripts">
+			<fileset dir="${hc.src.dir}/scripts">
+				<include name="**"/>
+			</fileset>
+		</copy>
+		
+    	<mkdir dir="${build.dir}/${hc.dist.dir}/lib/hc"/>
+		<for list="${hc.client.names}" delimiter=":" param="client.build">
+			<sequential>
+				<echo/>
+        		<jar jarfile="${build.dir}/${hc.dist.dir}/lib/hc/hc-dtf-@{client.build}.jar" 
+        			 basedir="${build.dir}/${hc.classes.dir}/@{client.build}" 
+        		     includes="**/**"/>
+			</sequential>
+		</for>
+	</target>
+	
+	<target name="clean" depends="init" description="clean target">
+		<delete dir="${build.dir}" failonerror="false"/>
+	</target>
+</project>

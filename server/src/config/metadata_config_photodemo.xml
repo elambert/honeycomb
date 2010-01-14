@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 
+
+  $Id: metadata_config_photodemo.xml 10855 2007-05-19 02:54:08Z bberndt $
+
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+
+Use /opt/honeycomb/bin/metadata_merge_config.sh to add this config to
+the existing one -->
+
+  <metadataConfig>
+  <schema>
+    
+    <namespace name="photo" writable="true" extensible="true">
+      <field name="Sensing_Method" type="string" indexable="true"/>
+      <field name="Components_Configuration" type="string" indexable="true"/>
+      <field name="Exposure_Bias_Value" type="string" indexable="true"/>
+      <field name="Exif_Image_Height" type="string" indexable="true"/>
+      <field name="F_Number" type="string" indexable="true"/>
+      <field name="Focal_Length" type="string" indexable="true"/>
+      <field name="Date_Time" type="string" indexable="true"/>
+      <field name="X_Resolution" type="string" indexable="true"/>
+      <field name="Resolution_Unit" type="string" indexable="true"/>
+      <field name="Date_Time_Original" type="string" indexable="true"/>
+      <field name="Brightness_Value" type="string" indexable="true"/>
+      <field name="Exposure_Time" type="string" indexable="true"/>
+      <field name="Software" type="string" indexable="true"/>
+      <field name="Make" type="string" indexable="true"/>
+      <field name="Aperture_Value" type="string" indexable="true"/>
+      <field name="Light_Source" type="string" indexable="true"/>
+      <field name="Exposure_Program" type="string" indexable="true"/>
+      <field name="Date_Time_Digitized" type="string" indexable="true"/>
+      <field name="Exif_Version" type="string" indexable="true"/>
+      <field name="YCbCr_Positioning" type="string" indexable="true"/>
+      <field name="Shutter_Speed_Value" type="string" indexable="true"/>
+      <field name="FlashPix_Version" type="string" indexable="true"/>
+      <field name="User_Comment" type="string" indexable="true"/>
+      <field name="Thumbnail_Data" type="string" indexable="true"/>
+      <field name="Focal_Plane_Resolution_Unit" type="string" indexable="true"/>
+      <field name="Y_Resolution" type="string" indexable="true"/>
+      <field name="Thumbnail_Offset" type="string" indexable="true"/>
+      <field name="Color_Space" type="string" indexable="true"/>
+      <field name="Exposure_Index" type="string" indexable="true"/>
+      <field name="Focal_Plane_X_Resolution" type="string" indexable="true"/>
+      <field name="Scene_Type" type="string" indexable="true"/>
+      <field name="Orientation" type="string" indexable="true"/>
+      <field name="Image_Description" type="string" indexable="true"/>
+      <field name="Metering_Mode" type="string" indexable="true"/>
+      <field name="Focal_Plane_Y_Resolution" type="string" indexable="true"/>
+      <field name="Model" type="string" indexable="true"/>
+      <field name="Copyright" type="string" indexable="true"/>
+      <field name="Subject_Distance" type="string" indexable="true"/>
+      <field name="ISO_Speed_Ratings" type="string" indexable="true"/>
+      <field name="Flash" type="string" indexable="true"/>
+      <field name="Compression" type="string" indexable="true"/>
+      <field name="File_Source" type="string" indexable="true"/>
+      <field name="Compressed_Bits_Per_Pixel" type="string" indexable="true"/>
+      <field name="Exif_Image_Width" type="string" indexable="true"/>
+      <field name="Thumbnail_Length" type="string" indexable="true"/>
+      <field name="Max_Aperture_Value" type="string" indexable="true"/>
+      <field name="Photo_Location" type="string" indexable="true"/>
+    </namespace>
+
+  </schema>
+
+  <fsViews>
+  </fsViews>
+  
+</metadataConfig>

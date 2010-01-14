@@ -1,0 +1,136 @@
+#
+# $Id: config.mtx 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+# Config/Install Test Matrix
+
+# Config functionality (ConfigAgent and ConfigProperties API)
+
+# Concurency I
+# one client periodically setting property multiple clients reading
+# without  quorum in absence of failures
+config.singleSet.multipleGet.weak.nofailures
+
+# Concurrency II
+# one client periodically setting property multiple clients reading
+# with quorum in absence of failures
+config.singleSet.multipleGet.quorum.nofailures
+
+# Concurency III
+# two clients periodically setting property multiple clients reading
+# without  quorum in absence of failures
+config.multiSet.multipleGet.weak.nofailures
+
+# Concurrency IV
+# two clients periodically setting property multiple clients reading
+# with quorum in absence of failures
+config.multiSet.multipleGet.quorum.nofailures
+
+# Failure tolerance I
+# one client periodically setting property multiple clients reading
+# without  quorum with a single node rebooting periodically 
+config.singleSet.multipleGet.weak.singleFailure
+
+# Failure tolerance II
+# one client periodically setting property multiple clients reading
+# without  quorum with a two nodes rebooting periodically 
+config.singleSet.multipleGet.weak.multiFailure
+
+# Failure tolerance III
+# one client periodically setting property multiple clients reading
+# without  quorum with a single node rebooting periodically 
+config.singleSet.multipleGet.quorum.singleFailure
+
+# Failure tolerance IV
+# one client periodically setting property multiple clients reading
+# without  quorum with a two nodes rebooting periodically 
+config.singleSet.multipleGet.quorum.multiFailure
+
+# Failure tolerance V
+# one client periodically setting property multiple clients reading
+# without  quorum with a single node rebooting periodically 
+config.multiSet.multipleGet.weak.singleFailure
+
+# Failure tolerance VI
+# two clients periodically setting property multiple clients reading
+# without  quorum with a two nodes rebooting periodically 
+config.multiSet.multipleGet.weak.multiFailure
+
+# Failure tolerance VII
+# two clients periodically setting property multiple clients reading
+# without  quorum with a single node rebooting periodically 
+config.multiSet.multipleGet.quorum.singleFailure
+
+# Failure tolerance VIII
+# two clients periodically setting property multiple clients reading
+# without  quorum with a two nodes rebooting periodically 
+config.multiSet.multipleGet.quorum.multiFailure
+
+# Self healing I
+# multiple clients reading without quorum with a single node
+# starting with an out-of-sync configuration 
+config.singleSet.multipleGet.weak.singleRepair
+
+# Self healing II
+# multiple clients reading without quorum with two node
+# starting with an out-of-sync configuration
+config.singleSet.multipleGet.weak.multiRepair
+
+# Self healing III
+# multiple clients reading with quorum with a single node
+# starting with an out-of-sync configuration 
+config.singleSet.multipleGet.quorum.singleRepair
+
+# Self healing IV
+# multiple clients reading with quorum with two node
+# starting with an out-of-sync configuration
+config.singleSet.multipleGet.quorum.multiRepair
+
+# Install/Boot functionality (build and InstallAgent API)
+
+# Build and install images, and reboot cluster using CLI
+install.getimage
+
+# Build and install images on the "service processor"
+install.sp
+
+# Self healing I
+# One node booted from network with an incorrect image in /boot/0
+install.singleRepair
+
+# Self healing II
+# Two nodes booted from network with an incorrect image in /boot/0
+install.multiRepair
+

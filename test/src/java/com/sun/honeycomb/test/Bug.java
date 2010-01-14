@@ -1,0 +1,106 @@
+/*
+ * Copyright © 2008, Sun Microsystems, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+
+package com.sun.honeycomb.test;
+
+import com.sun.honeycomb.test.util.QB;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.File;
+
+/**
+    Relates bugster bugs to test results.
+*/
+
+public class Bug
+{
+    private String id; // Bugster ID of the bug
+    private String notes; // how does this bug relate to the test result
+    private int result = 0; // Result id to correlate bug with test result
+
+    private QB qb = null; // handle to QB repository
+
+    public Bug(String bugId, String bugNotes, int resultId) {
+	id = bugId;
+	notes = bugNotes;
+	result = resultId;
+	qb = QB.getInstance();
+    }
+
+    public Bug(String bugId, String bugNotes) {
+	this(bugId, bugNotes, 0); // result may be yet unknown
+    }
+
+    public Bug(String bugId, int resultId) {
+	this(bugId, "", resultId); // notes are optional
+    }
+
+    public Bug(String bugId) {
+	this(bugId, "", 0); // notes are optional, result may be yet unknown
+    }
+
+    // sometimes bug is created first, before result ID for the test is known
+    // this method serves to correlate existing bug with result
+    // result ID must be set on the bug before posting the bug!
+    public void setResult(int resultId) {
+	result = resultId; 
+    }
+
+    public String details() {
+	StringBuffer sb = new StringBuffer("BUG=" + id);
+	if (notes.length() != 0) {
+	    sb.append(" REASON: " + notes);
+	}
+	// Result ID is probably of no interest because
+	// Bug will be printed in the context of a result
+	return sb.toString();
+    }
+
+    public String toString() { return id; }
+
+    public void post() throws Throwable {
+        if (qb.isOff()) {
+            return;
+        }
+	File postBug = qb.dataFile("bug");
+	writeRecord(new BufferedWriter(new FileWriter(postBug)));
+	qb.post("bug", postBug);
+    }
+
+    private void writeRecord(BufferedWriter out) throws Throwable {
+	out.write("QB.bug: " + id + "\n");
+	out.write("QB.result: " + result + "\n");
+	if (notes.length() != 0) out.write("QB.notes: " + notes + "\n");
+	out.close();
+    }
+}

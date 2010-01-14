@@ -1,0 +1,23 @@
+NAME
+       Query - Query for metadata records
+
+SYNOPSIS
+       Query [OPTIONS] <IP | HOST> <QUERY>
+
+DESCRIPTION
+       Query for files.  QUERY is of the form...
+              '"<name1>" = '<value1>' AND "<name2>" = '<value2>' OR ...
+       The OID of files which match the query are printed to stdout.
+
+OPTIONS
+       -m, 
+              Print out results as metadata name/value records.
+              By default the results are returned as a list of OIDs.
+       -r   <number of results>
+              The maximum number of metadata records or OIDs
+              that will be returned.  The default is 1000.
+       -h, 
+              print this message
+
+EXAMPLES
+       Query archivehost '"author" = 'King''

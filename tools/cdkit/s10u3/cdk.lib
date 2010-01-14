@@ -1,0 +1,4744 @@
+
+# @(#)cdk.lib 1.221 06/05/18 SMI
+
+typeset MAKECD=${MAKECD:=makecd.$(uname -p)}
+integer CD_CAPACITY=670	# in MegaByte
+
+integer N_SPLIT=4
+
+# This value is used for dynamice calculation of the miniroot size
+# This value should only be incremented by 1 each time.
+integer FS_OVERHEAD_PERCENT=14 # This is the percentage
+
+typeset SAVE_SPACE=false
+
+[[ "$0" == /* ]] && typeset -r PROG=$0 || typeset -r PROG=$PWD/$0
+typeset RETOOLS=$(dirname $PROG)/retools.php
+
+_CreateAdminFile() {
+	cat <<- EOF
+		mail=
+		instance=unique
+		partial=ask
+		runlevel=nocheck
+		idepend=nocheck
+		rdepend=ask
+		space=nocheck
+		setuid=nocheck
+		conflict=nocheck
+		action=nocheck
+	EOF
+}
+
+
+_install_pkgs() {
+	typeset -r src=$1
+	typeset -r dest=$2
+	shift 2
+	typeset -r pkgs=$*
+
+	[ ! -d $src ] && {
+		PrintErr "ERROR: $src does not exist"
+		return 1
+	}
+
+	typeset -r admin_file=$(_TmpFile pkgadd.admin)
+	_CreateAdminFile > $admin_file
+
+	echo "Install packages from $src to $dest ..."
+
+	integer error=0
+	# -S = hidden option, skip the (very long) copyright info
+	pkgadd -S -n -a $admin_file -d $src -R $dest $pkgs || error=$?
+
+	rm -f $admin_file
+
+set -x
+	rm -rf $dest/tmp/.ai.pkg.zone.lock*
+	rmdir $dest/tmp > /dev/null 2>&1
+set +x
+
+	return $error
+}
+
+
+_CopyPkg() {
+	typeset -r pkg=$1
+	typeset -r src=$2
+	typeset -r dest=$3
+
+	typeset type=
+	[ "$SAVE_SPACE" = 'true' ] && type=link || type=copy
+
+	if [ -d $src/$pkg ] ; then
+		_CpioCopy $type $src/$pkg $dest/$pkg
+		return $?
+	else
+		typeset pkgpaths=$(cd $src; ls -d ${pkg}.* 2> /dev/null)
+		if [ -z "$pkgpaths" ] ; then
+			PrintErr "Cannot find $src/$pkg"
+			return 1
+		else
+			integer error=0
+			typeset p=
+			for p in $pkgpaths ; do
+				_CpioCopy $type $src/$p $dest/$p || error=error+1
+			done
+			return $error
+		fi
+	fi
+	return 1
+}
+
+
+_MovePkg() {
+	typeset -r pkg=$1
+	typeset -r src=$2
+	typeset -r dest=$3
+
+	typeset type=
+
+	if [ -d $src/$pkg ] ; then
+		mv $src/$pkg $dest/$pkg
+		return $?
+	else
+		typeset pkgpaths=$(cd $src; ls -d ${pkg}.* 2> /dev/null)
+		if [ -z "$pkgpaths" ] ; then
+			PrintErr "Cannot find $src/$pkg"
+			return 1
+		else
+			integer error=0
+			typeset p=
+			for p in $pkgpaths ; do
+				mv $src/$p $dest/$p || error=error+1
+			done
+			return $error
+		fi
+	fi
+	return 1
+}
+
+
+_install_patches() {
+
+	typeset -r src=$1
+	typeset -r dest=$2
+	shift 2
+
+	typeset -r patches=$*
+
+	[ ! -d $src ] && {
+		PrintErr "ERROR: $src does not exist"
+		return 1
+	}
+	[ ! -d $dest ] && {
+		PrintErr "ERROR: $dest does not exist"
+		return 1
+	}
+
+	pkg=SUNWswmt
+	typeset -r tooldir=$(_TmpFile $pkg)
+	typeset -r PATCHADD=$tooldir/usr/sbin/patchadd
+
+	_install_tools $pkg $src $tooldir || {
+		rm -rf $tooldir > /dev/null 2>&1
+		return 1
+	}
+
+	echo "Patchadd used: "
+	ls -l $PATCHADD
+
+	echo "Install patches from $src to $dest ..."
+
+	integer error=0
+
+	for patch in $patches ; do
+		typeset patchdir=$src/$patch
+		if [ ! -d $patchdir ] ; then
+			PrintErr "ERROR: Patch $patchdir does not exist"
+			error=error+1
+		else
+			echo "\tadding $patch ..."
+
+			$PATCHADD -d -C $dest $patchdir || error=error+1
+		fi
+	done
+	rm -rf $tooldir > /dev/null 2>&1
+	return $error
+}
+
+
+MakeDir() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset opt=''
+	if [ "$1" = '-p' ] ; then
+		opt='-p'
+		shift 1
+	fi
+
+	typeset -r dir=$1
+
+	integer error=0
+	if [ ! -d "$dir" ] ; then
+		mkdir $opt "$dir" 	|| error=$?
+		if [ "$error" -ne 0 ] ; then
+			PrintErr "ERROR: Failed to create $dir"
+			return $error
+		fi
+	fi
+	return 0
+}
+
+
+_CpioCopy() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r type=$1
+	typeset -r src=$2
+	typeset -r dest=$3
+
+	if [ ! -d $src ] ; then
+		PrintErr "Cannot find $src"
+		return 1;
+	fi
+
+	MakeDir -p $dest	|| return $?
+
+	#
+	# type = speciallink
+	# When a symlink is hardlinked, "cpio -oc" will fail with
+	# "file disappeared" message.  "cpio -o" will solve the
+	# problem but will screw up the integrity of the image.
+	# To workaround the cpio(1) bug, I create a 'speciallink'
+	# type here to hardlink all file types except
+	# for symlink.  Another sweep will be done to just *copy*
+	# the links.
+	#
+	(
+		cd $src		|| return $?
+
+		if [ "$type" = 'copy' ] ; then
+			find . -print | cpio -pdum $dest	|| return $?
+		elif [ "$type" = 'link' ] ; then
+			find . -print | cpio -pduml $dest	|| return $?
+		elif [ "$type" = 'speciallink' ] ; then
+			find . ! -type l | cpio -pduml $dest	|| return $?
+			find .   -type l | cpio -pdum  $dest	|| return $?
+		else
+			PrintErr "Invalid _CpioCopy() type - $type"
+			return 1
+		fi
+		return 0
+	) || return $?
+
+	return 0
+}
+
+
+_install_tools() {
+	typeset -r pkg=$1
+	typeset -r pkgpool=$2
+	typeset -r tooldir=$3
+
+	MakeDir "$tooldir"	|| return $?
+
+	[ ! -d "$pkgpool/$pkg" ] && {
+		PrintErr "Cannot open directory $pkgpool/$pkg"
+		return 1
+	}
+	_install_pkgs $pkgpool $tooldir $pkg
+	return $?
+}
+
+
+_SlicemapfileIsOkay() {
+
+	typeset -r slicemapfile=$1
+	[ ! -r "$slicemapfile" ] && {
+		PrintErr "Failed to read slicemapfile $slicemapfile"
+		return 1
+	}
+
+	typeset token=
+	typeset	bogus=
+	_StripComments $slicemapfile |
+	while read token bogus ; do
+		[ "$token" != 'm' ] && {
+			PrintErr "First column of slicemapfile entry should" \
+				"start with 'm'"
+			return 1
+		}
+	done 
+	return 0
+}
+
+
+_GetProductDirPath() {
+
+	typeset -r imageDir=$1
+
+	[ ! -d "$imageDir" ] && {
+		PrintErr "Cannot open directory $imageDir"
+		return 1
+	}
+	typeset -r cdtoc_file=$imageDir/.cdtoc
+	[ ! -r "$cdtoc_file" ] && {
+		PrintErr "Cannot open file $cdtoc_file"
+		return 1
+	}
+
+	typeset sym_PRODDIR=
+	sym_PRODDIR=$(grep PRODDIR $cdtoc_file | sed -e 's:PRODDIR=::')
+
+	[ -z "$sym_PRODDIR" ] && {
+		PrintErr "Symbol PRODDIR is undefined in $cdtoc_file"
+		return 1
+	}
+
+	# Everything should be okay here
+	echo "$imageDir/$sym_PRODDIR"
+
+	return 0
+}
+
+
+_GetMinirootPath() {
+
+	typeset -r imageDir=$1
+
+	typeset prodDir=
+	prodDir=$(_GetProductDirPath $imageDir)		|| return $?
+
+	typeset -r bootdir=$prodDir/../Tools/Boot
+
+	[ ! -d $bootdir ] && {
+		PrintErr "Net miniroot $bootdir does not exist, directory" \
+			"should exist in the standard distribution."
+		PrintErr "Check your source medium."
+		return 1
+	}
+
+	echo $bootdir
+	return 0
+}
+
+
+
+roundup() {
+	integer value=$1
+	integer roundto=$2
+	integer result="($value+$roundto-1)/$roundto"
+	echo $result
+	return 0
+}
+
+
+InitPartitions() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+	PrintErr "InitPartitions() is no longer a supported function."
+	PrintErr "The size of the miniroot is now calculated dynamically."
+	PrintErr "Please read the readme file again for this change."
+	return 1
+}
+
+
+#########################################################
+#
+# Warning: fmthard generate a lot of warnings.  Ignore them.
+#          trace() hides all warnings when fmthard(1M) returns
+#          zero.  You will only see errors and warnings 
+#          messages when fmthard(1M) return non-zero.
+#
+
+#
+# drive = e.g. c0t4d0
+#
+_InitPartitions() {
+
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r miniroot_sz=$1
+	shift 1
+	typeset -r drives=$@
+
+	i386() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r drive=$1
+		typeset -i miniroot_sz=$2
+
+		typeset -r RDEV=/dev/rdsk/${drive}p0
+		trace fdisk -B $RDEV || {
+			PrintErr "Failed to initialize to one Solaris partition"
+			return 1
+		}
+
+		# size in 512bytes blocks
+		integer solaris_sz="miniroot_sz*1024*2"
+
+		#
+		# This is due to a change in 2.6 fmthard(1M), all partition 
+		# now has to be on a cylinder boundary.  The following code
+		# is from mehran@west.
+		#
+		typeset nhead=`fdisk -g $RDEV | grep -v "^*" | awk '{print $5}'`
+		typeset nsect=`fdisk -g $RDEV | grep -v "^*" | awk '{print $6}'`
+		integer cyl_sz=$nhead*$nsect
+		integer part_sz="$(roundup $solaris_sz cyl_sz)*$cyl_sz"
+		# This code came from mehran@west but there is a problem in it.
+		#integer part_sz="((($solaris_sz+$cyl_sz+1)/$cyl_sz)-1)*$cyl_sz"
+
+		trace fmthard -d "0:2:0:0:$part_sz" /dev/rdsk/${drive}s2 || {
+			PrintErr "Failed to create slice 0 in Solaris partition"
+			return 1
+		}
+		return $?
+	}
+	sparc() {
+
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r drive=$1
+		typeset -i miniroot_sz=$2
+
+		cyl_count() {
+			integer sz_in_mb=$1
+			integer sz=$2
+			integer sz_in_512blk="sz_in_mb*1024*2"
+			integer ncyl=$(roundup $sz_in_512blk $sz)
+			echo $ncyl
+		}
+		get_sec_per_cyl() {
+			typeset dummy=
+			integer sz=
+			prtvtoc /dev/dsk/${drive}s2 | 
+				grep 'sectors/cylinder' | 
+				read dummy sz dummy 
+			if [ $? -ne 0 ] ; then
+				exit 1
+			fi
+			echo $sz
+		}
+		init_slice() {
+			typeset value=
+			for value in $* ; do
+				echo $value
+			done
+		}
+		create_cmd_file() {
+			integer sec_per_cyl=$(get_sec_per_cyl)
+			integer ncyl=$(cyl_count 1 $sec_per_cyl)
+
+			echo p
+			init_slice 0 unassigned wu 0  0
+
+			integer cylinder=0
+			typeset slice=
+			for slice in 2 3 4 5 6 7 ; do
+				init_slice $slice boot wm $cylinder ${ncyl}c
+				cylinder=cylinder+ncyl
+			done
+
+			init_slice 1 root wm $cylinder $(cyl_count \
+				$miniroot_sz $sec_per_cyl)c
+
+			echo label
+			echo q
+			echo q
+		}
+
+		integer ERROR=0
+
+		typeset -r TMPFILE=$(_TmpFile initP)
+
+		create_cmd_file > $TMPFILE
+		format -s -f $TMPFILE $drive	|| ERROR=$?
+		rm -f $TMPFILE
+
+		return $ERROR
+	} # End of sparc()
+
+	integer error=0
+
+	typeset drive=
+	for drive in $drives ; do
+		$(uname -p) $drive $miniroot_sz	|| error=$?
+	done
+
+	return $error
+}
+
+_newFileSystem() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r SPECIAL_FILE=$1
+	echo y | trace /usr/sbin/newfs -v $SPECIAL_FILE || {
+                integer error=$?
+                if grep $SPECIAL_FILE /etc/mnttab ; then
+                        PrintErr "$SPECIAL_FILE has already been mounted." \
+                                "\nRun \"umount $SPECIAL_FILE\"" \
+                                "and restart again"
+                fi
+                return $error
+        }
+        return 0
+}
+
+
+# lwl
+CreateBootSlice() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	save_old_file_if_exists() {
+		typeset -r oldfile=$1
+		if [ ! -f $oldfile ] ; then
+			return 0
+		else
+			typeset -r suffix=$(ls -alt $oldfile | 
+				awk '{printf("%s.%s.%s",$6,$7,$8)}')
+			if mv $oldfile $oldfile.$suffix ; then
+				return 0
+			else
+				PrintErr "Unable to save $oldfile"
+				return 1
+			fi
+		fi
+	}
+
+	_InstallBootBlock() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+	
+		typeset -r bootdir=$1
+		typeset -r rawdev=$2
+		typeset -r uname_m=$3
+
+		typeset boot_blk="$bootdir/usr/platform/$uname_m"
+		boot_blk="$boot_blk/lib/fs/ufs/bootblk"
+
+		trace $bootdir/usr/sbin/installboot $boot_blk \
+				$rawdev || {
+			integer error=$?
+			PrintErr "Failed to install bootblk to $rawdev"
+			return $error
+		}
+		return 0
+	}
+
+	_AddRedirectFile() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r blk_dev=$1
+		
+		typeset TMP_MNT_DIR=""	# WARNING: DO NOT call $(...) 
+		TMP_MNT_DIR=$(_MountDevice $blk_dev) || {
+			PrintErr "Cannot mount $blk_dev"
+			return 1
+		}
+		echo "Mounted $blk_dev onto $TMP_MNT_DIR"
+
+		trap "_Umount $TMP_MNT_DIR > /dev/null 2>&1" 1 2 3 15
+
+		typeset FILE=$TMP_MNT_DIR/lost+found
+		rm -rf $FILE || {
+			PrintErr "Cannot remove $FILE"
+			return 1
+		}
+		FILE=$TMP_MNT_DIR/.SUNW-boot-redirect
+		echo '1' > $FILE || {
+			PrintErr "Failed to create $FILE"
+			_Umount $TMP_MNT_DIR
+			return $1
+		}
+		trace _Umount $TMP_MNT_DIR	|| return $?
+
+		return 0
+	}
+
+	_CreateSlice() {
+set -x
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r bootdir=$1
+		typeset -r dev=$2
+		typeset -r uname_m=$3
+		typeset -r target=$4
+
+		typeset rawdev=/dev/rdsk/$dev
+		typeset blkdev=/dev/dsk/$dev
+
+		_newFileSystem $rawdev		|| return $?
+		_InstallBootBlock $bootdir $rawdev $uname_m || return $?
+		_AddRedirectFile $blkdev	|| return $?
+
+		save_old_file_if_exists $target || return $?
+
+		trace cp $blkdev $target	|| return $?
+		trace _PadFile $target		|| return $?
+		trace chmod 644 $target		|| return $?
+	}
+	
+	[ "$(uname -p)" = 'i386' ] && {
+		PrintErr "Function CreateBootSlice() is not needed for i386."
+		return 1
+	}
+
+	typeset -r bootdir=$1
+	typeset -r slice=$2
+	typeset -r uname_m=$3
+	typeset -r drive=$4
+	typeset -r target_file=$5
+
+	[[ "$slice" != [234567] ]] && {
+		PrintErr "Invalid slice number: $slice"
+		return 1
+	}
+
+	_CreateSlice $bootdir ${drive}s${slice} $uname_m $target_file
+
+	return $?
+}
+
+
+_Run_create_cd_root() {
+
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r pkgpool=$1
+	typeset -r bootdir=$2
+	typeset -r rootdir=$3
+
+	if [ ! -d $pkgpool ] ; then
+		PrintErr "$pkgpool does not exist, quitting!"
+		return 1
+	fi
+	if [ ! -d $bootdir ] ; then
+		PrintErr "$bootdir does not exist, quitting!"
+		return 1
+	fi
+
+	typeset -r tooldir=$(_TmpFile SUNWcdbd)
+	_install_tools SUNWcdbd $pkgpool $tooldir		|| {
+		rm -rf $tooldir > /dev/null 2>&1
+		return 1
+	}
+
+	typeset -r create_cd_root=$tooldir/cdbuild/create_cd_root
+
+	[ ! -x $create_cd_root ] && {
+		PrintErr "File $create_cd_root is not executable"
+		rm -rf $tooldir
+		return 1
+	}
+
+	trace $create_cd_root $bootdir $rootdir || {
+		PrintErr "creae_cd_root(1) failed!"
+		return 1
+	}
+
+	\rm -rf $tooldir
+	return 0
+}
+
+
+_GenericCreateMinirootSlice() {
+set -x
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	root_blk_dev() {
+		typeset -r drive=$1
+		typeset blk_dev=
+		case "$(uname -p)" in
+			sparc)	blk_dev=/dev/dsk/${drive}s1	;;
+			i386)	blk_dev=/dev/dsk/${drive}s0	;;
+			default)
+				PrintErr "Assertion: Invalid platform!"
+				exit 1
+				;;
+		esac
+		echo $blk_dev
+	}
+	blk_to_raw() {
+		typeset -r blk_dev=$1
+		echo $blk_dev | sed -e 's:/dsk/:/rdsk/:'
+	}
+
+	typeset -r copy_root_function=$1
+	typeset -r root_dir=$2
+	typeset -r drive=$3
+	typeset -r target_file=$4
+
+	date
+
+	typeset MNT_DIR=""	# WARNING: do not call $(...) here
+
+	typeset -r blk_dev=$(root_blk_dev $drive)
+
+	trace _newFileSystem $blk_dev		|| {
+		PrintErr "Failed newfs"
+		return 1
+	}
+	MNT_DIR=$(_MountDevice $blk_dev)	|| {
+		PrintErr "Unable to mount $blk_dev"
+		return 1
+	}
+	echo "Mounted $blk_dev to $MNT_DIR"
+
+	trap "_Umount $MNT_DIR > /dev/null 2>&1" 1 2 3 15
+
+	rm -rf $MNT_DIR/lost+found
+
+	integer error=0
+
+	eval $copy_root_function $root_dir $MNT_DIR	|| {
+		error=$?
+		PrintErr "Failed to transfer component to miniroot"
+	}
+
+	# report the size of the partitions
+	df -kl $MNT_DIR	|| return $?
+
+	trace _Umount $MNT_DIR || {
+		PrintErr "Failed to un-mount $MNT_DIR"
+		return 1
+	}
+
+	date
+
+	[ $error -ne 0 ] && return $error
+
+	trace cp $blk_dev $target_file || {
+		PrintErr "Failed to copy from $blk_dev to $target_file"
+		return 1
+	}
+
+	trace chmod 644 $target_file || return 1
+
+	trace _PadFile $target_file	|| return 1
+
+	date
+
+	# we are okay if we are here!
+	return 0
+}
+
+
+CreateDVDMinirootSlice() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r pkgpool=$1
+	typeset -r root_dir=$2
+	typeset -r drive=$3
+	typeset -r target_file=$4
+	_GenericCreateMinirootSlice "_Run_create_cd_root $pkgpool" \
+		$root_dir $drive $target_file	
+}
+
+
+CreateCDMinirootSlice() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r pkgpool=$1
+	typeset -r root_dir=$2
+	typeset -r drive=$3
+	typeset -r target_file=$4
+	_GenericCreateMinirootSlice "_CpioCopy copy" \
+		$root_dir $drive $target_file	
+}
+
+
+EstimateFSsize() {
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+
+	typeset -r fs=$1
+
+	# IMPORTANT
+	# We *CANNOT* use du to calculate the size of the miniroot here.
+	#
+	# integer sz_in_kb=$(du -sk $tmpdir | awk '{print $1}')
+	#
+	# It is because the miniroot partition is 512b blocks while /tmp
+	# here is 2K blocks.  Even with the same miniroot contents, 
+	# running du(1) on /tmp and on the drive produces *different*
+	# result.  We can only estimate the total size needed from
+	# the size of the cpio file.
+
+	typeset -r tmpfile=$(_TmpFile minitmp)
+
+	find $fs | cpio -o -O $tmpfile
+
+	integer sz_in_kb=$(du -sk $tmpfile | awk '{print $1}')
+	integer fs_size_in_kb="(sz_in_kb*(100+FS_OVERHEAD_PERCENT))/100"
+	roundup $fs_size_in_kb 1024
+
+	rm $tmpfile
+
+	return 0
+}
+
+
+CalculateMinirootSize() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r pkgpool=$1
+	typeset -r root_dir=$2
+
+	typeset -r tmpdir=$(_TmpFile calminisz)
+
+	MakeDir $tmpdir	|| return $?
+
+	#
+	# _Run_create_cd_root() dump some information to stdout,
+	# we are re-directing the information to stdout so as to
+	# not corruption the output of this function.
+	#
+	_Run_create_cd_root $pkgpool $root_dir $tmpdir >&2 || {
+		integer error=$?
+		PrintErr "Failed to transfer component to miniroot"
+		PrintErr "Failed to calculate the size of the miniroot"
+		return $error
+	}
+
+	EstimateFSsize $tmpdir
+
+	rm -rf $tmpdir
+
+	return 0
+}
+
+
+_Umount() {
+	typeset -r MNT_PT=$1
+	integer ERROR=0
+	umount $MNT_PT	|| ERROR=$?
+	rmdir $MNT_PT	|| ERROR=$?
+	return $ERROR
+}
+
+
+_MountDevice() {
+	typeset -r blk_dev=$1
+
+	typeset -r MNT_PT=$(_TmpFile MntDev)
+	MakeDir -p $MNT_PT                || return $?
+
+	integer ERROR=0
+	mount -o nologging $blk_dev $MNT_PT	|| ERROR=$?
+	if [ $ERROR -ne 0 ] ; then
+		echo ""
+	else
+		echo $MNT_PT
+	fi
+	return $ERROR
+}
+
+
+
+_AddPkgsFromFileList() {
+
+	typeset -r pkgpool=$1
+	typeset -r pkglist=$2
+	typeset -r dest=$3
+
+	[ ! -d "$pkgpool" ] && {
+		PrintErr "Package Pool $pkgpool does not exist, quitting!"
+		return 1
+	}
+
+	MakeDir $dest	|| return $?
+
+	[ ! -r "$pkglist" ] && {
+		PrintErr "Cannot read file list $pkglist"
+		return 1
+	}
+	[ -s "$pkglist" ] && {
+		echo "Adding pkgs listed in $pkglist ..."
+		_install_pkgs $pkgpool $dest $(< $pkglist) || { 
+			PrintErr "Failed to add pkgs from list $pkglist"
+			return 1
+		}
+	}
+	return 0
+}
+
+
+CreateMinirootDir() {
+
+	set -x
+
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r type=$1
+	shift 1
+	typeset -r pkgpool=$1
+	typeset -r dest=$2
+
+	_RemoveFilesWithList() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r diskmini=$1
+		typeset -r list=$2
+
+		if [ -z "$diskmini" ] ; then
+			PrintErr "Disk miniroot is null _RemoveFilesWithList()" 
+			return 1
+		fi
+
+		if [ "$diskmini" == '/' ] ; then
+			PrintErr "Disk miniroot is '/'.  Invalid path."
+			return 1
+		fi
+
+		typeset path=
+		while read path ; do
+			ls $diskmini/$path > /dev/null 2>&1 || {
+				PrintErr "$path cannot be found in $diskmini"
+			}
+
+			echo "Removing $diskmini/$path ..."
+			rm -rf $diskmini/$path
+		done < $list
+
+		return 0
+	}
+
+	MakeDir "$dest"		|| return $?
+
+	typeset cdk=$pkgpool/CDKinfo/reloc/cdbuild
+
+	integer error=0
+
+	if [ "$type" = 'CD' ] ; then
+		typeset -r baselist=cd.miniroot.pkgs
+	elif [ "$type" = 'DVD' ] ; then
+		typeset -r baselist=dvd.miniroot.pkgs
+	elif [ "$type" = 'OEMDVD' ] ; then
+		typeset -r baselist=oemdvd.miniroot.pkgs
+	else
+		PrintErr "ERROR: Invalid miniroot type - $type"
+		return 1
+	fi
+
+	# Retaining the for loop for any future additions to the list
+	for list in $cdk/$baselist ; do
+		if [ ! -s "$list" ] ; then
+			echo "WARNING: $list is empty"
+			continue
+		fi
+		_AddPkgsFromFileList $pkgpool $list $dest || error=error+1
+	done
+
+	typeset -r cdbdtooldir=$(_TmpFile SUNWcdbd)
+	_install_tools SUNWcdbd $pkgpool $cdbdtooldir	|| {
+		rm -rf $cdbdtooldir > /dev/null 2>&1
+		error=error+1
+	}
+
+	_RemoveFilesWithList $dest \
+	  $cdbdtooldir/cdbuild/.miniroot_delete || error=error+1
+
+	rm -rf $cdbdtooldir > /dev/null 2>&1
+	
+	return $error
+}
+
+
+CreateDotOrderDotPackagetoc() {
+
+	typeset -r func_name='CreateDotOrderDotPackageToc()'
+
+	_main() {
+	
+		set -x 
+		
+		typeset -r prod_pkg_dir=$1
+		typeset -r tooldir=$2
+		typeset -r pkgpool_dir=$3
+	
+		if [ ! -d $prod_pkg_dir ] ; then
+			echo "Cannot find directory $prod_pkg_dir" >&2
+			return 1
+		fi
+	
+		trace cd $prod_pkg_dir
+	
+		# this is a hack to workaround the staroffice and starsuite
+		# differences between English and Asian products
+		typeset -r order=./.order
+		typeset -r packagetoc=./locale/C/.packagetoc
+		typeset -r ja_packagetoc=./locale/ja/.packagetoc
+		typeset -r zh_packagetoc=./locale/zh/.packagetoc
+		typeset -r ko_packagetoc=./locale/ko/.packagetoc
+		
+		typeset -r asian_exclude=$pkgpool_dir/CDKinfo/reloc/cdbuild/asian_btoc_exclude
+		typeset -r en_exclude=$pkgpool_dir/CDKinfo/reloc/cdbuild/en_btoc_exclude
+
+		integer error=0
+	
+		rm -f $order $packagetoc ./.packagetoc
+		
+		mkdir staroffice
+		mv locale/C/.clustertoc* staroffice
+	
+		$tooldir/cdbuild/buildtoc -d . -o $order \
+			-t $prod_pkg_dir/.packagetoc_ml || error=$?
+
+		$tooldir/cdbuild/buildtoc -d . -o /dev/null \
+			-t $packagetoc \
+			-x $en_exclude || error=$?
+
+		$tooldir/cdbuild/buildtoc -d . -o /dev/null \
+			-t $ja_packagetoc \
+			-x $asian_exclude || error=$?
+
+		mv staroffice/.clustertoc* locale/C	
+		rmdir staroffice
+	
+		if [ ! -f $order ] ; then
+			PrintErr "Failed to generate $order" 
+			error=error+1
+		fi
+		if [ ! -f $packagetoc ] ; then
+			PrintErr "Failed to generate $packagetoc" 
+			error=error+1
+		fi
+		
+		cp $ja_packagetoc $ko_packagetoc
+		cp $ja_packagetoc $zh_packagetoc
+	
+		chmod 444 $order $packagetoc $ja_packagetoc \
+		  $zh_packagetoc $ko_packagetoc || error=error+1
+		chown root:root $order $packagetoc $ja_packagetoc \
+		  $zh_packagetoc $ko_packagetoc || error=error+1
+	
+		ln -s ./locale/C/.packagetoc ./.packagetoc  || error=error+1
+		return $error
+	}
+
+	typeset -r pkgDir=$1
+	typeset -r imageDir=$2
+
+	[ ! -d "$pkgDir" ] && {
+		PrintErr "Cannot open directory $pkgDir"
+		return 1
+	}
+
+	typeset prodDir=
+	prodDir=$(_GetProductDirPath $imageDir)		|| return $?
+
+	[ ! -w "$prodDir" ] && {
+		PrintErr "Directory $prodDir is not writeable"
+		return 1
+	}
+
+	typeset -r tmp_dir=$(_TmpFile cdk.cdodp)
+
+	\rm -rf $tmp_dir	|| {
+		PrintErr "Failed to remove directory $tmp_dir"
+		return 1
+	}
+
+	MakeDir $tmp_dir	|| return $?
+
+	integer error=0
+	if _install_tools SUNWcdbd $pkgDir $tmp_dir ; then
+		echo "Creating .order and .packagetoc relative to $prodDir ..."
+		_main $prodDir $tmp_dir $pkgDir || {
+			error=$?
+			PrintErr "Failed in function $func_name"
+		}
+	else
+		error=$?
+		PrintErr "Failed to install build tool to $tmp_dir"
+	fi
+
+	\rm -rf $tmp_dir
+	return $error
+}
+
+
+_GenSubsetPackagetoc() {
+
+	[ "$OPT_DEBUG" == 'true' ] && set -x
+
+        typeset -r func_name='_GenSubsetPackagetoc()'
+
+        _main() {
+
+                typeset -r prodDir=$1
+                typeset -r pkg_dir=$2
+                typeset -r tooldir=$3
+                typeset -r pkgtoc=$4
+
+                integer error=0
+		typeset -r tmporder=$(_TmpFile order)
+
+                rm -f $pkgtoc $tmporder
+
+		$tooldir/cdbuild/subsettoc -d $pkg_dir -O $prodDir/.order \
+		   -o $tmporder -P $prodDir/.packagetoc_ml -p $pkgtoc || error=$?
+
+		rm -f $tmporder
+ 
+                if [ ! -f $pkgtoc ] ; then
+                        PrintErr "Failed to generate $pkgtoc"
+                        error=error+1
+                fi
+
+                chmod 444 $pkgtoc	|| error=error+1
+                chown root:root $pkgtoc	|| error=error+1
+
+                return $error
+        }
+
+        typeset -r prodDir=$1
+        typeset -r pkgDir=$2
+        typeset -r pkgtoc=$3
+        typeset -r pkgpool=$4
+
+        typeset -r tmp_dir=$(_TmpFile cdk.cdodp)
+
+        \rm -rf $tmp_dir        || {
+                PrintErr "Failed to remove directory $tmp_dir"
+                return 1
+        }
+
+	MakeDir "$tmp_dir"	|| return $?
+
+        integer error=0
+        if _install_tools SUNWcdbd $pkgpool $tmp_dir ; then
+                echo "Creating $pkgtoc from $pkgDir..."
+                _main $prodDir $pkgDir $tmp_dir $pkgtoc || {
+                        error=$?
+                        PrintErr "Failed in function $func_name"
+                }
+        else
+                error=$?
+                PrintErr "Failed to install build tool to $tmp_dir"
+        fi
+
+        \rm -rf $tmp_dir
+        return $error
+}
+
+
+PackagePool() {
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+
+	typeset -r pkgpool=$1
+	shift 1
+
+	_ListLocaleDB() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+
+		cd $pkgpool	|| return $?
+
+		typeset locale_pkg= base_pkgs=
+
+		grep 'SUNW_PKGLIST=' */pkginfo | sed -e 's:/pkginfo::' \
+			-e 's:SUNW_PKGLIST=::' -e 's:,: :g' -e 's|:| |' |
+		while read locale_pkg base_pkgs ; do
+			if [ -z "$base_pkgs" ] ; then
+				echo ":$locale_pkg::"
+				continue
+			fi
+			typeset pkg=
+			for pkg in $base_pkgs ; do
+				echo ":$locale_pkg:$pkg:"
+			done
+		done
+		return 0
+	}
+
+	_getLocalePkgs() {
+		cut -d: -f 2 | sort -u
+	}
+
+	ListLocalePkgs() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+		(_ListLocaleDB) | _getLocalePkgs 
+	}
+
+	ListOrphanLocalePkgs() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+		(_ListLocaleDB) | grep ':.*::' | _getLocalePkgs
+	}
+
+	ListParentedLocalePkgs() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+		(_ListLocaleDB) | grep -v ':.*::' | _getLocalePkgs
+	}
+
+	ListLocalePkgsForBasePkgs() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+		typeset -r base_pkgs=$@
+		typeset -r tmpfile=$(_TmpFile llpfbp)
+		(_ListLocaleDB) > $tmpfile
+		typeset base=
+		for base in $base_pkgs ; do
+			grep "^:.*:$base:" $tmpfile 
+		done | _getLocalePkgs
+		rm -f $tmpfile
+	}
+
+	_ListPackages() {
+		cd $pkgpool				|| return $?
+		ls */pkginfo | sed -e 's:/pkginfo::'
+	}
+
+	ListPlatformPackages() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+		
+		typeset -r pkglist=$1
+
+		typeset -r pool_list=$(_TmpFile lpfP1)
+		typeset -r sorted_name=$(_TmpFile lpfP2)
+
+		sort -u $pkglist > $sorted_name
+		(_ListPackages) | sort -u > $pool_list
+
+		comm -12 $sorted_name $pool_list
+
+		comm -23 $sorted_name $pool_list | while read line ; do
+				grep "^${line}\." $pool_list
+			done
+
+		rm -f $pool_list $sorted_name
+	}
+
+	"$@"
+	return $?
+}
+
+
+Virtualize() {
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+
+	MovePkgsWithList() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+		typeset -r src=$1
+		typeset -r dest=$2
+		typeset -r list=$3
+		(
+			cd $src		|| return $?
+			integer error=0
+			while read pkg ; do
+				if [ -d "$pkg" ] ; then
+					mv $pkg $dest	|| error=error+1
+				fi
+			done < $list
+			return $error
+		)
+		return $?
+	}
+
+	_FindLocalPkgsWithNoParent() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+		typeset -r pkgpool=$1
+
+		cd $pkgpool	|| return $?
+
+		typeset -r stopper='XX_STOP_XX'
+
+		typeset pkg=
+		PackagePool $pkgpool ListParentedLocalePkgs | 
+			while read pkg ; do
+				typeset pkginfo=$pkg/pkginfo
+				typeset line=$(grep ^SUNW_PKGLIST= $pkginfo)
+
+				typeset parents=
+				parents=$(echo "$line" | sed \
+					-e 's:^SUNW_PKGLIST=::' -e 's|,| |g')
+				[ -z "${parents}" ] && continue
+
+				typeset p=
+				for p in $parents $stopper ; do
+					[ "$p" = "$stopper" ] && break
+					typeset pkgs=
+					pkgs=$(ls -d ${p} ${p}.* 2>/dev/null)
+					[ -n "$pkgs" ] && break
+				done
+				if [ "$p" = "$stopper" ] ; then
+					echo $pkg
+				fi
+			done
+
+		return 0
+	}
+
+	typeset -r pkgpool=$1
+	typeset -r fullprod=$2
+	typeset -r cdk=$pkgpool/CDKinfo/reloc/cdbuild
+
+	typeset -r tmpdir=$fullprod/../tmpcd.$$
+
+	MakeDir $tmpdir		|| return $?
+
+	typeset -r tmplist=$(_TmpFile vrtztmplist)
+
+	MakeDir $fullprod/.virtual_packages 		|| return $?
+
+	awk '{print $1}' $cdk/langcd.pkgs | sort -u > $tmplist
+
+	MovePkgsWithList $fullprod $tmpdir $tmplist	|| return $?
+
+	_GenSubsetPackagetoc $fullprod $tmpdir \
+		$fullprod/.virtual_packagetoc_lang1 $pkgpool || return $?
+
+	(
+		cd $tmpdir	|| return $?
+		find */pkgmap | cpio -pduml $fullprod/.virtual_packages
+	) || return $?
+
+	rm -rf $tmpdir $tmplist	|| return $?
+	
+	ls $cdk/virtual_pkgs_cd* 2>/dev/null |
+		while read virtual_pkgs_list ; do
+			MakeDir	$tmpdir	|| return $?
+
+			PackagePool $fullprod ListPlatformPackages \
+				$cdk/$(basename $virtual_pkgs_list) > $tmplist
+				
+			MovePkgsWithList $fullprod $tmpdir $tmplist \
+				|| return $?
+
+			(_FindLocalPkgsWithNoParent $fullprod) > $tmplist
+			
+			MovePkgsWithList $fullprod $tmpdir $tmplist \
+				|| return $?
+			
+			typeset media_id=${virtual_pkgs_list#*virtual_pkgs_cd}
+
+			if [ -f $cdk/locale_pkgs_cd${media_id} ] ; then
+				MovePkgsWithList $fullprod $tmpdir \
+				  $cdk/locale_pkgs_cd${media_id} \
+				  || return $?
+			fi
+							
+
+			_GenSubsetPackagetoc $fullprod $tmpdir \
+				$fullprod/.virtual_packagetoc_${media_id} \
+					$pkgpool   || return $?
+
+			(
+				cd $tmpdir   || return $?
+				find */pkgmap | cpio -pduml \
+					$fullprod/.virtual_packages
+			) || return $?
+
+			rm -rf $tmpdir $tmplist
+		done
+
+	return 0
+}
+
+
+SS_CreateLocaleProduct() {
+
+	[ "$OPT_DEBUG" == 'true' ] && set -x
+	
+	_LocalePackages() {
+	
+		typeset -r pkgpool=$1
+		typeset -r product_pkg_list=$2
+
+		if [ ! -f $product_pkg_list ] ; then
+			PrintErr "Cannot open product package list" \
+				"$product_pkg_list"
+			return 1
+		fi
+
+		typeset -r excl_list=$(_TmpFile ssclplp)
+		typeset -r cdkinfo=$pkgpool/CDKinfo/reloc/cdbuild
+		typeset -r excluded_file=$cdkinfo/non_product.pkgs
+		sort -u $excluded_file > $excl_list
+
+		PackagePool $pkgpool ListOrphanLocalePkgs | \
+			comm -23 - $excl_list
+
+		PackagePool $pkgpool ListLocalePkgsForBasePkgs \
+			$(< $product_pkg_list) | comm -23 - $excl_list
+
+		rm -f $excl_list
+	}
+
+	_AddCdromPkgs() {
+
+		_chmog() {
+			typeset -r mode=$1
+			typeset -r owner=$2
+			typeset -r group=$3
+			typeset -r file=$4
+			chmod $mode $file
+			chown $owner:$group $file
+		}
+
+		typeset -r pkgpool=$1
+		typeset -r proddir=$2
+
+		typeset -r SolarisDir=$(dirname $proddir)
+
+		if [ ! -d "$SolarisDir" ] ; then
+			PrintErr "Cannot find directory $SolarisDir"
+			PrintErr "$SolarisDir should be created in CDKinfo"
+			return 1
+		else
+			_chmog 0755 root root $SolarisDir
+		fi
+
+		# If cdrom.pkgs exists, get the pkgs.
+		typeset pkg=
+		typeset cdrompkgs=$pkgpool/CDKinfo/reloc/cdbuild/cdrom.pkgs
+		[ -r $cdrompkgs ] && pkg=$(< $cdrompkgs)
+
+		if [ -n "$pkg" ]; then
+			_install_pkgs $pkgpool $SolarisDir $pkg || return $?
+			rm -rf $SolarisDir/var  || return $?
+		else
+			PrintErr "No CDROM package will be added."
+		fi
+
+		return 0
+	}
+
+	_AddProductPkgs() {
+
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r pkgpool=$1
+		typeset -r SolarisProductDir=$2
+
+		typeset awk_script=
+		awk_script=$(whence parse_clustertoc)	|| {
+			PrintErr 'Unable to locate awk script parse_clustertoc'
+			return 1
+		}
+
+		# this asian clustertoc hack is a temporary
+		# workaround to handle staroffice and starsuite		
+		set -x
+		# path is too long, split into too lines
+		typeset clustertoc=$SolarisProductDir/locale/C
+		clustertoc=$clustertoc/.clustertoc.dynamic
+		typeset asian_clustertoc=$SolarisProductDir/locale/ja
+		asian_clustertoc=$asian_clustertoc/.clustertoc.dynamic
+		set -x
+		typeset -r base_pkg_list=$(_TmpFile bplist)
+		typeset -r en_pkg_list=$(_TmpFile eplist)
+		typeset -r asian_pkg_list=$(_TmpFile aplist)
+		typeset -r finalpkglist=$(_TmpFile _aPp)
+		typeset -r localepkglist=$(_TmpFile _lPl)
+
+		$awk_script $clustertoc | cut -d: -f2 | \
+				sort -u > $en_pkg_list || {
+			PrintErr "Failed to create english list from" \
+					"$clustertoc"
+			rm -f $en_pkg_list	
+			return 1
+		}
+		$awk_script $asian_clustertoc | cut -d: -f2 | \
+				sort -u > $asian_pkg_list || {
+			PrintErr "Failed to create asian list from" \
+					"$asian_clustertoc"
+			rm -f $asian_pkg_list	
+			return 1
+		}
+		
+		sort -u $en_pkg_list $asian_pkg_list > $base_pkg_list || {
+			PrintErr "Failed to create base list from" \
+					"$clustertoc"
+			rm -f $base_pkg_list	
+			return 1
+		}
+
+		set +x
+		PackagePool $pkgpool ListPlatformPackages $base_pkg_list > \
+			$finalpkglist
+			
+		[ ! -s "$finalpkglist" ] && {
+			PrintErr "Pkg directory list is empty"
+			rm -f $base_pkg_list $finalpkglist $localepkglist
+			return 1
+		}
+
+		_LocalePackages $pkgpool $base_pkg_list > $localepkglist || {
+			PrintErr "Failed to generate locale pkgs list"
+			rm -f $base_pkg_list $finalpkglist $localepkglist
+			return 1
+		}
+
+		PackagePool $pkgpool ListPlatformPackages $localepkglist >> \
+			$finalpkglist
+
+		echo "SUNWsolnm" >> $finalpkglist
+
+		rm -f $base_pkg_list $localepkglist $asian_pkg_list \
+		  $en_pkg_list
+
+		echo "Copying pkgs from $pkgpool to $SolarisProductDir"
+		SplitListAndDupContentsInParallel 4 copy $pkgpool \
+			$SolarisProductDir $finalpkglist || error=$?
+
+		rm -f $finalpkglist
+
+		return $error
+	}
+
+	_CreateSUNWsolnm() {
+
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r proddir=$1
+		(
+			cd $proddir || return 1
+			if [ ! -d SUNWsolnm ] ; then
+				PrintErr "Cannot open directory $PWD/SUNWsolnm"
+				return 1
+			fi
+			mv SUNWsolnm SUNWsolnm.src	|| return $?
+			cd SUNWsolnm.src		|| return $?
+			integer error=0
+			ksh ./gen_release solaris_1	|| error=$?
+			cd $proddir			|| error=$?
+			rm -rf SUNWsolnm.src		|| {
+				# ** KLUDGE **
+				# Once in awhile, the process failed to
+				# remove SUNWsolnm.src because the directory
+				# is linked to other locale directories.
+				# The kludge is to try to remove the
+				# directory again if it failed the first time.
+				rm -rf SUNWsolnm.src	|| error=$?
+			}
+			return $error
+		)
+		return $?
+	}
+
+	_CopyNonFreshbitablePatchesToPatchDir() {
+		typeset -r pkgpool=$1
+        	typeset -r solarisprodir=$2
+		typeset -r CDKPINFO=$pkgpool/CDKpinfo
+		typeset -r plist=$CDKPINFO/reloc/cdbuild/non.pkgpatch.list
+		typeset -r patchdir=${solarisprodir%/*}/Patches
+
+        	[ -d $CDKPINFO ] && {
+			if [ ! -r $plist ] ; then
+				PrintErr "File $plist is not readable"
+				return 1
+			elif [ -s $plist ] ; then
+				MakeDir $patchdir
+				for patch in $(< $plist) ; do
+					_CpioCopy copy $pkgpool/$patch \
+						$patchdir/$patch || {
+                                        	PrintErr "Failed to copy \
+							$patch to $patchdir"
+						return 1
+					}
+				done
+			fi
+		}
+		return 0
+	}
+
+	set -x
+	typeset -r pkgpool=$1
+	typeset -r DEST=$2
+	shift 2
+
+	if [ $# -eq 0 ] ; then
+		typeset -r bootdir=''
+	else
+		typeset -r bootdir=$1
+	fi
+
+	date 
+
+	MakeDir $DEST
+
+	_install_pkgs $pkgpool $DEST CDKsol1 || return $?
+	rm -rf $DEST/var
+	
+	if [ "$(uname -p)" = "i386" ] ; then
+		_install_pkgs $pkgpool $DEST SUNWgrub || return $?
+		rm -rf $DEST/var
+	fi
+
+	typeset SolarisProductDir=
+	SolarisProductDir=$(_GetProductDirPath $DEST)
+
+	_AddCdromPkgs $pkgpool $SolarisProductDir  || return $?
+
+	_AddProductPkgs $pkgpool $SolarisProductDir || {
+		PrintErr "Failed to install product package(s)"
+		return 1
+	}
+
+	_CreateSUNWsolnm $SolarisProductDir || {
+		PrintErr "Cannot create SUNWsolnm for Solaris Naming"
+		return 1
+	}
+
+	rm -rf $DEST/cdk	|| return $?
+
+	typeset -r finalBootDir=$SolarisProductDir/../Tools/Boot
+
+	if [ "$(uname -p)" = 'sparc' ] ; then
+		[ -d $finalBootDir ] && {
+			PrintErr "$finalBootDir already existed, quitting!"
+			return 1
+		}
+
+		if [ -n "$bootdir" ] ; then
+			mv $bootdir $finalBootDir       || {
+				PrintErr "Failed to move $bootdir to $finalBootDir"
+				return 1
+			}
+		fi
+	fi
+
+	# We are doing the removal here instead of the "contract"
+	# in the old process.
+	rm -rf $SolarisProductDir/*.t			|| return $?
+	rm -rf $SolarisProductDir/SUNWkvm.c	|| return $?
+	rm -rf $SolarisProductDir/SUNWkvm.d	|| return $?
+	rm -rf $SolarisProductDir/SUNWkvm.m	|| return $?
+
+	CreateDotOrderDotPackagetoc $pkgpool $DEST	|| {
+		PrintErr "Failed to create .order and/or .packagetoc"
+		return 1
+	}
+
+	Virtualize $pkgpool $SolarisProductDir	|| return $?
+
+	_CopyNonFreshbitablePatchesToPatchDir $pkgpool $SolarisProductDir || {
+		PrintErr "Failed to copy non freshbitable patches to" \
+			"the Patches directory."
+		return 1
+	}
+	
+	# part of staroffice/starsuite hack
+	rm -rf $SolarisProductDir/.packagetoc_ml  || return $?
+		
+	cp $pkgpool/.pkghistory  $SolarisProductDir	|| return $?
+
+	set -x
+	# This section will use a command called root_archive to compress
+	# the miniroot to a single file that can be loaded to ramdisk
+	# the root_archive will put the compressed miniroot called
+	# x86.miniroot under solaris_1/boot
+	if [ "$(uname -p)" = "i386" ] ; then
+		typeset -r mrtooldir=$(_TmpFile SUNWcakr_i)
+		_install_tools SUNWcakr.i $pkgpool $mrtooldir || {
+			rm -rf $mrtooldir > /dev/null 2>&1
+			 return 1
+		}
+
+		typeset -r root_archive=$mrtooldir/boot/solaris/bin/root_archive
+		
+		typeset parent=$(dirname $DEST)
+		$root_archive packmedia $DEST $parent/dvdboot.product || error=error+1
+
+		rm -rf $mrtooldir > /dev/null 2>&1
+	elif [ "$(uname -p)" = "sparc" ] ; then
+		typeset -r root_archive=/net/paradise.sfbay/export/tools/cdkit/Nevada/root_archive
+		typeset parent=$(dirname $DEST)
+		$root_archive packmedia $DEST $parent/dvdboot.product || error=error+1
+	fi
+	set +x		
+
+	date
+
+	return 0
+}
+
+_is_pc_compatible() {
+	[ "$OPT_DEBUG" == 'true' ] && set -x
+	typeset -r contract_file=$1
+
+	typeset str=$( grep PC_COMPATIBLE $contract_file 2>/dev/null)
+	[ -z "$str" ] && return 0
+	typeset -l flag=${str#*=}
+	[ -n "$flag" ] && {
+		[ "$flag" = "yes" ] && flag=true
+		echo $flag
+	}
+	return 0
+}
+
+CreateSolaris_1Net() {
+	typeset -r src=$1
+	typeset -r dest=$2
+	typeset -r pkgpool=$src/pkgpool
+	typeset -r proddir=$dest
+	typeset -r bootdir=${proddir%product}minirootdir
+
+	MakeDir $proddir				|| return $?
+	SS_CreateLocaleProduct $pkgpool $proddir 	|| return $?
+
+	MakeDir $bootdir				|| return $?
+	CreateMinirootDir CD $pkgpool $bootdir		|| return $?
+
+	return 0
+}
+
+
+CreateAll_CD_Slices() {
+	set -x
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	_CreateRR_Image() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r product_dir=$1
+		typeset -r rr_file=$2
+		typeset -r contract_file=$3
+
+                typeset pc=
+                typeset rstr=$(_is_pc_compatible $contract_file)
+
+                if [ "$rstr" = "true" ] ; then
+                        pc=-p
+                elif [ -n "$rstr" ]; then
+                        PrintErr "Unknown PC_COMPATIBLE value $rstr in contract"
+                fi
+
+		trace $BINDIR/run_mkisofs -f $product_dir/.volume.inf \
+				$pc $product_dir $rr_file   || return $?
+		_PadFile $rr_file		|| return $?
+
+		return 0
+	}
+
+	_InitPartitionAndCreateMinirootSlice() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r pkgpool=$1
+		typeset -r proddir=$2
+		typeset -r bootdir=$3
+		typeset -r mydrive=$4
+		typeset -r outfile=$5
+	
+		integer root_sz_in_mb=
+	
+		if [ "$bootdir" = 'N_U_L_L' ] ; then
+			typeset -r _bootdir=$(\ls -d $proddir/Solaris_*/Tools/Boot)
+			typeset -r miniroot_func=CreateDVDMinirootSlice
+			root_sz_in_mb=$(CalculateMinirootSize $pkgpool $_bootdir) \
+				|| return $?
+		else
+			typeset -r _bootdir=$bootdir
+			typeset -r miniroot_func=CreateCDMinirootSlice
+			root_sz_in_mb=$(EstimateFSsize $_bootdir)
+		fi
+
+		echo "\nScratch drive: $mydrive\n"
+	
+		_InitPartitions $root_sz_in_mb $mydrive		|| return $?
+	
+		$miniroot_func $pkgpool $_bootdir $mydrive $outfile || return $?
+	
+		return 0
+	}
+
+	_CreateAllBootSlices() {
+		
+		[ "$OPT_DEBUG" = "true" ] && set -x
+	
+		typeset -r bootdir=$1
+		typeset -r slicemapfile=$2
+		typeset -r drive=$3
+		typeset -r dest=$4
+		typeset -r prefix=$5
+		
+		_SlicemapfileIsOkay $slicemapfile || return $?
+		
+		typeset token=
+		typeset slice=
+		typeset uname_m=
+		
+		integer error=0
+		typeset previous=''
+		_StripComments $slicemapfile | sort -k 2 | 
+			while read token slice uname_m ; do
+				[ "$previous" = "$slice" ] && continue
+				previous=$slice
+				CreateBootSlice $bootdir $slice $uname_m \
+					$drive $dest/${prefix}.s${slice} || \
+					error=error+1
+			done
+		
+		return $error
+	}
+
+	typeset -r pkgpool=$1
+	typeset -r product_dir=$2
+	typeset -r root_dir=$3
+	typeset -r drive=$4
+	typeset -r dest=$5
+	typeset -r prefix=$6
+
+
+	if [ "$MODEL" == 'ReleaseModel' ] ; then
+		typeset -r contract_type=contracts
+	else
+		typeset -r contract_type=component_contracts
+	fi
+
+	typeset -r contract_file=$pkgpool/../$contract_type/$prefix.build
+
+	# the x86 side no longer has a seperate slice for the miniroot due
+	# the grub newboot project
+	if [ "$(uname -p)" = 'i386' ] ; then
+		_CreateRR_Image $product_dir $dest/$prefix.iso $contract_file || return $?
+	else
+		{
+			echo "_CreateRR_Image $product_dir $dest/$prefix.rr $contract_file"
+			echo "_InitPartitionAndCreateMinirootSlice $pkgpool" \
+				"$product_dir $root_dir $drive $dest/$prefix.miniroot"
+		} | Parallel || return $?
+	fi
+
+	# true root dir of the solarisdvd bootable image
+	# if it is not the solarisdvd bootable image, then use root_dir as
+	# the true root dir
+	if [ "$prefix" = "solarisdvd" ] ; then
+		typeset true_root_dir=$(\ls -d $product_dir/Solaris_*/Tools/Boot)
+	else
+		typeset true_root_dir=$root_dir
+	fi
+	
+	set -x
+
+	if [ "$(uname -p)" = 'sparc' ] ; then
+		_CreateAllBootSlices $true_root_dir $product_dir/.slicemapfile \
+			$drive $dest $prefix			|| return $?
+		typeset -r _bootdir=''
+	else
+		typeset -r _bootdir=$root_dir
+	fi
+	
+	# sparc is still creating a miniroot slice and arch slices.
+	# the newboot no longer needs a seperate slice for x86
+	if [ "$(uname -p)" = 'sparc' ] ; then
+		SS_MakeCD_image $pkgpool $product_dir $dest $prefix \
+		  $_bootdir || return $?
+		cat $dest/$prefix.rr $dest/$prefix.miniroot \
+	  	  $dest/$prefix.s[234567] > $dest/$prefix.iso || return $?
+	fi
+
+	return 0
+}
+
+
+_DuplicateContentsInParallel() {
+
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r type=$1
+	shift 1
+	typeset -r src=$1
+	typeset -r dest=$2
+
+	SplitDirAndDupContentsInParallel $N_SPLIT $type $src $dest
+
+	return $?
+}
+
+
+SS_InitStagingArea() {
+
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	_NoRepeatedPkg() {
+
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r dir1=$1
+		typeset -r dir2=$2
+
+		typeset -r list1=$(_TmpFile npp1)
+		typeset -r list2=$(_TmpFile npp2)
+
+		(
+			cd $dir1; \ls -1 | sort > $list1
+			cd $dir2; \ls -1 | sort > $list2
+		)
+
+		typeset -r common_pkgs=$(comm -12 $list1 $list2)
+
+		if [ ! -z "$common_pkgs" ] ; then
+			PrintErr "The following pkgs are repeated in" \
+				"two platforms:"
+			echo "$common_pkgs" | sed -e 's:^:	:'
+			return 1
+		else
+			return 0
+		fi
+	}
+
+	typeset -r USABLE_PKG=$1
+	typeset -r pkgpool=$2
+
+	if [ -d $pkgpool ] ; then
+		PrintErr "Directory $pkgpool already exist, quitting!"
+		PrintErr "Remove $pkgpool and restart if appropriate!"
+		return 1
+	else
+		MakeDir -p $pkgpool	|| return $?
+	fi
+
+	date
+
+	typeset -r platform=$(uname -p)
+
+	if [ ! -d "$USABLE_PKG/$platform" ] ; then
+		PrintErr "Directory $USABLE_PKG/$platform does not exist"
+		return 1
+	fi
+
+	_NoRepeatedPkg $USABLE_PKG/all $USABLE_PKG/$platform
+
+	for dir in all $platform patch ; do
+		if [ -d $USABLE_PKG/$dir ] ; then
+			_DuplicateContentsInParallel copy $USABLE_PKG/$dir \
+				$pkgpool	|| return $?
+		fi
+	done
+
+	(
+		cd $pkgpool		|| return $?
+		rm -rf SUNW0* obsolete	|| return $?
+	) || return $?
+
+	return 0
+}
+
+
+SS_Init2ndStagingArea() {
+
+	typeset -r src=$1
+        typeset -r dest=$2
+
+	[ ! -d $src ] && {
+                PrintErr "Directory $src does not exist."
+                return 1
+	}
+
+	if [ -d $dest ] ; then
+                PrintErr "Secondly staging area $dest already exist."
+                PrintErr "Remove $dest and restart if appropriate"
+                return 1
+        else
+                MakeDir -p $dest || return $?
+        fi
+
+	typeset option=link
+
+	[ ! -d $dest/../stage ] && option=copy
+
+	integer error=0
+
+	_DuplicateContentsInParallel $option $src $dest || {
+		error=$?
+		PrintErr "Failed to $option $src contents in parallel"
+	}
+
+	return $error
+}
+
+
+SS_PkgpatchStagingArea() {
+
+	FileExistsAndHasSize() {
+		typeset -r file=$1
+		[ ! -r "$file" ] && {
+			PrintErr "WARNING: File $file is unreadable or" \
+				"does not exist"
+			return 1
+		}
+		[ ! -s "$file" ] && {
+			PrintErr "WARNING: File $file is empty!"
+			return 1
+		}
+		return 0
+	}
+
+	typeset -r stage=$1
+
+	[ ! -d $stage/CDKpinfo ] && {
+		PrintErr "ERROR: $stage/CDKpinfo does not exist."
+		return 1
+	}
+
+	typeset -r path=$stage/CDKpinfo/reloc/cdbuild
+
+	typeset -r tooldir=$(_TmpFile tools)
+	_install_tools SUNWcdbd $stage $tooldir || {
+		rm -rf $tooldir > /dev/null 2>&1
+		return 1
+	}
+
+	typeset -r bindir=$tooldir/cdbuild
+	typeset -r pkgpatch=$bindir/pkgpatch
+
+	integer error=0
+
+	(
+
+		# always use sort and override options to pkgpatch
+		typeset -r stdopt="-d $stage -k $stage -s -o"
+		integer count=0
+
+		for file in pkgpatch.list pointpatch.list specialpatch.list ; do
+
+			typeset list=$path/${file}
+
+			if FileExistsAndHasSize $list ; then
+
+				typeset opt2=
+				if [[ "$list" == *special* ]] ; then
+					opt2="-e"
+				fi
+
+				$pkgpatch $stdopt $opt2 $list	|| return $?
+
+				count=count+1
+			fi
+		done
+
+		[ $count -gt 0 ] && {
+			$pkgpatch -k $stage -f	|| return $?
+		}
+
+		return 0
+
+	) || error=$?
+
+	rm -rf $tooldir > /dev/null 2>&1
+
+	return $error
+}
+
+ApplyPkgpatchesToPkgpool() {
+	typeset -r pkgpool=$1
+
+	SS_PkgpatchStagingArea $pkgpool || {
+		PrintErr "ERROR: failed to apply package patches to pkgpool"
+                return 1
+        }
+
+	return 0
+}
+
+
+SS_MakeCD_image() {
+
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r pkgpool=$1
+	typeset -r imagedir=$2
+	typeset -r dest=$3
+	typeset -r prefix=$4
+	shift 4
+
+	if [ $# -eq 1 ] ; then
+		typeset -r bootdir=$1
+	else
+		typeset -r bootdir=''
+	fi
+
+	typeset -r rockridge=${prefix}.rr
+	typeset -r miniroot=${prefix}.miniroot
+
+	i386() {
+	
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r pkgpool=$1
+		typeset -r imagedir=$2
+		typeset -r prefix=$3	# This is useless
+
+		typeset _bootdir=
+
+		if [ -z "$bootdir" ] ; then
+			PrintErr "You must specified rootdir"
+			return 1
+		elif [ "$bootdir" = 'N_U_L_L' ] ; then
+			_bootdir=$(_GetMinirootPath $imagedir)	|| return $?
+		else
+			_bootdir=$bootdir
+		fi
+
+		typeset -r platform=$_bootdir/usr/platform/i86pc/lib/fs/ufs
+		typeset -r bootblk=$platform/bootblk
+		typeset brvd=
+		typeset catalog=
+
+		# for El Torito build
+		if [ -d $pkgpool/CDKcdboot ] ; then
+			typeset -r path=$pkgpool/CDKcdboot/reloc/cdbuild
+			typeset -r mboot=$path/mboot.cd
+			typeset -r pboot=$path/pboot.cd
+			brvd=$path/brvd.cd
+			catalog=$path/catalog.cd
+		# for non El Torito build
+		else
+			typeset -r mboot=$_bootdir/usr/lib/fs/ufs/mboot
+			typeset -r pboot=$platform/pboot
+		fi
+
+		echo "$mboot $pboot $bootblk $brvd $catalog"
+
+		return 0
+	}
+
+	sparc() {
+
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r pkgpool=$1
+		typeset -r imagedir=$2
+		typeset -r prefix=$3
+
+		typeset -r slicemapfile=$imagedir/.slicemapfile
+		[ ! -r $slicemapfile ] && {
+			PrintErr "Failed to read $slicemapfile"
+			return 1
+		}
+		_SlicemapfileIsOkay $slicemapfile || return $?
+
+		typeset components=
+
+		typeset do_not_care=
+		integer slice=
+		integer cnt=
+		integer pointer=2
+		_StripComments $slicemapfile | sort -n -k 2 | \
+			while read do_not_care slice do_not_care ; do
+				if [ $slice -eq $pointer ] ; then
+					addfile=${prefix}.s${slice}
+				# duplicate slice
+				elif [ $slice -lt $pointer ] ; then
+					addfile=
+					pointer=pointer-1
+				else
+					[ ! -f empty_file ] && touch empty_file
+					cnt=$pointer
+                                        addfile=
+                                        while (( $cnt < $slice )) ; do
+                                        	addfile="$addfile empty_file"
+                                        	cnt=cnt+1
+                                        done		
+                                        addfile="$addfile ${prefix}.s${slice}"
+					pointer=slice
+				fi
+				components="$components $addfile"
+				pointer=pointer+1
+			done
+
+		echo "$components"
+
+		return 0
+	}
+
+	(
+		cd $dest
+
+		[ ! -e "$rockridge" ] && {
+			PrintErr "Rockridge file $rockridge does not exist"
+			return 1
+		}
+		[ ! -w "$rockridge" ] && {
+			PrintErr "Rockridge file $rockridge is not writable"
+			return 1
+		}
+
+		typeset -r uname_p=$(uname -p)
+
+		typeset components=
+		components="$($uname_p $pkgpool $imagedir $prefix)" || return $?
+		components="$rockridge $miniroot $components"
+
+		typeset file=
+		integer error=0
+		for file in $components ; do
+			[ ! -r $file ] && {
+				PrintErr "Unable to read $file"
+				error=error+1
+			}
+		done
+		[ $error -ne 0 ] && return $error
+
+		trace $MAKECD $components
+		return $?
+	)
+	return $?
+}
+
+
+_ItemsExistInPkgpool() {
+	typeset -r pkgpool=$1
+	shift 1
+	typeset -r items=$*
+
+	[ ! -d $pkgpool ] && {
+		PrintErr "directory $pkgpool does not exist"
+		return 1
+	}
+
+	typeset item=
+	integer error=0
+	for item in $items ; do
+		[ ! -d $pkgpool/$item ] && {
+			PrintErr "Cannot find $item in $pkgpool"
+			error=error+1
+		}
+	done
+	return $error
+}
+
+_PkgsExistInPkgpool() {
+	_ItemsExistInPkgpool $@
+	return $?
+}
+
+#
+# Base pkgs should be listed first and then localized pkgs.
+#
+AddPkgsToDistributionArea() {
+
+	_OkayToAddPkg() {
+
+		_IsLocalizedPkg() {
+			typeset -r pkg=$1
+			grep SUNW_LOC $pkg/pkginfo > /dev/null 2>&1
+			return 0
+		}
+
+		_GetParentPkgName() {
+			typeset -r pkg=$1
+			_IsLocalizedPkg $pkg || {
+				PrintErr "$pkg is not a localized pkg"
+				return 1
+			}
+			typeset parentname=
+			parentname=$(grep ^SUNW_PKGLIST= $pkg/pkginfo) || {
+				PrintErr "Variable SUNW_PKGLIST is missing" \
+					"in $pkg/pkginfo"
+				return 1
+			}
+			parentname=${parentname#SUNW_PKGLIST=}
+			echo $parentname
+			return 0
+		}
+
+		_ClustertocIsOkay() {
+			typeset -r prodDir=$1
+			typeset -r pkg=$2
+	
+			# line is too long, split it into 2 lines!! 
+			typeset clustertoc=
+			clustertoc=$prodDir/locale/C/.clustertoc.dynamic
+	
+			# strip the arch specific extension.
+			clean_pkg_name=${pkg%.*}
+	
+			grep "$clean_pkg_name"'$' $clustertoc > /dev/null \
+					2>&1 || {
+				PrintErr "Pkg $clean_pkg_name is not listed" \
+					"in $clustertoc"
+				PrintErr "You should add $clean_pkg_name to" \
+					"$clustertoc and restart the process" \
+					"again"
+				return 1
+			}
+			return 0
+		}
+
+		typeset -r pkgpool=$1
+		typeset -r prodDir=$2
+		typeset -r pkg=$3
+
+		if _IsLocalizedPkg $pkgpool/$pkg ; then
+			typeset parent=
+			parent=$(_GetParentPkgName $pkgpool/$pkg)
+			if [ ! -z "$parent" ] ; then
+				echo "Pkg $pkg is a localized pkg and its" \
+						"parent pkg is $parent."
+	
+				# check if parent pkg exists in clustertoc file
+				_ClustertocIsOkay $prodDir $parent  || return $?
+			fi
+		else
+			_ClustertocIsOkay $prodDir $pkg		|| return $?
+		fi
+		return 0
+	}
+
+	typeset -r pkgpool=$1
+	typeset -r imageDir=$2
+	shift 2
+	typeset -r pkgs=$*
+
+	_PkgsExistInPkgpool $pkgpool $pkgs	|| return $?
+
+	typeset prodDir=
+	prodDir=$(_GetProductDirPath $imageDir)		|| return $?
+
+	[ ! -w "$prodDir" ] && {
+		PrintErr "Directory $prodDir is not writeable"
+		return 1
+	}
+
+	integer error=0
+	typeset pkg=
+	for pkg in $pkgs ; do
+		_OkayToAddPkg $pkgpool $prodDir $pkg || {
+			error=error+1
+			continue
+		}
+
+		[ -d "$prodDir/$pkg" ] && {
+			echo "Removing old package $prodDir/$pkg ..."
+			rm -rf $prodDir/$pkg || {
+				PrintErr "Failed to remove $prodDir/$pkg"
+				error=error+1
+				continue
+			}
+		}
+	
+		_CpioCopy copy $pkgpool/$pkg $prodDir/$pkg || {
+			PrintErr "Failed to copy $pkgpool/$pkg to $prodDir/$pkg"
+			error=error+1
+			continue
+		}
+	done
+	
+	CreateDotOrderDotPackagetoc $pkgpool $imageDir	|| {
+		PrintErr "Failed to create .order and .packagetoc file"
+		return 1
+	}
+
+	return 0
+}
+
+
+AddPkgsToMiniroot() {
+	# to do later, be sure to look at the older version
+	PrintErr "This function has been removed from Solaris 9,\n" \
+		"Please contact your support person for help." 
+	return 1
+}
+
+
+AddPatchesToMiniroot() {
+	# to do later, be sure to look at the older version
+	PrintErr "This function has been removed from Solaris 9,\n" \
+		"Please contact your support person for help." 
+	return 1
+}
+
+
+RemovePkgFromMiniroot() {
+	# to do later, be sure to look at the older version
+	PrintErr "This function has been removed from Solaris 9,\n" \
+		"Please contact your support person for help." 
+	return 1
+}
+
+
+RemoteParallel() {
+
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r host=$1
+	typeset -r login=$2
+	typeset -r kshlib=$3
+
+	typeset -r tmplog=/tmp/remsh.$$.log
+
+	#
+	# WARNING WARNING
+	# Don't touch this code unless you really understand this.
+	# Pay attention to the use of double quote and single quote.
+	#
+set -x
+	remsh $host -l $login ksh -c "cat - | ( . $kshlib"' || return $?
+			Parallel
+			return $?)
+			echo REMSH_EXIT=$?' > $tmplog
+		typeset -r retcode=$(tail -1 $tmplog)
+		cat $tmplog
+		rm -f $tmplog
+		[ "$retcode" = 'REMSH_EXIT=0' ] && return 0 || return 1
+}
+
+
+RemoteShell() {
+
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r host=$1
+	typeset -r login=$2
+	shift 2
+	typeset -r command=$*
+
+	typeset -r tmplog=$(_TmpFile remsh.log)
+
+	#
+	# WARNING WARNING
+	# Don't touch this code unless you really understand this.
+	# Pay attention to the use of double quote and single quote.
+	#
+	remsh $host -n -l $login "$command; echo REMSH_EXIT="'$?' > $tmplog
+	typeset -r retcode=$(tail -1 $tmplog)
+	cat $tmplog
+	rm -f $tmplog
+	[ "$retcode" = 'REMSH_EXIT=0' ] && return 0 || return 1
+}
+
+nRM_rf() {
+        typeset -r obj=$*
+        integer err=0
+
+        while (( err < 3 )) ; do
+                rm -rf $obj && return 0
+                err=err+1
+        done
+
+        return $err
+}
+
+
+ProcessContract() {
+	typeset -r fil=$1
+	integer error=0
+	[ ! -r "$fil" ] && {
+		PrintErr "Failed to read contract file $fil"
+		return 1
+	}
+	_StripComments $fil |
+		while read line ; do
+			_Tracing $line	|| return $?
+		done
+	return 0
+}
+
+
+RunPkgAdd() {
+
+	typeset -r src=$SRC/$1
+	typeset -r dest=$DEST/$2
+	shift 2
+	typeset -r pkgs="$@"
+
+	_install_pkgs $src $dest $pkgs || return $?
+
+	rm -rf $dest/var
+
+	return 0
+}
+
+
+_ObjCheck() {
+	typeset -r att=$1
+	typeset -r path=$2
+	typeset mes=
+
+	[ ! $att $path ] && {
+		case "$att" in
+			-d)	mes="directory $path does not exist." ;;
+			-f)	mes="file $path does not exist." ;;
+			-r) 	mes="file $path is not readable." ;;
+			*)	mes="test of $att $path returns negative." ;;
+		esac
+		PrintErr "ERROR: $mes"
+		return 1
+	}
+	return 0
+}
+
+
+_FileExist() {
+
+	typeset -r file=$1
+	typeset contents=$(\ls -d1 $file)
+	[ -z "$contents" ] && {
+		PrintErr "No file of name \"$file\" exists"
+		return 1
+	}
+
+	return 0
+}
+
+
+Copy() {
+	typeset -r src=$SRC/$1
+	typeset -r dest=$DEST/$2
+	typeset -r srcdir=$(dirname "$src")
+	typeset -r base=$(basename "$src")
+
+	MakeDir -p $dest	|| return $?
+
+	(
+		typeset cpio_opt=
+		#[ "$OPT_STAGE" == 'true' ] && cpio_opt='l' || cpio_opt=''
+		# Due to error to linking file in different partition,
+		# tempoaraily disable the linking.
+		cpio_opt=''
+
+		cd $srcdir				|| return $?
+		_FileExist "$base"			|| return $?
+		echo "PWD=$PWD"
+		_Tracing "find $base | cpio -pdum$cpio_opt $dest"  || return $?
+		return 0
+	)
+	return $?
+}
+
+
+CopyFile() {
+	typeset -r src=$SRC/$1
+	typeset -r dest=$DEST/$2
+
+	typeset -r dir=$(dirname $dest)
+	MakeDir -p $dir			|| return $?
+	_Tracing cp $src $dest
+	return $?
+}
+
+
+Move() {
+	[ $# -ne 2 ] && {
+		PrintErr "ERROR: move requires two arguments"
+		return 1
+	}
+
+	typeset -r src=$SRC/$1
+        typeset -r destdir=$DEST/$2
+	[ ! -e $src ] && {
+		PrintErr "ERROR: source $src does not exist"
+		return 1
+	}
+
+	MakeDir -p $destdir  || return $?
+
+	_Tracing mv $src $destdir || {
+		PrintErr "ERROR: unable to move $src to $destdir"
+		return 1
+	}
+
+        return 0
+}
+
+
+_Remove() {
+        [ $# -ne 2 ] && {
+                PrintErr "Remove$1() requires only one argument"
+                return 1
+        }
+
+	typeset -r type=$1
+        typeset -r entry=$DEST/$2
+        typeset -r dir=$(dirname "$entry")
+        typeset -r base=$(basename "$entry")
+        (
+                cd $dir			|| return $?
+                _FileExist "$base"	|| return $?
+
+                integer error=0
+                typeset rmobj=
+                for rmobj in $base ; do
+
+			if [ "$type" = "File" -a  ! -f $rmobj ] ; then
+				PrintErr "Warning: $rmobj is not a file" \
+                                "and it will NOT be removed"
+				error=error+1
+			elif [ "$type" = "Dir" -a  ! -d $rmobj ] ; then
+				PrintErr "Warning: $rmobj is not a directory" \
+                                "and it will NOT be removed"
+				error=error+1
+			else
+                        	_Tracing "rm -rf $rmobj" || error=error+1
+			fi
+                done
+                return $error
+        )
+	return $?
+}
+
+
+RemoveDir() {
+
+	_Remove Dir "$*"
+}
+
+
+RemoveFile() {
+
+	_Remove File "$*"
+}
+
+
+_Extract() {
+	[ $# -ne 3 ] && {
+                PrintErr "Extract$1() requires two arguments"
+                return 1
+        }
+	typeset -r src=$SRC/$2
+        typeset -r dest=$DEST/$3
+
+	_ObjCheck -f $src || return $?
+
+	Tar() {
+                _Tracing tar -xf $src || return $?
+                return 0
+	}
+	CompressTar() {
+                _Tracing "uncompress -c $src | tar -xf - " || return $?
+                return 0
+	}
+	Cpio() {
+                _Tracing cpio -icdmB -I $src || return $?
+                return 0
+	}
+	CompressCpio() {
+		_Tracing "uncompress -c $src | cpio -icdmB" || return $?
+		return 0
+	}
+
+	Zip() {
+		_Tracing "/usr/bin/unzip -q $src" || return $?
+		return 0
+	}
+	
+	ZipCpio() {
+		_Tracing "/usr/bin/unzip -p $src | cpio -icdmB" || return $?
+		return 0
+	} 
+
+       	_Tracing MakeDir -p $dest || return $?
+
+	cd $dest	|| return $?
+	_Tracing pwd
+	$*
+        return $?
+}
+
+
+ExtractTar() {
+	_Extract Tar $*
+}
+
+
+ExtractTarNamedFile() {
+
+	[ $# -ne 3 ] && {
+                PrintErr "ExtractTarNamedFile requires 3 arguments"
+                return 1
+        }
+
+	typeset -r src=$SRC/$1
+        typeset -r dest=$DEST/$2
+        typeset -r file=$3
+
+        _ObjCheck -f $src || return $?
+
+	_Tracing MakeDir -p $dest || return $?
+
+        cd $dest        || return $?
+        _Tracing pwd
+	_Tracing tar -xf $src $file || return $?
+
+        return 0
+}
+
+
+ExtractCompressTar() {
+	_Extract CompressTar $*
+}
+
+
+ExtractCpio() {
+	_Extract Cpio $*
+}
+
+ExtractCompressCpio() {
+	_Extract CompressCpio $*
+}
+
+ExtractZip() {
+	_Extract Zip $*
+}
+
+ExtractZipCpio() {
+	_Extract ZipCpio $*
+}
+
+Symlink() {
+	typeset -r src=$1
+	typeset -r dest=$DEST/$2
+	_Tracing ln -s $src $dest
+}
+
+
+ChangeOwnerGroup() {
+	typeset -r owner_n_group=$1
+	typeset -r dest=$DEST/$2
+	_Tracing chown -Rh $owner_n_group $dest	|| return $?
+	return 0
+}
+
+
+ChangeToDefaultOwnerGroup() {
+	_Tracing ChangeOwnerGroup root:staff $1	|| return $?
+	return 0
+}
+
+
+ChangeMode() {
+	typeset -r mode=$1
+	typeset -r dest=$DEST/$2
+	_Tracing chmod -R $mode $dest	|| return $?
+	return 0
+}
+
+
+CopyPatchesWithLists() {
+
+	[ "$OPT_DEBUG" = "true" ] && set -x
+	
+	typeset -r src=$SRC/$1
+	typeset -r dest=$DEST/$2
+	shift 2
+	typeset -r lists="$@"
+
+	MakeDir	-p $dest			|| return $?
+
+	typeset patchids=
+	patchids=$(cat $lists) 			|| return $?
+
+	if [ -z "$patchids" ] ; then
+		PrintErr "No patches found in $lists"
+		return 1
+	fi
+
+	(
+		cd $src					|| return $?
+		ls -d $patchids > /dev/null		|| return $?
+		find $patchids | cpio -pdum $dest 	|| return $?
+	)	|| return $?
+
+	return 0
+}
+
+CopyPkgsWithLists() {
+
+	[ "$OPT_DEBUG" = "true" ] && set -x
+	
+	typeset -r src=$SRC/$1
+	typeset -r dest=$DEST/$2
+	shift 2
+	typeset -r lists="$@"
+
+	MakeDir	-p $dest			|| return $?
+
+	typeset pkg_names=
+	pkg_names=$(cat $lists) 			|| return $?
+
+	if [ -z "$pkg_names" ] ; then
+		PrintErr "No pkgs found in $lists"
+		return 1
+	fi
+
+	typeset -r pkglist=$(_UNSAFE_ListPkgsWithNames $src $pkg_names)
+
+	if [ -z "$pkglist" ] ; then
+		PrintErr "ERROR: One or more pkgs are not found."
+		return 1
+	fi
+
+	(
+		cd $src					|| return $?
+		find $pkglist | cpio -pdum $dest	|| return $?
+	)	|| return $?
+
+	return 0
+}
+
+
+CopyPkgsWithTOC() {
+
+	[ "$OPT_DEBUG" = "true" ] && set -x
+	
+	typeset opt1=$1
+	typeset opt2=$2
+
+	typeset -r src=$SRC/$opt1
+	typeset -r dest=$DEST/$opt2
+	shift 2
+	typeset -r toc=$1
+
+	typeset -r tmpfile=$(_TmpFile cpwtoc)
+
+	if [ ! -r "$toc" ] ; then
+		PrintErr "Cannot read $toc"
+		return 1
+	fi
+
+	grep '^PKGDIR=' $toc | sed -e 's:^PKGDIR=::' | sort -u > $tmpfile
+
+	integer error=0
+
+	CopyPkgsWithLists $opt1 $opt2 $tmpfile  || error=$?
+
+	rm -f $tmpfile
+
+	return $error
+}
+
+
+RunPkgCheck() {
+
+	IsPkg() {
+		typeset -r pkg=$1
+		[ -f $pkg/pkginfo -a -f $pkg/pkgmap ] && return 0 || return 1
+	}
+
+	typeset -r dir=$DEST/$1
+
+	integer error=0
+	find $dir -name reloc -prune -o -name pkgmap |
+		sed -e 's:/pkgmap::g' |
+		while read line ; do
+			IsPkg $line && {
+				# No longer frun pkgchk with "-f" option.
+				# It casues some 3rd party unbundle products
+				# to fail.
+				_Tracing pkgchk -d $(dirname $line) \
+					$(basename $line)	|| error=error+1
+			}
+		done
+	return $error
+}
+
+
+CreateEDist() {
+	(
+		cd $DEST        || return $?
+		tar -cf - . | compress > $DEST.tar.Z    || return $?
+	)       || return $?
+
+	return 0
+}
+
+
+RemoveInternalPkgs() {
+	typeset -r dir=$1
+	(
+		cd $dir		|| return $?
+		[ -d CDK* ] && {
+			rm CDK*		|| return $?
+		}
+		[ -d SUNW0* ] && {
+			rm SUNW0*	|| return $?
+		}
+		return 0
+	)
+	return $?
+}
+
+
+GenPkghistory() {
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+
+	_Remove_pkgs() {
+		typeset -r pool=$1
+		typeset -r excluded_list=$2
+		cd $pool	|| return $?
+		rm -rf CDK* SUNWsolnm $(< $excluded_list) 2> /dev/null
+		return 0
+	}
+
+	typeset -r pkgpool=$1
+	typeset -r oldzipfile=$2
+	typeset -r ph_dir=$3
+	typeset -r excluded_list=$4
+
+	typeset -r oldpkgpool=$(_TmpFile opkg)
+	typeset -r newpkgpool=$(_TmpFile npkg)
+
+	mkdir $oldpkgpool $newpkgpool			|| return $?
+
+	/usr/bin/unzip -q $oldzipfile -d $oldpkgpool 	|| return $?
+
+	(	
+		cd $pkgpool || return $?
+		find */pkgmap */pkginfo | cpio -pdum $newpkgpool || return $?
+	)
+
+	(_Remove_pkgs $newpkgpool $excluded_list)	|| return $?
+	(_Remove_pkgs $oldpkgpool $excluded_list)	|| return $?
+
+	typeset -r tooldir=$(_TmpFile gph)
+
+	_install_tools SUNWcdbd $pkgpool $tooldir || return $?
+
+	$tooldir/cdbuild/bldpkghist $oldpkgpool $newpkgpool \
+		$oldpkgpool/.pkghistory \
+		$ph_dir $excluded_list $newpkgpool/.pkghistory 
+
+	integer err=$?
+
+	if [ $err -gt 1 ] ; then
+		return $err
+	elif [ $err -eq 1 ] ; then
+		echo "WARNING: many deleted files found in the pkghistory."
+		err=0
+	fi
+
+	cp $newpkgpool/.pkghistory  $pkgpool/.pkghistory || return $?
+
+	(
+		cd $newpkgpool				|| return $?
+		typeset -r zipfile=$pkgpool/pkghist_data.zip
+		rm -f $zipfile 				|| return $?
+		find . | /usr/bin/zip -q $zipfile -@	|| return $?
+	) || return $?
+
+	rm -rf $newpkgpool $oldpkgpool $tooldir
+
+	return 0
+}
+
+
+_GenPkghistory() {
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+
+	typeset -r stage=$1
+	typeset -r pkgpool=$stage/pkgpool
+	typeset -r oldzipfile=$stage/MiscFiles/pkghist_data.zip.previous
+	typeset -r ph_dir=$stage/file
+	typeset -r excluded_list=$pkgpool/CDKinfo/reloc/cdbuild/non_product.pkgs
+	GenPkghistory $pkgpool $oldzipfile $ph_dir $excluded_list
+	return $?
+}
+
+SS_DoCD() {
+	[ "$OPT_DEBUG" == 'true' ] && set -x
+	_mount_pt() {
+		typeset -r contract_file=$1
+		typeset mt_pt=$(grep MOUNT_POINT $contract_file 2>/dev/null)
+		echo ${mt_pt#*=}
+		return 0
+	}
+	_has_mount_pt() {
+		[ "$OPT_DEBUG" == 'true' ] && set -x
+		typeset -r contract_file=$1
+		typeset -r mt_pt=$(_mount_pt $contract_file)
+		[ -z "$mt_pt" ] && return 1 || return 0
+	}
+	_build() {
+		[ "$OPT_DEBUG" == 'true' ] && set -x
+		typeset -r prod=$1
+		typeset -r contract_file=$2
+		typeset -r mt_pt=$(_mount_pt $contract_file)
+		typeset pc=
+		typeset rstr=$(_is_pc_compatible $contract_file)
+
+		if [ "$rstr" = "true" ] ; then
+			pc=-p
+		elif [ -n "$rstr" ]; then
+			PrintErr "Unknown PC_COMPATIBLE value $rstr in contract"
+		fi
+
+		[ -z "$mt_pt" ] && {
+			PrintErr "Symbol MOUNT_POINT does not exist in contract"
+			return 1
+		}
+
+		#_Tracing $cmd $DEST ${DEST%product}.iso || return $?
+
+		_Tracing $BINDIR/run_mkisofs -m $mt_pt $pc \
+			$DEST $RR_DEST/$prod.iso || return $?
+
+		return 0
+	}
+
+	$*
+	return $?
+}
+
+_BuildNonBootableCDImage() {
+
+	typeset -r stage=$1
+	typeset -r dest=$2
+	typeset -r prod=$3
+	typeset -r file=$stage/contracts/$prod.build
+
+	MakeDir -p $dest || return $?
+	
+	integer error=0
+	_Tracing SS_DoCD _build $prod $file || error=error+1
+
+	if [ $error -eq 0 ] ; then
+        	echo 'BUILD IS SUCCESSFUL'
+	else
+        	echo 'BUILD HAS FAILED'
+	fi
+
+	return $error
+}
+
+
+PrebuildWOS() {
+	[ "$OPT_DEBUG" == 'true' ] && set -x
+
+	typeset -r pkgpool=$SRC/pkgpool
+	
+	_ObjCheck -d $pkgpool/SUNWsolnm	|| return $?
+
+	typeset bld_id_file=$pkgpool/SUNWsolnm/bld_id  
+
+	if [ -n "$OPT_REL" ] ; then
+		rm -f $bld_id_file
+		echo $OPT_REL > $bld_id_file
+	else
+		# return error for BuildImage if id file DNE.
+		_ObjCheck -f $bld_id_file || return $?
+	fi
+
+	if [ -d $pkgpool/MDBfloppy ] ; then
+		typeset dir=
+		for dir in MDBfloppy VOFfloppy ; do
+			if [ -d $pkgpool/$dir ] ; then
+				_CpioCopy link $pkgpool/$dir $REL_DIR/$dir || 
+					return 1
+			fi
+		done
+		unset dir
+	else
+		:
+	fi
+
+	return 0
+}
+
+
+BuildBootableCDImage() {
+
+	export BINDIR=$(dirname $0)
+
+        typeset -r mydrv=$1
+	typeset -r pkgpool=$2
+	typeset -r proddir=$3
+	typeset -r bootdir=$4
+        typeset -r dest=$5
+	typeset -r prodname=$6
+
+	[[ "$mydrv" != c?t?d? ]] && {
+		PrintErr "ERROR: incorrect disk name: $mydrv"
+		return 1
+	}
+
+	[ ! -d $pkgpool/SUNWcdbd ] && {
+		PrintErr "ERROR: pacakge SUNWcdbd does not exist in $pkgpool"
+		return 1
+	}
+
+	# _CheckBuildServer	|| return $?
+
+	#_BuildBootableCDImage $mydrv $pkgpool $proddir $bootdir $dest \
+	#	$prodname || return $?
+
+	CreateAll_CD_Slices $pkgpool $proddir $bootdir $mydrv \
+			$dest $prodname || {
+		PrintErr "ERROR: failed to build $prodname CD image"
+		return 1
+	}
+
+	echo 'BUILD IS SUCCESSFUL'
+
+	return 0
+}
+
+
+
+BuildImage() {
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+
+	[[ "$0" == /* ]] && typeset -r PRG=$0 || typeset -r PRG=$PWD/$0
+	export BINDIR=$(dirname $PRG)
+
+	typeset NET_IMAGE=
+	typeset CD_IMAGE=
+
+	typeset drive=
+
+	while getopts "d:t:" opt; do
+		case $opt in
+			d )	drive=$OPTARG	;;
+			t )	if [ "$OPTARG" = 'cdimage' ] ; then
+					CD_IMAGE=true
+				elif [ "$OPTARG" = 'netinstall' ] ; then
+					NET_IMAGE=true
+				else
+					PrintErr "Invalid -t $OPTARG option"
+					return 1
+				fi
+				;;
+			* )	PrintErr "ERROR: invalid option $opt"
+				return 1 ;;
+		esac
+        done
+
+	if [ -z "${NET_IMAGE}${CD_IMAGE}" ] ; then
+		NET_IMAGE=true
+		CD_IMAGE=true
+	elif [ -z "${NET_IMAGE}" ] ; then
+		NET_IMAGE=false
+	elif [ -z "${CD_IMAGE}" ] ; then
+		CD_IMAGE=false
+	else
+		:
+	fi
+
+	if [ "$CD_IMAGE" = 'true' ] ; then
+		if [ -z "$drive" ] ; then
+			PrintErr "ERROR: You must specify -d <drive> option"
+			return 1
+		else
+			if [ -n "$drive" ] ; then 
+                		set -A DRIVE $drive
+                		export DRIVE
+			fi
+		fi
+	fi
+
+        shift OPTIND-1
+
+	typeset -r stage=$1
+        typeset -r dest=$2
+
+	shift 2
+
+	if [ $# -gt 0 ] ; then
+		typeset -r prods="$*"
+	else
+		typeset -r prods="dvdboot solaris_1 solaris_2 solaris_3 solaris_4 solaris_5 langcd"
+	fi
+
+	_SaveLog() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+		typeset -r log=$1
+		[ -f $log ] &&  {
+			mv $log $log.$(date "+%b.%d.%T") || {
+				PrintErr "ERROR: Failed to save $log"
+				return 1
+			}
+		}
+		return 0
+	}
+	
+	_DoBuild () {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+		typeset -r prod=$1
+	
+		date
+		echo "Building $prod ..."
+	
+		if [ "$NET_IMAGE" = "true" ] ; then
+			_Tracing ProcessContract $SRC/contracts/$prod.build \
+				|| return $?
+		fi
+
+		typeset parent=$(dirname $DEST)
+		if [[ "$prod" == "solaris_1" ]] ; then
+			if [ ! -d "$parent/dvdboot.product" ] ; then
+				PrintErr "ERROR: dvdboot.product needs to be" \
+					" built before solaris_1"
+				return 1
+			fi
+		fi		
+		
+		[ "$CD_IMAGE" = "false" ] && return 0
+		
+		set -x
+
+		if [ "$prod" == "solaris_1" ]; then
+			typeset parent=$(dirname $DEST)
+			if [ -d "$parent/$prod.miniroot" ] ; then
+				mv $parent/$prod.miniroot \
+					$parent/$prod.minirootdir
+			fi
+
+			CreateAll_CD_Slices $SRC/pkgpool $DEST \
+			  $parent/dvdboot.product \
+			  ${DRIVE[0]} $RR_DEST $prod || {
+				PrintErr "ERROR: failed to build $prod CD image"
+			 	return 1
+			}
+			
+			  
+		elif [ "$prod" == "solarisdvd" ]; then
+			typeset parent=$(dirname $DEST)
+			if [ -d "$parent/$prod.miniroot" ] ; then
+				mv $parent/$prod.miniroot \
+					$parent/$prod.minirootdir
+			fi
+
+			CreateAll_CD_Slices $SRC/pkgpool $DEST \
+			  N_U_L_L \
+			  ${DRIVE[0]} $RR_DEST $prod || {
+				PrintErr "ERROR: failed to build $prod DVD image"
+				return 
+			}
+
+			  
+		elif [[ "$prod" == installer* || "$prod" == dvdboot \
+			 || "$prod" == cd0* ]]; then
+			:
+		else
+			_BuildNonBootableCDImage $SRC $DEST $prod || return $?
+		fi
+	
+		return 0
+	}
+
+	# Variables used in "Actions" in the contract file
+        export SRC=$stage
+	export RR_DEST=$dest
+
+
+	typeset -r logdir=$dest/logs
+
+	MakeDir -p $logdir
+
+	if [ "$NET_IMAGE" = "true" ] ; then
+		if [ -d "$SRC/pkgpool/CDKpinfo" ] ; then
+			typeset log=$logdir/freshbits.log
+			_SaveLog $log				|| return $?
+			_LogCommandToFile $log \
+				ApplyPkgpatchesToPkgpool \
+				$SRC/pkgpool 			|| return $?
+		fi
+
+		typeset log=$logdir/pkghistory.log
+		_SaveLog $log					|| return $?
+		_LogCommandToFile $log _GenPkghistory $SRC	|| return $?
+	fi
+
+	integer error=0
+	for prod in $prods ; do
+
+		export DEST=$dest/${prod}.product
+
+		log=$logdir/${prod}.log
+		_SaveLog $log		|| return $?
+
+		echo "\nBuilding $prod ..."
+		echo "Log file is: $log\n"
+
+		_LogCommandToFile $log _DoBuild $prod || {
+			PrintErr "ERROR: failed in building $prod "
+			error=error+1
+		}
+	done
+
+	[ $error -ne 0 ] && {
+		echo "Failed at least in building one product."
+		return $error
+	}
+
+        echo 'BUILD IS SUCCESSFUL'
+        return 0
+}
+
+
+_DoCopy() {
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+	typeset -r pkgpool=$1
+	typeset -r list=$2
+
+	[ ! -f "$list" ] && return 1
+
+	cd $pkgpool || return $?
+
+	typeset -r alldests=$(awk '{print $2}' $list | sort -u)
+
+	integer error=0
+	typeset dest=
+	for dest in $alldests ; do
+		typeset pkgs=$(grep $dest $list | awk '{print $1}' | sort -u)
+		typeset target=$DEST/$dest
+		MakeDir -p $target
+		echo "Copying pkgs to $target ..."
+		find $pkgs | cpio -pduml $target || error=error+1
+	done
+
+	return $error
+}
+
+
+DoCopy() {
+	(_DoCopy "$@")
+	return $?
+}
+
+GetMajorRels() {
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+
+	typeset -r platform=$1
+
+	if [[ "$platform" = *linux* ]] ; then
+		echo 'linux'
+		return 0
+	elif [[ "$platform" = *hpux* ]] ; then
+		echo 'hpux'
+		return 0
+	elif [[ "$platform" = @(sparc|i386) ]] ; then
+		typeset major_rels=
+		major_rels=$($RETOOLS $DYNAMIC_REL ___GetMajorReleases___) \
+			|| return $?
+
+		echo "common $major_rels"
+		return 0
+	else
+		PrintErr "ERROR: Invalid platform '$platform'"
+		return 1
+	fi
+}
+
+GenericStatus() {
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+ 
+	ListFlags() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+		typeset -r flag=$1
+		\ls -1 ${flag}.* 2>/dev/null
+	}
+
+	ListFlagsAndRemoveStatus() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+	
+		typeset -r status_flag=$1
+		ListFlags $status_flag | sed 's/'"$status_flag"'\.//g'
+	}
+
+	GetQualifiedElements() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+
+		# element => contract names ( portal1of2_sparc, portal1of2_i386,
+		# suncluster2of2_sparc, etc. )
+
+		typeset -r failure_flag=$1
+		shift 1
+
+		typeset -r elements=$*
+
+		_IsQualifiedElement() {
+			[ "$OPT_DEBUG" = 'true' ] && set -x
+
+			typeset -r element=$1
+
+			# No need to check for .successful because there may
+			# not be a fstage or other prior steps for an element 
+			# Check only for failure.
+
+			typeset flag=
+			for flag in $(ListFlags $failure_flag) ; do
+				[[ "$flag" == *${element}* ]] && return 1
+			done
+
+			return 0
+		}
+
+		for element in $elements ; do
+			_IsQualifiedElement $element && echo "$element"
+		done
+
+		return 0
+	}
+
+	[[ "$PWD" != */.complete ]] && {
+		PrintErr "'$PWD' is not a flag directory"
+		return 1
+	}
+
+	"$@"
+	return $?
+}
+
+ComponentStatus() {
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+
+	typeset -r component_dir=$1
+	shift 1
+
+	typeset -r flag_dir=$component_dir/.complete
+	typeset -r success_flag='successful'
+	typeset -r failure_flag='failed'
+	typeset -r build_step='build'
+
+	GetQualifiedElements() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+
+		typeset -r elements=$*
+		GenericStatus GetQualifiedElements $failure_flag $elements
+		return $?
+	}
+
+	GetStatus() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+
+		_IsFailed() {
+			[ "$OPT_DEBUG" = 'true' ] && set -x
+
+			typeset -r flag=$success_flag
+
+			typeset -r built_elements=$(\ls ${flag}*.${build_step} \
+					2>/dev/null)
+
+			test -z "$built_elements"
+			return $?
+		}
+
+		_IsPartial() {
+			[ "$OPT_DEBUG" = 'true' ] && set -x
+
+			typeset -r flag=$success_flag
+
+			typeset -r elements=$(\ls -1 | \
+				nawk -F"." '{print $2}' | sort -u)
+
+			typeset element=
+			for element in $elements ; do
+				if [ -f "${flag}.${element}.${build_step}" ] \
+					;  then
+					:
+				else
+					return 0
+				fi
+			done
+
+			return 1
+		}
+
+		# We are choosing $success_flag as the deciding factor for the
+		# build_flag because some products may not be built at all if
+		# freshbitting fails, so if there is no success flag, it means
+		# the product is not built.
+
+		if _IsFailed ;  then
+			echo 'FAILED'
+			return 0
+		fi
+
+		if _IsPartial ; then
+			echo 'PARTIAL'
+			return 0
+		fi
+
+		# Using the component exit code to determine SUCCESS
+		# because the component build may fail after building its own
+		# products ( for example the postbuild failure )
+
+		grep "$BUILD_IS_SUCCESSFUL" $component_dir/logs/main.log \
+			>/dev/null && echo 'SUCCESSFUL' || echo 'PARTIAL'
+		return 0
+	}
+
+	ListAllFlags() {
+		\ls -1
+	}
+
+	CreateFlag() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+
+		typeset -r flag_suffix=$1
+		typeset -i status_code=$2
+
+		typeset flag=
+
+		[ -f "$flag_suffix" ] && rm -f $flag_suffix
+
+		if [ $status_code -eq 0 ] ; then
+			flag=${success_flag}.${flag_suffix}
+		else
+			flag=${failure_flag}.${flag_suffix}
+		fi
+
+		touch $flag || {
+			PrintErr "ERROR: Failed to create flag '$flag'"
+			return 1
+		}
+
+		return 0
+	}
+
+	StatusReport() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+
+		typeset -i err_code=$1
+		[ $err_code -ne 0 ] && echo "$BUILD_FAILED" || \
+			echo "$BUILD_IS_SUCCESSFUL"
+		return 0
+	}
+
+	IsQualifiedArchComponent() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+		
+		typeset -r arch=$1
+
+		typeset -r flags=$(\ls *_${arch}.${build_step} 2>/dev/null)
+
+		[ -z "$flags" ] && return 1
+
+		typeset flag=
+		for flag in $flags ; do
+			[[ "$flag" != ${success_flag}.* ]] && return 1
+		done
+
+		return 0
+	}
+
+	(
+		cd $flag_dir	|| return $?
+		"$@" 		|| return $?
+	)
+	return $?
+}
+
+MetaProductStatus() {
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+
+	typeset -r metaproduct_dir=$1	
+	shift 1
+
+	typeset -r flag_dir=$metaproduct_dir/.complete
+	typeset -r success_flag='SUCCESSFUL'
+	typeset -r failure_flag='FAILED'
+	typeset -r partial_flag='PARTIAL'
+
+	GetQualifiedElements() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+
+		typeset -r elements=$*
+		GenericStatus GetQualifiedElements 'failed' $elements
+		return $?
+	}
+
+	CreateFlag() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+
+		typeset -r flag_suffix=$1
+		typeset -i exit_code=$2
+
+		ComponentStatus $REL_DIR CreateFlag \
+			$flag_suffix $exit_code || return $?
+	}
+
+	_CreateComponentStatusFlag() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+
+		typeset -r flag_suffix=$1
+		typeset -r status=$2
+		shift 2
+		typeset -r all_flags=$*
+
+		rm -f *.${flag_suffix}
+
+		typeset flag=
+		for flag in $all_flags ; do
+			echo "$flag" >> ${status}.${flag_suffix}
+		done
+
+		return 0
+	}
+
+	_CreateStatusSummary() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+
+		typeset -r flag=$1
+
+		typeset components=
+		components=$($RETOOLS $DYNAMIC_REL ___GetComponents___) || \
+				return $?
+
+		typeset component=
+		for component in $components ; do
+
+			typeset comp_reldir= status= content=
+
+			if IsSnapshot $component ; then
+				comp_reldir=$REL_DIR/$component
+			else
+				comp_reldir=$REL_DIR/${component}_${OPT_REL%%_*}
+			fi
+
+			[ ! -d "$comp_reldir" ] && continue
+
+			status=$(ComponentStatus $comp_reldir GetStatus) || \
+				return $?
+
+			[ "$flag" != "$status" ] && continue
+
+			content=$(ComponentStatus $comp_reldir ListAllFlags)
+
+			_CreateComponentStatusFlag $component $status $content
+		done
+	}
+
+	_ListComponents() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+
+		typeset -r status_flag=$1
+
+		_CreateStatusSummary $status_flag
+		GenericStatus ListFlagsAndRemoveStatus $status_flag
+	}
+
+	GetSuccessfulComponents() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+		_ListComponents $success_flag
+	}
+	GetPartialComponents() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+		_ListComponents $partial_flag
+	}
+	GetFailedComponents() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+		_ListComponents $failure_flag
+	}
+	GetQualifiedArchComponents() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+
+		typeset -r arch=$1
+		shift 1
+		typeset -r components=$*
+		typeset component=
+		for component in $components ; do
+			if IsSnapshot $component ; then
+				comp_reldir=$REL_DIR/$component
+			else
+				comp_reldir=$REL_DIR/${component}_${OPT_REL%%_*}
+			fi
+			ComponentStatus $comp_reldir IsQualifiedArchComponent \
+				$arch && echo "$component"
+		done
+
+		return 0
+	}
+
+	StatusReport() {
+		[ "$OPT_DEBUG" = 'true' ] && set -x
+
+		typeset -i err_code=$1
+
+		echo "\n$HALF_SEP$HALF_SEP"
+
+		typeset -r partial_components=$(GetPartialComponents)
+		typeset -r successful_components=$(GetSuccessfulComponents)
+		typeset -r failed_components=$(GetFailedComponents)
+
+		# Checking for both failed components as well as error code
+		# is because
+		[ -n "$failed_components" -a $err_code -eq 0 ] && {
+			echo "\nThe following failed to build :"
+			echo "$failed_components" | nl
+			echo "\n"
+			GenericStatus ListFlagsAndRemoveStatus 'failed' | nl
+		}
+
+		[ -n "$partial_components" ] && {
+			echo "\nThe following partially failed:"
+			echo "$partial_components" | nl
+		}
+
+		[ -n "$successful_components" ] && {
+			echo "\nThe following completed successfully:"
+			echo "$successful_components" | nl
+		}
+
+		if [ -z "$failed_components" -a $err_code -eq 0 ] ; then
+			echo "\n$BUILD_IS_SUCCESSFUL"
+		else
+			echo "\n\n$BUILD_FAILED"
+		fi
+
+		echo "$HALF_SEP$HALF_SEP\n"
+
+		return 0
+	}
+
+	(
+		cd $flag_dir	|| return $?
+		"$@" 		|| return $?
+	)
+	return $?
+}
+
+MetaSnapshotStatus() {
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+	MetaProductStatus "$@"
+	return $?
+}
+
+StandaloneProductStatus() {
+	[ "$OPT_DEBUG" == 'true' ] && set -x
+	ComponentStatus "$@"
+	return $?
+}
+
+ReleaseModelStatus() {
+	[ "$OPT_DEBUG" == 'true' ] && set -x
+	ComponentStatus "$@"
+	return $?
+}
+
+ExecContractAndCreateFlag() {
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+
+	typeset -r contract=$1
+
+	integer exit_code=0
+	ExecContract $contract || exit_code=$?
+
+	# Use correct routine for creating build status flags based on model
+	# Not used for release model
+	${MODEL}Status $REL_DIR CreateFlag $(basename $contract) \
+		$exit_code || exit_code=exit_code+1
+
+	return $exit_code
+}
+
+CreateArchPkgpool() {
+	[ "$OPT_DEBUG" = 'true' ] && set -x
+
+	typeset pp_arch=$1
+	typeset -r mrel=$2
+
+	typeset mrel_pkgpool= src_dir=
+
+	mrel_pkgpool=$FSTAGE/${mrel}_${pp_arch}
+
+	if [ ! -d "$mrel_pkgpool" ] ; then
+		mkdir $mrel_pkgpool	|| return $?
+	fi
+
+	src_dir=$SRC/$mrel
+
+	[ "$pp_arch" = 'linux' ] && pp_arch='rpm'
+	[ "$pp_arch" = 'hpux' ] && pp_arch='parisc'
+	[ "$pp_arch" = 'windows' ] && pp_arch='i386'
+
+	CreatePkgpool $src_dir $mrel_pkgpool all $pp_arch patch
+
+	return 0
+}
+
+CreatePkgpoolForMrels() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r media_arch=$1
+	typeset -r mrel_list=$2
+
+	typeset mrel=
+	for mrel in $(< $mrel_list) ; do
+		CreateArchPkgpool $media_arch $mrel	|| return $?
+	done
+
+}
+
+SelectPatches() {
+	#######################################################################
+	#
+	# This function will be replaced by Mark's SelectPatches(1)
+	#
+	#######################################################################
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r mrel=$1
+	typeset -r arch=$2
+
+	typeset plist_type=
+
+	for plist_type in patch pointpatch special ; do
+		typeset mpatch= mpatches= fl_list=
+		fl_list=$SRC/$mrel/file/${arch}.${plist_type}.list
+
+		[ ! -s "$fl_list" ] && continue
+
+		for mpatch in $(< $fl_list) ; do
+			mpatches="$mpatches $mpatch"
+		done
+	done
+
+	echo $mpatches
+
+	return 0
+}
+
+PkgpatchForMrels() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r media_arch=$1
+	typeset -r opt_flag=$2
+	typeset -r tmp_mrel_list=$3
+
+	_GetPkgpoolDir() {
+		typeset -r _media_arch=$1
+		typeset -r _mrel=$2
+
+		echo "$REL_DIR/fstage/${_mrel}_${_media_arch}/pkgpool"
+
+		return 0
+	}
+
+	_GetPatchlists() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r arch=$1
+
+		typeset -r patchlist_types="patch pointpatch special"
+
+		for patchlist_type in $patchlist_types ; do
+			typeset basefile="${arch}.${patchlist_type}.list"
+			echo "$basefile"
+			echo "l10n.$basefile"
+		done
+
+		return 0
+	}
+
+	_ApplyPkgpatch() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r media_arch=$1
+		typeset -r mrel=$2
+		typeset -r opt_flag=$3
+
+		typeset mrel_patchdir= mrel_pkgpool= pkgpatch_opts=
+		typeset opts="-i"
+
+		if [ "$opt_flag" = 'false' ] ; then
+			: # Do nothing
+		elif [ "$opt_flag" = 'SORT_PATCH' ] ; then
+			if [ "$media_arch" = 'i386' -o "$media_arch" = 'sparc' ]; then
+			# Solaris only: sort patches
+				opts="$opts -s"
+			else
+				PrintErr "ERROR: Option SORT_PATCH applies to SPARC and i386 architectures only."
+				return 1
+			fi
+		elif [ "$opt_flag" = 'IGNORE_REV' ] ; then
+			# LINUX only: ignore version and release strings
+			if [ "$media_arch" = 'linux' ]; then
+				opts="$opts -o"
+			else
+				PrintErr "ERROR: Option IGNORE_REV applies to Linux architecture only."
+				return 1
+			fi
+		else
+			PrintErr "Unknown option $opt_flag in function '_ApplyPkgpatch()'"
+			return 1
+		fi
+
+		mrel_pkgpool=$(_GetPkgpoolDir $media_arch $mrel) || return $?
+
+		mrel_patchdir=$mrel_pkgpool
+
+		if [ ! -d "$mrel_pkgpool" ] ; then
+			mkdir $mrel_pkgpool	|| return $?
+		fi
+		
+		################################################################
+		#
+		# We need to use Mark's SelectPatches(1).  This is just
+		# a temporary setup for testing.
+		#
+		################################################################
+
+		typeset patch_list=
+		for patch_list in $(_GetPatchlists $media_arch) ; do
+
+			typeset fl_list=$SRC/$mrel/file/$patch_list
+
+			[ ! -s "$fl_list" ] && continue
+
+			typeset fl_patches=
+
+			# pass in linux platform to RunPkgPatch
+			# also need to list patches for pkgpatch.linux
+			if [ "$mrel" = 'linux' ] ; then
+				opts="$opts -l"
+				fl_patches=$(< $fl_list)
+                	else
+				opts="$opts -o"
+				fl_patches=$fl_list
+			fi
+
+                	# Some products needs -s to sort, but sorting
+                	# does not pass in -i option
+			pkgpatch_opts="$opts $mrel_patchdir $mrel_pkgpool"
+			RunPkgPatch $pkgpatch_opts $fl_patches || return $?
+
+		done
+		return 0
+	}
+
+	typeset mrel=
+	for mrel in $(< $tmp_mrel_list) ; do
+		_ApplyPkgpatch $media_arch $mrel $opt_flag	|| return $?
+	done
+
+	return 0
+}
+
+ApplyPkgPatchForArch() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r media_arch=$1
+
+	if [ $# -ne 2 ] ; then
+		typeset -r opt_flag=false
+	elif [ $# -eq 2 ] ; then
+		typeset -r opt_flag=$2
+	else
+		PrintErr "Unexpected option for function 'ApplyPkgPatchForArch'"
+		return 1
+	fi
+
+	typeset -r mrel_list=$(_TmpFile t_mrel_lst)
+
+	typeset major_rels=
+	major_rels=$(GetMajorRels $media_arch)	|| return $?
+
+	typeset mrel=
+	for mrel in $major_rels ; do
+		echo "$mrel"
+	done > $mrel_list
+
+	if [ ! -s "$mrel_list" ]; then
+		PrintErr "Empty '$mrel_list', quitting freshbit process"
+		return 1
+	fi
+
+	integer error=0
+
+	SplitListAndExecuteFunction $mrel_list 4 \
+		CreatePkgpoolForMrels $media_arch || error=error+1
+
+	if [ $error -eq 0 ] ; then
+		SplitListAndExecuteFunction $mrel_list 4 \
+			PkgpatchForMrels $media_arch $opt_flag 	|| error=error+1
+	fi
+
+	rm -f $mrel_list
+
+	return $error
+}
+
+BuildComponent() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	#
+	# Bom ( Bill of Materials ) list contains path to both release
+	# specific and common pkgs and it should be *ONLY* in the common/file
+	# directory.  The format of the filename is <arch>.<{pkg|rpm}list>
+	# Example : sparc.pkglist, i386.pkglist, i386.rpmlist
+	#
+	typeset -r bom_list=$1
+
+	_GetOsType() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r fname=$1
+
+		if [[ "$fname" = *.pkglist ]] ; then
+			echo 'Solaris'
+			return 0
+		elif [[ "$fname" = *.rpmlist ]] ; then
+			echo 'Linux'
+			return 0
+		elif [[ "$fname" = *.hpuxlist ]] ; then
+			echo 'HPUX'
+			return 0
+		else
+			PrintErr "ERROR: Unknown OS type for '$fname'."
+			return 1
+		fi
+
+		return 0
+	}
+
+	_GetOsVal() {
+		typeset -r entry=$1
+
+		if [[ "$entry" = */Solaris_8/* ]] ; then
+			echo 's28'
+		elif [[ "$entry" = */Solaris_9/* ]] ; then
+			echo 's9'
+		elif [[ "$entry" = */Solaris_10/* ]] ; then
+			echo 's10'
+		else
+			echo 'common'
+		fi
+
+		return 0
+	}
+
+	_GetOsVers() {
+		typeset -r _entry=$1
+		typeset -r _os_type=$2
+
+		typeset os_col=
+		os_col=$(_GetOsVal "$_entry")	|| return $?
+
+		if [ "$_os_type" = 'Solaris' ] ; then
+			echo "$os_col"
+		elif [ "$_os_type" = 'Linux' ] ; then
+			echo 'linux'
+		elif [ "$_os_type" = 'HPUX' ] ; then
+			echo 'hpux'
+		else
+			PrintErr "Invalid OS type '$_os_type'"
+			return 1
+		fi
+
+		return 0
+	}
+
+	_ConstructCmdsAndExecute() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r entries_file=$1
+
+		typeset -r filename=$(basename $entries_file)
+		typeset -r tmp_fn=${filename%%.*}
+		typeset -r arch_val=${tmp_fn##*_}
+
+		typeset os_type=
+		os_type=$(_GetOsType $filename)	|| return $?
+		
+		typeset -r comm_os='common'
+
+		typeset entry= dest_path= os_ver= pkgpool_dir= pkg_name=
+		typeset comm_pkgpool= os_pkgpool=
+
+		while read entry ; do
+
+			[ -z "$entry" ] && continue
+			[[ "$entry" = \#* ]] && continue
+
+			dest_path="$(dirname $entry)"
+			pkgname="$(basename $entry)"
+
+			os_ver=$(_GetOsVers $entry $os_type)
+
+			#
+			# We have to do a ../ for pkgpool_dir because the Copy
+			# library uses $SRC as the standard source location
+			# which is actually the stage dir
+			#
+
+			comm_pkgpool="../fstage/${comm_os}_${arch_val}/pkgpool"
+			os_pkgpool="../fstage/${os_ver}_${arch_val}/pkgpool"
+
+			if [ "$os_type" = 'Solaris' -a \
+				"$os_ver" != "$comm_os" ] ; then
+				pkgpool_dir=$comm_pkgpool
+
+				if [ ! -d "$SRC/$pkgpool_dir/$pkgname" ] ; then
+					pkgpool_dir=$os_pkgpool
+				fi
+			else
+				pkgpool_dir=$os_pkgpool
+			fi
+
+			Copy $pkgpool_dir/$pkgname $dest_path || return $?
+
+		done < $entries_file
+
+		return 0
+	}
+
+	[ ! -s $bom_list ] && {
+		PrintErr "WARNING: $bom_list is empty or does not exist."
+		return 0
+	}
+
+	_ConstructCmdsAndExecute $bom_list || return $?
+
+	return 0
+
+################################################################################
+#	The code below is *ONLY* if we need to do any major release specific
+#	process
+#
+#	typeset mrels=
+#	mrels=$(GetMajorRels $media_arch)	|| return $?
+#
+#	typeset mrel= contract_dir= contract= media_src=
+#	for mrel in $mrels ; do
+#		contract_dir=$SRC/$mrel/component_contracts
+#		contract=$contract_dir/$media_arch.build
+#
+#		[ ! -f "$contract" ] && continue
+#
+#		ExecContract $contract	|| return $?
+#	done
+################################################################################
+}
+
+IsSnapshot() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+	typeset -r product_dock=$1
+
+	[[ $product_dock = *_*_* ]] && return 0 || return 1
+}
+
+SingleProduct() {
+	typeset -r product=$1
+	shift 1
+	typeset DEBUGFLAG=
+
+	_BuildComponent() {
+		if [ "$OPT_DEBUG" = "true" ]; then
+			set -x
+			DEBUGFLAG=-g
+		fi
+
+		typeset bld_opts=$*
+
+		typeset bld_name=
+
+		if IsSnapshot $product ; then
+			bld_opts="$bld_opts -S"
+			bld_name=$product
+		else
+			bld_name=${product}_${OPT_REL%%_*}
+		fi
+
+		$BINDIR/bldimage $bld_opts -r $bld_name \
+			$DEBUGFLAG -q -m "$OPT_EMAILS" -M $OPT_REL || return $?
+
+		return 0
+	}
+
+	_AttachToMetaProduct() {
+
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r src_path=$1
+		typeset -r dest_path=$2
+
+		[ ! -d "$src_path" ] && {
+			PrintErr "ERROR: '$src_path' does not exist"
+			return 1
+		}
+
+		if [ ! -d "$dest_path" ] ; then
+			mkdir -p $dest_path	|| return $?
+		fi
+
+		cd $src_path	|| return $?
+
+		find . | cpio -dump $dest_path	|| return $?
+
+		return 0
+	}
+
+	"$@"
+	return $?
+}
+
+AddComponent() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r product=$1
+	typeset -r src=$2
+	typeset -r dest=$3
+
+	SingleProduct $product _AttachToMetaProduct $src $dest	|| return $?
+
+	return 0
+}
+
+ProductList() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r prod_list=$1
+	shift 1
+
+	_GetProducts() {
+		nawk '{print $1}' $prod_list
+		return 0
+	}
+	_GetPath() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		# '$1' in the conditional statement is the first column in
+		# the $prod_list file.
+
+		typeset -r prod=$1
+		typeset -r col_num=$2
+
+		nawk -v "product=$prod" -v "col=$col_num" '{if ($1 == product)\
+			{print $col} }' $prod_list
+		return 0
+	}
+
+	"$@"
+	return $?	
+}
+
+ComponentStatic() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	GetBasicBldOpts() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+		echo '-t netinstall'
+	}
+
+	"$@"
+	return $?
+}
+
+StandaloneProductStatic() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+	ComponentStatic "$@"
+}
+
+MetaProductStatic() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+	ComponentStatic "$@"
+}
+
+MetaSnapshotStatic() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	GetBasicBldOpts() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+		typeset basic_bld_opts=
+		basic_bld_opts=$(ComponentStatic GetBasicBldOpts)
+		echo "$basic_bld_opts -s fstage"
+	}
+
+	"$@"
+	return $?
+}
+
+BuildComponentProducts() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r media_lists=$*
+
+	typeset prd=
+
+	_CompProdExists() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r prod=$1
+
+		test -d "$INTEG_DOCK/products/$prod"
+		return $?
+	}
+
+	_GetAllProducts() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r media_lists=$*
+		typeset media_list=
+
+		for media_list in $media_lists ; do
+			ProductList $media_list _GetProducts 
+		done | sort -u 
+
+		return 0
+	}
+
+	_SanityCheck() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r media_lists=$*
+
+		for prd in $(_GetAllProducts $media_lists) ; do
+			if _CompProdExists $prd ; then
+				:
+			else
+				PrintErr "'$prd' dock does not exist."
+				return 1
+			fi
+		done
+
+		return 0
+	}
+
+	_BldFromProdList() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r prod_list=$1
+
+		typeset -r basic_bld_opts=$(${MODEL}Static GetBasicBldOpts)
+
+		integer err=0
+
+		for prod in $(< $prod_list) ; do
+			SingleProduct $prod _BuildComponent $basic_bld_opts \
+				|| err=err+1
+		done
+
+		return 0
+	}
+
+	_SanityCheck $media_lists || return $?
+
+	typeset -r tmp_prd_lst=$(_TmpFile tmp_prodlst)
+	integer error=0
+
+	_GetAllProducts $media_lists > $tmp_prd_lst	|| error=$?
+
+	if [ "$error" -eq 0 ]; then
+	########################################################################
+	#
+	# Using SplitListAndExecuteFunction instead of Parallel because, there
+	# are too many Parallel functions being invoked during a meta-product
+	# build which might result in build failure due to tmp files.
+	#
+	########################################################################
+		SplitListAndExecuteFunction $tmp_prd_lst 4 \
+			_BldFromProdList || error=$?
+	fi
+	rm -f $tmp_prd_lst
+
+	return $error
+}
+
+AssembleComponentProducts() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r media_prdlst=$1
+
+	_AddProduct() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r prd=$1
+		typeset -r media_prdlst=$2
+
+		# '2nd' column in the table is the source path and
+		# '3rd' column is the destination path
+		# Syntax is as shown below :
+		#
+		# ProductName RELATIVE_SRC_PATH RELATIVE_DESTINATION_PATH
+
+		typeset -r path_cmd="ProductList $media_prdlst _GetPath $prd"
+
+		if IsSnapshot $prd ; then
+			typeset -r prod_src=$REL_DIR/$prd
+			typeset -r src_path="$prod_src/${prd%%_*}_$($path_cmd 2)"
+		else
+			typeset -r prod_src=$REL_DIR/${prd}_${OPT_REL%%_*}
+			typeset -r src_path="$prod_src/${prd%_*}_$($path_cmd 2)"
+		fi
+
+		typeset -r dest_path="$REL_DIR/$($path_cmd 3)"
+
+		SingleProduct $prd _AttachToMetaProduct $src_path $dest_path \
+			|| return $?
+
+		return 0
+	}
+
+	_AddProductsFromList() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r media_prdlst=$1
+		typeset -r split_prdlst=$2
+
+		typeset comp_arch=
+		if [[ $media_prdlst == *_i386.components ]] ; then
+			comp_arch=i386
+		elif [[ $media_prdlst == *_sparc.components ]] ; then
+			comp_arch=sparc
+		elif [[ $media_prdlst == *_linux.components ]] ; then
+			comp_arch=linux
+		elif [[ $media_prdlst == *_hpux.components ]] ; then
+			comp_arch=hpux
+		else
+			PrintErr "Invalid arch type $comp_arch in $media_prdlst"
+			return 1
+		fi
+
+		typeset qualified_components=
+		qualified_components=$(${MODEL}Status $REL_DIR \
+			GetQualifiedArchComponents $comp_arch $(< $split_prdlst))
+
+		[ -z "$qualified_components" ] && {
+			PrintErr "WARNING: No components to add"
+			return 0
+		}
+
+		typeset component=
+		for component in $qualified_components ; do
+			_AddProduct $component $media_prdlst	|| return $?
+		done
+
+		return 0
+	}
+
+	typeset -r tmp_prod_list=$(_TmpFile tprodlst)
+	integer error=0
+
+	ProductList $media_prdlst _GetProducts > $tmp_prod_list
+
+
+	########################################################################
+	#
+	# Using SplitListAndExecuteFunction instead of Parallel because, there
+	# are too many Parallel functions being invoked during a meta-product
+	# build which might result in build failure due to tmp files.
+	#
+	########################################################################
+	SplitListAndExecuteFunction $tmp_prod_list 4 _AddProductsFromList \
+		$media_prdlst || error=$?
+
+	rm $tmp_prod_list
+
+	return $error
+}
+
+CreateSubsetZip() {
+# create <subprod>_<arch>.zip from <subprod>_<arch>.txt
+# add installer and uninstaller pkgs/rpms to temp area
+# add top-level files: Copyright, README dir, License dir
+# add installer files: installer, release_info
+# add special readme if present
+# add common J2SE, localized installer files
+# place copyright into zip comment section
+
+	[ "$OPT_DEBUG" = "true" ] && set -x
+	
+	typeset -r component=$1
+	typeset -r devname=$2
+	typeset -r arch=$3
+	typeset -r jesprefix=$4
+	typeset -r rel_num=$5
+	integer error=0
+	typeset subsetzip=${jesprefix}_${component}-$arch.zip
+	typeset topdir=${jesprefix}_${component}
+	
+	echo "Building $component subset..."
+	
+	# define src of objects in zip file: Solaris uses DVD, linux uses linux
+	if [ "$arch" = "linux" ]; then
+		OBJSRC=$DEST/../jes_linux.product
+		filedir=linux/file
+		typeset PRODARCH=Linux_x86
+	else
+	# Solaris gets bits from combined DVD product area
+		OBJSRC=$DEST/../jes_dvd.product
+		filedir=common/file
+		typeset PRODARCH=Solaris_$arch
+	fi
+	
+	mkdir -p $DEST || error=error+1
+	
+	if [ ! -d "$OBJSRC" ]; then
+		PrintErr "ERROR: $OBJSRC: dependent directory not found."
+		error=error+1
+	fi
+	
+	if [ ! -f "$SRC/$filedir/dist-$component-$arch.txt" ]; then
+		PrintErr "ERROR: $filedir/dist-$component-$arch.txt not found."
+		error=error+1
+	fi
+	
+	# create link to allow component name in subset path
+	ln -s $OBJSRC $DEST/$topdir || error=error+1
+	
+	# too many errors: exit routine now
+	[ $error -ne 0 ] && return $error
+	
+	cd $DEST
+	# validate component list
+	while read component_path; do
+		if [ ! -r $topdir/${component_path} ]; then
+			PrintErr "ERROR: Component ${component_path} not found."
+			error=error+1
+		fi
+	done < $SRC/$filedir/dist-$component-$arch.txt
+	
+	# too many errors: exit routine now
+	[ $error -ne 0 ] && return $error
+	
+	
+	# create zip file with top-level components and
+	# add installer-related files
+	zip -9qyrz $subsetzip $topdir/Copyright $topdir/Docs $topdir/README \
+	$topdir/$PRODARCH/release_info $topdir/$PRODARCH/installer \
+	$topdir/License \
+	< $OBJSRC/Copyright || error=error+1
+	
+	# append zip file with components derived from list
+	zip -9 -q -y -r -g $subsetzip `sed "s:^:$topdir/:" \
+	$SRC/$filedir/dist-$component-$arch.txt` || error=error+1
+	
+	
+	# Expand subset installer into temp directory
+	mkdir -p $DEST/installertmp/$topdir || error=error+1
+	if [ "$arch" = "linux" ]; then
+	
+		# Check for subset readme for component
+		if [ -f "$SRC/linux/file/README_$devname" ]; then
+			mkdir -p $DEST/installertmp/$topdir/README
+			cp -p $SRC/linux/file/README_$devname \
+	                $DEST/installertmp/$topdir/README/README_$devname
+		fi
+	
+		# Create entsys directory
+		mkdir -p $DEST/installertmp/$topdir/$PRODARCH/Product/entsys/Packages \
+		|| error=error+1
+	
+		# Add installer
+		if [ -f "${SRC}/linux/rpm/sun-${devname}-entsys${rel_num}i-${rel_num}.0.i386.rpm" ]; then
+			cp -p $SRC/linux/rpm/sun-$devname-entsys${rel_num}i-${rel_num}.*.i386.rpm \
+		$DEST/installertmp/$topdir/$PRODARCH/Product/entsys/Packages || error=error+1
+		fi
+	
+		# Add uninstaller
+		if [ -f "${SRC}/linux/rpm/sun-${devname}-entsys${rel_num}-${rel_num}.0.i386.rpm" ]; then
+			cp -p $SRC/linux/rpm/sun-$devname-entsys${rel_num}-${rel_num}.*.i386.rpm \
+		$DEST/installertmp/$topdir/$PRODARCH/Product/entsys/Packages || error=error+1
+		fi
+	
+	else
+		# set up product name, translate i386 to x86 for arch
+		typeset PKGARCH=$arch
+		if [ "$arch" = "x86" ]; then
+			typeset PKGARCH=i386
+		fi
+	
+		# Check for subset readme for component
+		if [ -f "$SRC/common/file/README_$devname" ]; then
+			mkdir -p $DEST/installertmp/$topdir/README
+			cp -p $SRC/common/file/README_$devname \
+			$DEST/installertmp/$topdir/README/README_$devname
+		fi
+	
+		# Create entsys directory
+		mkdir -p $DEST/installertmp/$topdir/$PRODARCH/Product/entsys/Packages \
+		|| error=error+1
+	
+		# Add installer
+		if [ -d "$SRC/common/$PKGARCH/SUNW${devname}-entsys${rel_num}i" ]; then
+			Copy common/$PKGARCH/SUNW${devname}-entsys${rel_num}i \
+			installertmp/$topdir/$PRODARCH/Product/entsys/Packages \
+			|| error=error+1
+		fi
+			
+		# Add uninstaller
+		if [ -d "$SRC/common/$PKGARCH/SUNW${devname}-entsys${rel_num}" ]; then
+			Copy common/$PKGARCH/SUNW${devname}-entsys${rel_num} \
+			installertmp/$topdir/$PRODARCH/Product/entsys/Packages \
+			|| error=error+1
+		fi
+	fi
+	
+	cd $DEST/installertmp
+	zip -9 -q -y -r -g $DEST/$subsetzip ./$topdir
+	
+	cd $DEST
+	
+	# add java and remove locale files from installer
+	zip -9 -q -y -r -g $DEST/$subsetzip \
+	$topdir/$PRODARCH/.install/j2se_jre $topdir/$PRODARCH/.install/locale \
+	-x $topdir/$PRODARCH/.install/locale/EntSysResources.properties || error=error+1
+	
+	rm -rf $DEST/$topdir $DEST/installertmp
+	
+	return $error
+
+}
+
+CreateSubsetsFromList() {
+# create all the zipped JES subsets contained in a given list
+# format of list is:
+# <component> <internal development name> <arch> <jes_version> <rel_num>
+
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r subsetlist=$SRC/meta_contracts/$1
+	typeset component=
+	typeset arch=
+	typeset jesprefix=
+	typeset devname=
+	typeset rel_num=
+	integer error=0
+
+	[ ! -f "$subsetlist" ] && return 1
+
+	while read component devname arch jesprefix rel_num; do
+		CreateSubsetZip "$component" "$devname" "$arch" "$jesprefix" "$rel_num" || error=error+1
+	done < $subsetlist
+
+	return $error
+
+}
+
+_GetModel() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r dock=$1
+	typeset -r opt_meta_prod=$2
+
+	typeset -l dock_model=
+	dock_model=$($RETOOLS $dock ___GetModel___) || {
+		PrintErr "Failed to get the dock model type for $product"
+		return 1
+	}
+
+	if [ "$dock_model" == 'metaproduct' ] ; then
+		echo 'MetaProduct'
+		return 0
+	elif [ "$dock_model" == 'metasnapshot' ] ; then
+		echo 'MetaSnapshot'
+		return 0
+	elif [ "$dock_model" == 'productmodel' -a -n "$opt_meta_prod" ] ; then
+		echo 'Component'
+		return 0
+	elif [ "$dock_model" == 'productmodel' -a -z "$opt_meta_prod" ] ; then
+		echo 'StandaloneProduct'
+		return 0
+	elif [ "$dock_model" == 'releasemodel' ] ; then
+		echo 'ReleaseModel'
+		return 0
+	else
+		PrintErr "'$dock_model' type is NOT supported by this tool."
+		return 1
+	fi
+}
+
+Zones() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	_GetValues() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		_GetValue() {
+			[ "$OPT_DEBUG" = "true" ] && set -x
+
+			typeset -r info_file=$1
+			typeset -r key=$2
+
+			# Please note, the "=" is part of grep pattern in order
+			# to get an exact match of the key.
+			typeset line=$(grep "^${key}=" $pkginfo)
+			if [ ! -z "$line" ] ; then
+				line=${line#*=}
+				[ ! -z "$line" ] && echo $line
+			fi
+			return 0
+		}
+
+		typeset -r pkginfo=$1
+		shift
+		typeset -r tags=$*
+
+		typeset values=
+		for tag in $tags ; do
+			values="${values}${col_sep}$(_GetValue $pkginfo $tag)"
+		done
+
+		echo "$values"
+		return 0
+	}
+	CheckAttributes() {
+		[ "$OPT_DEBUG" = "true" ] && set -x
+
+		typeset -r patch=$1
+
+		typeset -r id_macros="PKG ARCH VERSION"
+		typeset -r z_macros="SUNW_PKG_ALLZONES SUNW_PKG_HOLLOW SUNW_PKG_THISZONE"
+
+		integer error=0
+
+		cd $patch	|| return $?
+
+		for sparse_pkginfo in */pkginfo ; do
+			sparse_pkg=${sparse_pkginfo%/pkginfo}
+			base_pkg=$pkgpool/$sparse_pkg
+			base_pkginfo=$base_pkg/pkginfo
+
+			sparse_id=$(_GetValues $sparse_pkginfo $id_macros)
+			sparse_zones=$(_GetValues $sparse_pkginfo $z_macros)
+
+			base_id=$(_GetValues $base_pkginfo $id_macros)
+			base_zones=$(_GetValues $base_pkginfo $z_macros)
+
+			# Check the zones attributes *ONLY* if the FCS & Sparse
+			# ( PKG, ARCH & VERSION ) id values match.
+
+			[ "$sparse_id" != "$base_id" ] && continue
+			# Check the single exception to the patch zones rule
+			# If the base package has changed, then flag as error
+			if [ "$base_id" = ":SUNWglrt:sparc:200.1.5,REV=2005.08.29" ]; then
+           			if [ $sparse_zones != ":true:true:" ]; then
+					PrintErr "ERROR: SUNWglrt zones \
+attributes cannot change in $patch."
+					error=error+1
+					continue
+           			else
+					PrintErr "Skipping SUNWglrt zones check."
+					continue
+				fi
+			elif [ "$sparse_zones" != "$base_zones" ] ; then
+				PrintErr "ERROR :Mismatching Zone attributes\n"\
+					"\t($z_macros) in $patch/$sparse_pkg\n"\
+					"\tand $base_pkg"
+				error=error+1
+			fi
+		done
+
+		return $error
+	}
+
+	typeset -r pkgpool=$1
+	typeset -r col_sep=':'
+
+	shift
+
+	(
+		cd $pkgpool	|| return $?
+		"$@"
+	)
+
+	return $?
+}
+
+CheckZonesAttributes() {
+	[ "$OPT_DEBUG" = "true" ] && set -x
+
+	typeset -r pkgpool=$1
+	typeset -r list_path=$pkgpool/CDKpinfo/reloc/cdbuild
+
+	typeset patches=
+	for list in pkgpatch.list pointpatch.list specialpatch.list ; do
+		patches="$patches $(< $list_path/$list)"
+	done
+
+	integer err=0
+
+	typeset patch=
+	for patch in $patches ; do
+		Zones $pkgpool CheckAttributes $patch || err=err+1
+	done
+
+	return $err
+}
+
+NoOp() {
+	echo "We do nothing here."
+	return 0
+}
+

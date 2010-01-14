@@ -1,0 +1,130 @@
+#!/usr/bin/perl  -w
+use Getopt::Std;
+use strict;
+
+# Hash table for input arguments.
+our %opts = ();
+our $verbose = 0;
+our $device_name="";
+our $device_base_name="";
+our $devid="";
+
+my %dev_to_base = (
+                "c0t0d0p0" => "c0t0d0",
+                "c0t1d0p0" => "c0t1d0",
+                "c1t0d0p0" => "c1t0d0",
+                "c1t1d0p0" => "c1t1d0"
+                );
+
+# How to use this.
+sub usage() 
+{
+    my $here =  <<EOF;
+
+This program prints the device id for disks. It calls
+iostat -nEir to get the device id and parses a specific string 
+in that. Be sure to pass the '-d' option.
+
+usage: $0 [-hv] -d disk_path
+  
+-h   : help me
+-v   : print all the lines output from iostat
+-d   : disk id (like /dev/dsk/c0t0d0p0)
+
+example: $0 -v -d /dev/dsk/c0t0d0p0
+   
+EOF
+    print $here;
+    exit 1;
+}
+
+# Command line options processing. 
+sub init 
+{
+   my $opt = "hvd:";
+   getopts("$opt", \%opts) or usage();
+   if ($opts{v}) {
+      $verbose = 1;
+   }
+   if ($opts{d}) {
+      # $p,$q,$r,$s are dummy variables, not used for anything.
+      my ($p, $q, $r,$s) = split(/\//, $opts{d});
+      chomp $s;
+      $device_name = $s;
+      if ( exists $dev_to_base{$device_name} ) {
+          $device_base_name = $dev_to_base{$device_name};
+      } else {
+          print("device name must be of the form /dev/dsk/cXtXdXp0");
+          usage();
+      }
+   } else {
+      print("Please specify the device name as /dev/dsk/cXtXdXp0 \n");
+      usage();
+   }
+   usage() if $opts{h};
+}
+
+#
+# Process the iostat output and grep for the disk we are interested in.
+#
+# Sample output for Hitachi and Seagate drives are as below:
+# SATA_____HITACHI_HDS7250S______KRVP65ZBG6HXVF
+# SATA_____SEAGATE_STN7250S______f29f439a6457f4f4800037a8d0000 
+#
+# This script will work only for segate or hitachi drives. All other
+# types are not supported.
+#
+# NOTE:
+# Unfortunately the device serial number's are not supported yet, once 
+# that works we should use that and *not* the device id.
+sub process_iostat 
+{
+   my $found = "false";
+   open IOH, "iostat -nEir -l 1 $device_base_name |" || die "NO iostat?";
+   while (<IOH>) {
+       if ( /Vendor\:/ ) {
+           # $p,$q,$r,$i,$j,$k are dummy variables, not used for anything.
+           my ($v, $p, $r, $d) =
+               split(/ ,/);
+           my ($i,$vendor) = split(/:/,$v);
+           my ($j,$product) = split(/:/,$p);
+           my ($k,$revison) = split(/:/,$r);
+           # For seagate the devid output is 
+           # id1,sd@f0000000045dde426000ddb7e0000, so 
+           # use only the sd@(.*) 
+           # For hitachi the output is 
+           # id1,sd@SATA_____HITACHI_HDS7250S______KRVN63ZAHNHLTD
+           # we just use that.
+           my ($t,$device_serial) = split(/\@/,$d);
+
+           if (!$device_serial) {
+              print "The device $device_name does not have a device id\n";
+              exit 1;
+           }
+           if ($product =~ /SEAGATE/i) {
+               $devid = "SATA____".join("_", split(/ /, $product)).
+                                 "______".$device_serial;
+           } else {
+               $devid = $device_serial;
+           }
+           $found = "true";
+           if (!$verbose) {
+              last;
+           }
+       }
+       if ($verbose) {
+          print "$_\n";
+       }
+   }
+   close IOH;
+   if ($found eq "true") {
+       print ($devid);
+   } else {
+       print "MISSINGDISK\n";
+       exit 1;
+   }
+}
+
+# main 
+init();
+process_iostat();

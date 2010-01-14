@@ -1,0 +1,632 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+ $Id: metadata_config_davtest.xml 10855 2007-05-19 02:54:08Z bberndt $
+
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+
+  Incorporates these individual schemas:
+
+      nonqueryable
+      davtest
+      filesystems
+      ofoto2
+      perf
+      qa
+      utf8
+
+-->
+
+<metadataConfig>
+  
+  <schema>
+
+    <!-- nonqueryable -->
+    <namespace name="nonqueryable" writable="false" extensible="false">
+      <namespace name="test" extensible="false">
+        <field name="type_long" type="long" queryable="false"/>
+        <field name="type_double" type="double" queryable="false"/>
+        <field name="type_string" type="string" length="512" queryable="false"/>
+        <field name="type_char" type="char" length="512" queryable="false"/>
+        <field name="type_binary" type="binary" length="512" queryable="false"/>
+        <field name="type_date" type="date" queryable="false"/>
+        <field name="type_time" type="time" queryable="false"/>
+        <field name="type_timestamp" type="timestamp" queryable="false"/>
+      </namespace>
+    </namespace>
+
+    <!-- davtest -->
+    <namespace name="davtest" writable="true" extensible="true">
+      <field name="string1" type="string" length="15" indexable="true"/>
+      <field name="string2" type="string" length="15" indexable="true"/>
+      <field name="string3" type="string" length="15" indexable="true"/>
+      <field name="string4" type="string" length="15" indexable="true"/>
+      <field name="long1" type="long" indexable="true"/>
+      <field name="long2" type="long" indexable="true"/>
+      <field name="long3" type="long" indexable="true"/>
+      <field name="long4" type="long" indexable="true"/>
+      <field name="double1" type="double" indexable="true"/>
+    </namespace>
+
+    <!-- filesystems -->
+    <field name="filesystemviewsarepresent" type="long" />
+
+    <!-- ofoto2 -->
+    <namespace name="ofoto" writable="true" extensible="true">
+      <field name="dir1" type="string" length="2" />
+      <field name="dir2" type="string" length="2" />
+      <field name="dir3" type="string" length="2" />
+      <field name="dir4" type="string" length="2" />
+      <field name="dir5" type="string" length="2" />
+      <field name="dir6" type="string" length="2" />
+      <field name="fname" type="string" length="128" />
+    </namespace>
+
+    <!-- perf -->
+    <namespace name="perf_qa" writable="true" extensible="true">
+      <field name="date" type="long" />
+      <field name="User_Comment" type="string" length="64" />
+      <field name="iteration" type="long" />
+      <field name="test_id" type="string" length="64" />
+      <field name="user" type="string" length="64" />
+    </namespace>
+    <namespace name="perf_qafirst" writable="true" extensible="true">
+      <field name="client" type="string" length="64" />
+      <field name="first" type="string" length="64" />
+      <field name="second" type="string" length="64" />
+      <field name="third" type="string" length="64" />
+      <field name="fourth" type="string" length="64" />
+      <field name="fifth" type="string" length="64" />
+      <field name="sixth" type="string" length="64" />
+      <field name="timestart" type="long" />
+    </namespace>
+    <namespace name="perf_qatypes" writable="true" extensible="true">
+      <field name="doublefixed" type="double" />
+      <field name="doublelarge" type="double" />
+      <field name="longsmall" type="long" />
+      <field name="longlarge" type="long" />
+      <field name="stringlarge" type="string" length="512" />
+    </namespace>
+    <namespace name="perf_types" writable="true" extensible="true">
+      <field name="type_double" type="double" />
+      <field name="type_long" type="long" />
+      <field name="type_date" type="date" />
+      <field name="type_time" type="time" />
+      <field name="type_timestamp" type="timestamp" />
+      <field name="type_string" type="string" length="64" />
+      <field name="type_char" type="char" length="64" />
+      <field name="type_binary" type="binary" length="64" />
+    </namespace>
+
+    <!-- qa -->
+    <!--namespace name="qa" writable="true" extensible="true"-->
+      <field name="date" type="long" />
+      <field name="User_Comment" type="string" length="64" />
+      <field name="iteration" type="long" />
+      <field name="prevSHA1" type="string" length="128" />
+      <field name="initchar" type="string" length="512" />
+      <field name="sha1" type="string" length="128" />
+      <field name="storedate" type="string" length="64" />
+      <field name="filesize" type="string" length="32" />
+      <field name="test_id" type="string" length="32" />
+      <field name="user" type="string" length="64" />
+      <field name="system_filepath" type="string" length="512" />
+      <field name="view_filepath" type="string" length="512" />
+      <field name="archive" type="string" length="64" />
+
+      <field name="word" type="string" length="512" />
+      <field name="client" type="string" length="64" />
+      <field name="wordlength" type="long" />
+      <field name="first" type="string" length="64" />
+      <field name="second" type="string" length="64" />
+      <field name="third" type="string" length="64" />
+      <field name="fourth" type="string" length="64" />
+      <field name="fifth" type="string" length="64" />
+      <field name="sixth" type="string" length="64" />
+      <field name="timestart" type="long" />
+      <field name="timenow" type="long" />
+      <field name="filename" type="string" length="64" />
+
+      <field name="fileorigsize" type="long" />
+      <field name="filecurrsize" type="long" />
+      <field name="doublenull" type="double" />
+      <field name="doublefixed" type="double" />
+      <field name="doublenegative" type="double" />
+      <field name="doublechunked" type="double" />
+      <field name="doublechanged" type="double" />
+      <field name="doublesmall" type="double" />
+      <field name="doublelarge" type="double" />
+      <field name="longnull" type="long" />
+      <field name="longsmall" type="long" />
+      <field name="longlarge" type="long" />
+      <field name="dateearly" type="date" />
+      <field name="datelate" type="date" />
+      <field name="timeearly" type="time" />
+      <field name="timelate" type="time" />
+      <field name="timestampearly" type="timestamp" />
+      <field name="timestamplate" type="timestamp" />
+      <field name="binaryA" type="binary" length="100" />
+      <field name="binaryB" type="binary" length="100" />
+      <field name="binaryweirdchars" type="binary" length="8000" />
+
+      <field name="charorigargs" type="char" length="512" />
+      <field name="charnull" type="char" length="32" />
+      <field name="charspaces" type="char" length="512" />
+      <field name="charweirdchars" type="char" length="8000" />
+      <field name="charlarge" type="char" length="512" />
+
+      <field name="stringorigargs" type="string" length="512" />
+      <field name="stringnull" type="string" length="32" />
+      <field name="stringspaces" type="string" length="512" />
+      <field name="stringweirdchars" type="string" length="4000" />
+      <field name="stringlarge" type="string" length="512" />
+    <!--/namespace-->
+
+    <!-- utf8 -->
+    <namespace name="utf8" writable="true" extensible="true">
+      <field name="мне не вредит" type="string" length="32" />
+      <field name="আমার কোনো" type="string" length="32" />
+      <field name="それは私を傷つけません" type="string" length="32" />
+      <field name="我能吞下玻璃而不伤身体" type="string" length="32" />
+      <field name="fname" type="string" length="128" />
+    </namespace>
+
+  </schema>
+
+  <fsViews>
+
+    <!-- davtest -->
+    <fsView name="davtest1" filename="${davtest.string1}_${davtest.string2}_${davtest.string3}_${davtest.string4}" >
+      <attribute name="davtest.long1" unset="unk" />
+      <attribute name="davtest.long2" unset="unk" />
+      <attribute name="davtest.long3" unset="unk" />
+      <attribute name="davtest.long4" unset="unk" />
+    </fsView>
+    <fsView name="davtest2" filename="${davtest.long1}_${davtest.string1}_${davtest.long2}_${davtest.string2}" >
+      <attribute name="davtest.long3" unset="unk" />
+      <attribute name="davtest.string3" unset="unk" />
+      <attribute name="davtest.long4" unset="unk" />
+      <attribute name="davtest.string4" unset="unk" />
+    </fsView>
+    <fsView name="davtest3" filename="${davtest.string1}_${davtest.string2}_${davtest.long1}_${davtest.long2}" >
+      <attribute name="davtest.long3" unset="unk" />
+      <attribute name="davtest.long4" unset="unk" />
+      <attribute name="davtest.string3" unset="unk" />
+      <attribute name="davtest.string4" unset="unk" />
+    </fsView>
+    <fsView name="davtest4" filename="${davtest.long1}_${davtest.long2}_${davtest.string1}_${davtest.string2}" >
+      <attribute name="davtest.string3" unset="unk" />
+      <attribute name="davtest.long3" unset="unk" />
+      <attribute name="davtest.long4" unset="unk" />
+      <attribute name="davtest.string4" unset="unk" />
+    </fsView>
+    <fsView name="davtest5" filename="${davtest.long1}_${davtest.double1}_${davtest.string1}"
+            fsattrs="false" >
+      <attribute name="davtest.long1" unset="unk" />
+      <attribute name="davtest.string1" unset="unk" />
+      <attribute name="davtest.double1" unset="unk" />
+    </fsView>
+    <fsView name="davtest5a" filename="${davtest.long1}_${davtest.double1}_${davtest.string1}"
+            fsattrs="true" >
+      <attribute name="davtest.long1" unset="unk" />
+      <attribute name="davtest.string1" unset="unk" />
+      <attribute name="davtest.double1" unset="unk" />
+    </fsView>
+    <fsView name="davtest6" namespace="davtest"
+            filename="${string1}_${string2}_${string3}_${string4}" 
+            filesonlyatleaflevel="false">
+      <attribute name="long1" unset="unk" />
+      <attribute name="long2" unset="unk" />
+      <attribute name="long3" unset="unk" />
+      <attribute name="long4" unset="unk" />
+    </fsView>
+    <fsView name="davtest7" namespace="davtest"
+            filename="${string1}_${string2}_${string3}_${string4}">
+      <attribute name="long1" unset="unk" />
+      <attribute name="long2" unset="unk" />
+    </fsView>
+    <fsView name="davtest8" namespace="davtest" filename="${string1}">
+      <attribute name="long1" unset="unk" />
+      <attribute name="double1" unset="unk" />
+    </fsView>
+    <fsView name="davtest9" namespace="davtest" filename="${long1}_${string1}" 
+            filesonlyatleaflevel="false">
+      <attribute name="string2" />
+      <attribute name="string3" />
+      <attribute name="string4" />
+    </fsView>
+
+    <!--
+       N.B. since this is an XML file, the '&' here needs to be represented
+       as &amp; (and the same holds for '<' &lt;, '>' &gt;, '"' &quot;, and
+       '\'' &apos;) 
+      -->
+    <fsView name="davtestFnames" namespace="davtest"
+            filename="${string1}&lt; ${string2} - &amp;${string3}.txt"
+            filesonlyatleaflevel="false">
+      <attribute name="long1" unset="unk" />
+      <attribute name="string4" unset="unk" />
+    </fsView>
+
+    <!-- filesystems -->
+    <fsView name="oidByGidUid" filename="${system.object_id}">
+      <attribute name="filesystem.gid" unset="unk" />
+      <attribute name="filesystem.uid" unset="unk" />
+    </fsView>
+    <fsView name="oidByGidUidWithTar" filename="${system.object_id}" fsattrs="true" >
+        <!--  zopen="tar,cpio" -->
+      <attribute name="filesystem.gid" unset="unk" />
+      <attribute name="filesystem.uid" unset="unk" />
+    </fsView>
+    <fsView name="oidByGidUidMimetype" filename="${system.object_id}">
+        <!--  zopen="tar,cpio" -->
+      <attribute name="filesystem.gid" unset="unk" />
+      <attribute name="filesystem.uid" unset="unk" />
+      <attribute name="filesystem.mimetype" unset="unk" />
+    </fsView>
+
+    <!-- ofoto_2 -->
+    <fsView name="oFotoHashDirs" filename="${ofoto.fname}" filesonlyatleaflevel="false">
+      <attribute name="ofoto.dir1" unset="unk" />
+      <attribute name="ofoto.dir2" unset="unk" />
+      <attribute name="ofoto.dir3" unset="unk" />
+      <attribute name="ofoto.dir4" unset="unk" />
+      <attribute name="ofoto.dir5" unset="unk" />
+      <attribute name="ofoto.dir6" unset="unk" />
+    </fsView>
+
+    <!-- perf -->
+    <fsView name="perf_byUser" filename="${system.object_id}">
+      <attribute name="perf_qa.user"/>
+    </fsView>
+    <fsView name="perf_alphabeticalOidTwo" filename="${system.object_id}">
+      <attribute name="perf_qafirst.first"/>
+      <attribute name="perf_qafirst.second"/>
+    </fsView>
+    <fsView name="perf_alphabeticalOidThree" filename="${system.object_id}">
+      <attribute name="perf_qafirst.first"/>
+      <attribute name="perf_qafirst.second"/>
+      <attribute name="perf_qafirst.third"/>
+    </fsView>
+    <fsView name="perf_alphabeticalOidFour" filename="${system.object_id}">
+      <attribute name="perf_qafirst.first"/>
+      <attribute name="perf_qafirst.second"/>
+      <attribute name="perf_qafirst.third"/>
+      <attribute name="perf_qafirst.fourth"/>
+    </fsView>
+    <fsView name="perf_alphabeticalOidFive" filename="${system.object_id}">
+      <attribute name="perf_qafirst.first"/>
+      <attribute name="perf_qafirst.second"/>
+      <attribute name="perf_qafirst.third"/>
+      <attribute name="perf_qafirst.fourth"/>
+      <attribute name="perf_qafirst.fifth"/>
+    </fsView>
+    <fsView name="perf_alphabeticalOidSix" filename="${system.object_id}">
+      <attribute name="perf_qafirst.first"/>
+      <attribute name="perf_qafirst.second"/>
+      <attribute name="perf_qafirst.third"/>
+      <attribute name="perf_qafirst.fourth"/>
+      <attribute name="perf_qafirst.fifth"/>
+      <attribute name="perf_qafirst.sixth"/>
+    </fsView>
+    <fsView name="perf_stringOid" filename="${system.object_id}">
+      <attribute name="system.test.type_string"/>
+    </fsView>
+
+    <!-- qa -->
+    <fsView name="alphabetical" filename="${word}_${client}_${iteration}_${fileorigsize}_${timestart}_${timenow}.txt">
+      <attribute name="first"/>
+      <attribute name="second"/>
+      <attribute name="third"/>
+      <attribute name="fourth"/>
+      <attribute name="fifth"/>
+      <attribute name="sixth"/>
+    </fsView>
+    <fsView name="byUser" filename="${system.object_id}">
+      <attribute name="user"/>
+    </fsView>
+    <fsView name="alphabeticalOid" filename="${system.object_id}">
+      <attribute name="first"/>
+      <attribute name="second"/>
+      <attribute name="third"/>
+      <attribute name="fourth"/>
+      <attribute name="fifth"/>
+      <attribute name="sixth"/>
+    </fsView>
+    <fsView name="alphabeticalUnique" filename="${word}_${system.object_id}_${client}_${iteration}_${fileorigsize}_${timestart}_${timenow}.txt">
+      <attribute name="first"/>
+      <attribute name="second"/>
+      <attribute name="third"/>
+      <attribute name="fourth"/>
+      <attribute name="fifth"/>
+      <attribute name="sixth"/>
+    </fsView>
+    <fsView name="lengthAlpha" filename="${word}.txt">
+      <attribute name="wordlength"/>
+      <attribute name="first"/>
+      <attribute name="second"/>
+    </fsView>
+    <fsView name="lengthAlphaOid" filename="${system.object_id}">
+      <attribute name="wordlength"/>
+      <attribute name="first"/>
+      <attribute name="second"/>
+    </fsView>
+    <fsView name="lengthAlphaUnique" filename="${word}_${system.object_id}.txt">
+      <attribute name="wordlength"/>
+      <attribute name="first"/>
+      <attribute name="second"/>
+    </fsView>
+    <fsView name="clientAlpha" filename="${word}.txt">
+      <attribute name="client"/>
+      <attribute name="wordlength"/>
+    </fsView>
+    <fsView name="clientAlphaOid" filename="${system.object_id}">
+      <attribute name="client"/>
+      <attribute name="wordlength"/>
+    </fsView>
+    <fsView name="clientAlphaUnique" filename="${word}_${system.object_id}.txt">
+      <attribute name="client"/>
+      <attribute name="wordlength"/>
+    </fsView>
+    <fsView name="epoch" filename="${word}.txt">
+      <attribute name="timestart"/>
+      <attribute name="timenow"/>
+    </fsView>
+    <fsView name="epochOid" filename="${system.object_id}">
+      <attribute name="timestart"/>
+      <attribute name="timenow"/>
+    </fsView>
+    <fsView name="epochUnique" filename="${word}_${system.object_id}.txt">
+      <attribute name="timestart"/>
+      <attribute name="timenow"/>
+    </fsView>
+    <fsView name="epochAlpha" filename="${word}.txt" filesonlyatleaflevel="false">
+      <attribute name="timestart"/>
+      <attribute name="filename"/>
+      <attribute name="first"/>
+      <attribute name="second"/>
+      <attribute name="third"/>
+      <attribute name="fourth"/>
+      <attribute name="fifth"/>
+    </fsView>
+    <fsView name="epochAlphaOid" filename="${system.object_id}">
+      <attribute name="timestart"/>
+      <attribute name="filename"/>
+      <attribute name="first"/>
+      <attribute name="second"/>
+      <attribute name="third"/>
+      <attribute name="fourth"/>
+      <attribute name="fifth"/>
+    </fsView>
+    <fsView name="epochAlphaUnique" filename="${word}_${system.object_id}.txt">
+      <attribute name="timestart"/>
+      <attribute name="filename"/>
+      <attribute name="first"/>
+      <attribute name="second"/>
+      <attribute name="third"/>
+      <attribute name="fourth"/>
+      <attribute name="fifth"/>
+    </fsView>
+    <fsView name="randomDouble" filename="${word}_${doublesmall}_${doublelarge}.txt">
+      <attribute name="doublefixed"/>
+      <attribute name="doublechunked"/>
+    </fsView>
+    <fsView name="randomDoubleOid" filename="${system.object_id}">
+      <attribute name="doublefixed"/>
+      <attribute name="doublechunked"/>
+    </fsView>
+    <fsView name="randomDoubleUnique" filename="${word}_${doublesmall}_${doublelarge}_${system.object_id}.txt">
+      <attribute name="doublefixed"/>
+      <attribute name="doublechunked"/>
+    </fsView>
+    <fsView name="size" filename="${word}.txt">
+      <attribute name="fileorigsize"/>
+      <attribute name="filecurrsize"/>
+    </fsView>
+    <fsView name="sizeOid" filename="${system.object_id}">
+      <attribute name="fileorigsize"/>
+      <attribute name="filecurrsize"/>
+    </fsView>
+    <fsView name="sizeUnique" filename="${word}_${fileorigsize}_${filecurrsize}_${system.object_id}.txt">
+      <attribute name="fileorigsize"/>
+      <attribute name="filecurrsize"/>
+    </fsView>
+    <fsView name="archives" filename="${filename}">
+      <attribute name="user"/>
+      <attribute name="archive"/>
+      <attribute name="view_filepath"/>
+    </fsView>
+    <fsView name="perftest" filename="${system.object_id}">
+      <attribute name="user"/>
+      <attribute name="archive"/>
+      <attribute name="view_filepath"/>
+    </fsView>
+    <fsView name="qatypes" filename="${filename}">
+      <attribute name="longsmall"/>
+      <attribute name="dateearly"/>
+      <attribute name="timeearly"/>
+      <attribute name="timestampearly"/>
+      <attribute name="charnull"/>
+      <attribute name="stringnull"/>
+      <attribute name="binaryA"/>
+      <attribute name="doublechunked"/>
+    </fsView>
+    <fsView name="alphabeticalOidTwo" filename="${system.object_id}">
+      <attribute name="first"/>
+      <attribute name="second"/>
+    </fsView>
+    <fsView name="alphabeticalOidThree" filename="${system.object_id}">
+      <attribute name="first"/>
+      <attribute name="second"/>
+      <attribute name="third"/>
+    </fsView>
+    <fsView name="alphabeticalOidFour" filename="${system.object_id}">
+      <attribute name="first"/>
+      <attribute name="second"/>
+      <attribute name="third"/>
+      <attribute name="fourth"/>
+    </fsView>
+    <fsView name="alphabeticalOidFive" filename="${system.object_id}">
+      <attribute name="first"/>
+      <attribute name="second"/>
+      <attribute name="third"/>
+      <attribute name="fourth"/>
+      <attribute name="fifth"/>
+    </fsView>
+    <fsView name="alphabeticalOidSix" filename="${system.object_id}">
+      <attribute name="first"/>
+      <attribute name="second"/>
+      <attribute name="third"/>
+      <attribute name="fourth"/>
+      <attribute name="fifth"/>
+      <attribute name="sixth"/>
+    </fsView>
+    <fsView name="stringOid" filename="${system.object_id}">
+      <attribute name="system.test.type_string"/>
+    </fsView>
+
+    <!-- utf8 -->
+    <fsView name="utf8HashDirs" filename="${utf8.fname}" >
+      <attribute name="utf8.мне не вредит" unset="unk" />
+      <attribute name="utf8.আমার কোনো" unset="unk" />
+      <attribute name="utf8.それは私を傷つけません" unset="unk" />
+      <attribute name="utf8.我能吞下玻璃而不伤身体" unset="unk" />
+    </fsView>
+
+  </fsViews>
+
+  <tables>
+
+    <!-- davtest -->
+    <table name="davtest">
+      <column name="davtest.string1" />
+      <column name="davtest.string2" />
+      <column name="davtest.string3" />
+      <column name="davtest.string4" />
+      <column name="davtest.long1" />
+      <column name="davtest.long2" />
+      <column name="davtest.long3" />
+      <column name="davtest.long4" />
+      <column name="davtest.double1" />
+    </table>
+
+    <!--ofoto -->
+    <table name="ofoto">
+      <column name="ofoto.dir1" />
+      <column name="ofoto.dir2" />
+      <column name="ofoto.dir3" />
+      <column name="ofoto.dir4" />
+      <column name="ofoto.dir5" />
+      <column name="ofoto.dir6" />
+      <column name="ofoto.fname" />
+    </table>
+
+    <!-- perf -->
+    <table name="perf_qa">
+      <column name="perf_qa.date"/>
+      <column name="perf_qa.User_Comment"/>
+      <column name="perf_qa.iteration"/>
+      <column name="perf_qa.test_id"/>
+      <column name="perf_qa.user"/>
+    </table>
+    <table name="perf_qafirst">
+      <column name="perf_qafirst.client"/>
+      <column name="perf_qafirst.first"/>
+      <column name="perf_qafirst.second"/>
+      <column name="perf_qafirst.third"/>
+      <column name="perf_qafirst.fourth"/>
+      <column name="perf_qafirst.fifth"/>
+      <column name="perf_qafirst.sixth"/>
+      <column name="perf_qafirst.timestart"/>
+    </table>
+    <table name="perf_qatypes">
+      <column name="perf_qatypes.doublefixed"/>
+      <column name="perf_qatypes.doublelarge"/>
+      <column name="perf_qatypes.longsmall"/>
+      <column name="perf_qatypes.longlarge"/>
+      <column name="perf_qatypes.stringlarge"/>
+    </table>
+    <table name="perf_types">
+      <column name="perf_types.type_double" />
+      <column name="perf_types.type_long" />
+      <column name="perf_types.type_date" />
+      <column name="perf_types.type_time" />
+      <column name="perf_types.type_timestamp" />
+      <column name="perf_types.type_string" />
+      <column name="perf_types.type_char" />
+      <column name="perf_types.type_binary" />
+    </table>
+
+    <!-- qa -->
+    <table name="qa">
+      <column name="date"/>
+      <column name="User_Comment"/>
+      <column name="iteration"/>
+      <column name="prevSHA1"/>
+      <column name="initchar"/>
+      <column name="sha1"/>
+      <column name="storedate"/>
+      <column name="filesize"/>
+      <column name="test_id"/>
+      <column name="user"/>
+      <column name="system_filepath"/>
+      <column name="view_filepath"/>
+      <column name="archive"/>
+    </table>
+    <table name="qafirst">
+      <column name="word"/>
+      <column name="client"/>
+      <column name="wordlength"/>
+      <column name="first"/>
+      <column name="second"/>
+      <column name="third"/>
+      <column name="fourth"/>
+      <column name="fifth"/>
+      <column name="sixth"/>
+      <column name="timestart"/>
+      <column name="timenow"/>
+      <column name="filename"/>
+    </table>
+    <table name="qatypes">
+      <column name="fileorigsize"/>
+      <column name="filecurrsize"/>
+      <column name="doublenull"/>
+      <column name="doublefixed"/>
+      <column name="doublenegative"/>
+      <column name="doublechunked"/>
+      <column name="doublechanged"/>
+      <column name="doublesmall"/>
+      <column name="doublelarge"/>
+      <column name="longnull"/>
+      <column name="longsmall"/>
+      <column name="longlarge"/>
+      <column name="dateearly" />
+      <column name="datelate" />
+      <column name="timeearly" />
+      <column name="timelate" />
+      <column name="timestampearly" />
+      <column name="timestamplate" />
+      <column name="binaryA" />
+      <column name="binaryB" />
+      <column name="charorigargs" />
+      <column name="charnull" />
+      <column name="charspaces" />
+      <column name="charlarge" />
+      <column name="stringnull"/>
+      <column name="stringspaces"/>
+      <column name="stringlarge"/>
+      <column name="stringorigargs"/>
+    </table>
+
+    <!-- utf8 -->
+    <table name="utf8">
+      <column name="utf8.мне не вредит" />
+      <column name="utf8.আমার কোনো" />
+      <column name="utf8.それは私を傷つけません" />
+      <column name="utf8.我能吞下玻璃而不伤身体" />
+      <column name="utf8.fname" />
+    </table>
+
+  </tables>
+</metadataConfig>

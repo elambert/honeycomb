@@ -1,0 +1,141 @@
+$Id: README 10858 2007-05-19 03:03:41Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+     
+This directory contains utilities that have been useful for administering
+multi-node clusters and launching load tests.  These scripts are not
+currently "shipping" quality and should be used with some caution.  Please
+add any useful utility scripts to this directory and make improvements to
+the existing scripts.
+
+Many of these scripts require the existence of an ENV file in the same
+directory as the script.  This file declares the servers and the clients
+for the cluster--the nodes where some action should take place.  Be
+careful that this file is correct or you will likely mess up someone
+else's cluster or tests.  To customize the ENV file, follow the
+instructions in the sample ENV.dev316 file that is checked in and customize
+the sections labeled CUSTOMIZE.
+
+Many of these scripts might become obsolete with better test frameworks
+and lab infrastructure.  However, I think many of them still have utility, 
+which is why they are here.
+
+
+--------------------
+Launching Load Tests
+--------------------
+
+Once the ENV file is customized to include the correct servers and clients,
+starting and stopping tests using that configuration is easy.  Make sure
+you set the SERVER_PUBLIC_DATA_VIP property if you are using a cluster
+that has a load balancing switch.  (See sample ENV file).
+
+NOTE: it is a requirement for you to have your cluster configured to
+use the "word" schema in order to use these tests.  You can merge the
+schema and views from the following file with your
+cluster_config.properties file:
+
+    <$SVNPATH>/server/src/config/cluster_config.properties.in
+
+To start tests, do the following.  Optionally, you can customize parameters
+like TESTPROGRAMSPERCLIENT in the ENV file to affect the way tests are run.
+The size is the file size for each store and is specified in bytes.  You
+should vary the size between test runs to ensure you have unique files
+being uploaded (or modify the INITCHAR value to be different in the ENV
+file).
+
+  ./start_tests.sh <size>
+
+To stop tests, do the following.  Note that this kills all java processes
+on the client nodes.
+
+  ./stop_tests.sh
+
+To remove test data and log files, do the following.  If you want to remove
+only a certain test's files, you can specify a subset of the name of the
+test file (ie, the date portion, such as _12.18.03__16.08.37) that will
+uniquely identify the tests you want to remove. 
+
+  ./remove_tests.sh [optional_string_to_match_result_file_to_be_removed]
+
+-----------------------
+Launching A Single Test
+-----------------------
+
+NOTE: it is a requirement for you to have your cluster configured to
+use the "word" schema in order to use these tests.  You can merge the
+schema and views from the following file with your
+cluster_config.properties file:
+
+    <$SVNPATH>/server/src/config/cluster_config.properties.in
+
+If you only want to run a couple stores to quickly verify a system, do 
+the following:
+
+  ./StoreRetrieve -S -s <vip> -b 1234567 -i 5
+
+Note that you should change the -b argument every time you launch the test
+to make sure you store unique data each time.  The -i arguments indicates 
+how many files to store before exiting.
+
+When the program first starts up, it prints information on how to
+retrieve the files and run queries against the files that were stored
+as part of this test.
+
+Example Store run from the cheat node.  Notice how it tells you how
+to retrieve and query for these objects:
+
+    [root@dev201 utils]# ./StoreRetrieve -S -s hcb101 -b 1234567 -i 5
+    StoreRetrieve called with args '-S -s hcb101 -b 1234567 -i 5 '
+
+    ---> Starting test at Wed Feb 11 13:24:46 PST 2004
+    File used for store is /tmp/upload_file-a-1234567-hcb101-store-2001
+    Use -R -f /tmp/upload_file-a-1234567-hcb101-store-2001 -s hcb101
+    to retrieve objects stored. Use -h to see all options.
+    Use -Q -f /tmp/upload_file-a-1234567-hcb101-store-2001 -s hcb101
+    to test EMD for objects stored. Use -h to see all options.
+    Use -D -f /tmp/upload_file-a-1234567-hcb101-store-2001 -s hcb101
+    to delete objects stored.
+
+    -- starting iteration 1 -- Wed Feb 11 13:24:46 PST 2004
+    [...]
+
+Retrieve:
+
+    [root@dev201 utils]# ./StoreRetrieve -R -f \
+      /tmp/upload_file-a-1234567-hcb101-store-2001 -s hcb101
+
+    StoreRetrieve called with args '-R -f
+    /tmp/upload_file-a-1234567-hcb101-store-2001 -s hcb101 '
+
+    ---> Starting test at Wed Feb 11 13:25:41 PST 2004
+    [...]
+
+Query:
+
+    [root@dev201 utils]# ./StoreRetrieve -Q -f \
+      /tmp/upload_file-a-1234567-hcb101-store-2001 -s hcb101
+
+    StoreRetrieve called with args '-Q -f
+    /tmp/upload_file-a-1234567-hcb101-store-2001 -s hcb101 '
+
+    ---> Starting test at Wed Feb 11 13:26:08 PST 2004
+    [...]
+
+Delete:
+
+    [root@dev201 utils]# ./StoreRetrieve -D -f \
+      /tmp/upload_file-a-1234567-hcb101-store-2001 -s hcb101
+
+    StoreRetrieve called with args '-D -f
+    /tmp/upload_file-a-1234567-hcb101-store-2001 -s hcb101 '
+
+    ---> Starting test at Tue May 31 11:56:55 PDT 2005
+    [...]
+
+For additional information about options or how this program works,
+consult the comments at the beginning of the source file:
+
+    <$SVNPATH>/test/src/com/sun/honeycomb/test/TestStoreRetrieve.java
+

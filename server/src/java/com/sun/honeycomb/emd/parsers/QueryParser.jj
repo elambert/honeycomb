@@ -1,0 +1,851 @@
+/*
+ * Copyright © 2008, Sun Microsystems, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+
+/**
+ * This class is the parser that transforms a Honeycomb query into an
+ * internal query in the form of a parsed tree
+ *
+ * NOTE:  Errors in compiling the parser do not show up in "make server"
+ * output.   Use ant in the server directory to see error output.
+ */
+
+options {
+  LOOKAHEAD = 1;
+  JAVA_UNICODE_ESCAPE=true;
+  UNICODE_INPUT = true;
+  STATIC = false;
+  IGNORE_CASE=false;
+  DEBUG_PARSER = false;
+  DEBUG_LOOKAHEAD = false;
+  DEBUG_TOKEN_MANAGER = false;
+}
+
+PARSER_BEGIN(QueryParser)
+
+package com.sun.honeycomb.emd.parsers;
+
+import java.io.*;
+import java.util.*;
+import com.sun.honeycomb.emd.common.EMDException;
+import com.sun.honeycomb.common.ByteArrays;
+import com.sun.honeycomb.emd.config.Field;
+import com.sun.honeycomb.common.CanonicalStrings;
+
+public class QueryParser {
+    private static final String allowedWordsList[] = new String[] {
+ "ABS",
+ "ABSOLUTE",
+ "ACOS",
+ "AFTER",
+ "AND",
+ "AS",
+ "ASCII",
+ "ASIN",
+ "AT",
+ "ATAN",
+ "ATAN2",
+ "BEFORE",
+ "BETWEEN",
+ "BIGINT",
+ "BINARY",
+ "BIT",
+ "BIT_LENGTH",
+ "BOOLEAN",
+ "BOTH",
+ "CASE",
+ "CAST",
+ "CEILING",
+ "CHAR",
+ "CHARACTER",
+ "CHARACTER_LENGTH",
+ "CHAR_LENGTH",
+ "COALESCE",
+ "COLLATE",
+ "COLLATION",
+ "CONCAT",
+ "CONTAINS",
+ "CONVERT",
+ "COS",
+ "COT",
+ "COUNT",
+ "CURDATE",
+ "CURRENT_DATE",
+ "CURRENT_TIME",
+ "CURRENT_TIMESTAMP",
+ "CURTIME",
+ "D",
+ "DATE",
+ "DAY",
+ "DAYNAME",
+ "DAYOFMONTH",
+ "DAYOFYEAR",
+ "DEC",
+ "DECIMAL",
+ "DEGREES",
+ "DIFFERENCE",
+ "DOUBLE",
+ "ELSE",
+ "ELSEIF",
+ "END",
+ "ESCAPE",
+ "EXISTS",
+ "EXIT",
+ "EXP",
+ "EXPAND",
+ "EXTRACT",
+ "FALSE",
+ "FIRST",
+ "FLOAT",
+ "FLOOR",
+ "FN",
+ "FOR",
+ "FROM",
+ "HOUR",
+ "IF",
+ "IFNULL",
+ "IN",
+ "INSERT",
+ "INT",
+ "INTEGER",
+ "INTERVAL",
+ "IS",
+ "LCASE",
+ "LEADING",
+ "LEFT",
+ "LENGTH",
+ "LIKE",
+ "LOCATE",
+ "LOG",
+ "LOG10",
+ "LONGVARBINARY",
+ "LONGVARCHAR",
+ "LOWER",
+ "LTRIM",
+ "MATCH",
+ "MAX",
+ "MIN",
+ "MINUTE",
+ "MOD",
+ "MONTH",
+ "MONTHNAME",
+ "NCHAR",
+ "NO",
+ "NOT",
+ "NOW",
+ "NULL",
+ "NUMERIC",
+ "OCTET_LENGTH",
+ "OF",
+ "OR",
+ "PAD",
+ "PI",
+ "POSITION",
+ "POWER",
+ "QUARTER",
+ "RADIANS",
+ "RAND",
+ "REAL",
+ "REPEAT",
+ "REPLACE",
+ "RIGHT",
+ "ROUND",
+ "RTRIM",
+ "SECOND",
+ "SIGN",
+ "SIN",
+ "SIZE",
+ "SMALLINT",
+ "SOUNDEX",
+ "SPACE",
+ "SQL_TSI_DAY",
+ "SQL_TSI_FRAC_SECOND",
+ "SQL_TSI_HOUR",
+ "SQL_TSI_MINUTE",
+ "SQL_TSI_MONTH",
+ "SQL_TSI_QUARTER",
+ "SQL_TSI_SECOND",
+ "SQL_TSI_WEEK",
+ "SQL_TSI_YEAR",
+ "SQRT"	,
+ "SUBSTRING",
+ "TAN",
+ "THEN",
+ "TIME",
+ "TIMESTAMP",
+ "TIMESTAMPADD",
+ "TIMESTAMPDIFF",
+ "TIMEZONE_HOUR",
+ "TIMEZONE_MINUTE",
+ "TINYINT",
+ "TO",
+ "TRAILING",
+ "TRIM",
+ "TRUE",
+ "TRUNCATE",
+ "UCASE",
+ "UNKNOWN",
+ "UPPER",
+ "VARBINARY",
+ "VARCHAR",
+ "VARYING",
+ "WEEK",
+ "WHEN",
+ "WHENEVER",
+ "YEAR",
+ "ZONE",
+ "SQL_BIGINT",
+ "SQL_BINARY",
+ "SQL_BIT",
+ "SQL_BLOB",
+ "SQL_BOOLEAN,",
+ "SQL_CHAR",
+ "SQL_CLOB",
+ "SQL_DATE",
+ "SQL_DECIMAL",
+ "SQL_DATALINK,",
+ "SQL_DOUBLE",
+ "SQL_FLOAT",
+ "SQL_INTEGER",
+ "SQL_LONGVARBINARY,",
+ "SQL_LONGNVARCHAR",
+ "SQL_LONGVARCHAR",
+ "SQL_NCHAR,",
+ "SQL_NCLOB",
+ "SQL_NUMERIC",
+ "SQL_NVARCHAR",
+ "SQL_REAL,",
+ "SQL_ROWID",
+ "SQL_SQLXML",
+ "SQL_SMALLINT",
+ "SQL_TIME,",
+ "SQL_TIMESTAMP",
+ "SQL_TINYINT",
+ "SQL_VARBINARY",
+ "SQL_VARCHAR"
+    };
+    private static final String forbiddenWordsList[] = new String[] {
+    "ACTION",
+ "ADD",
+ "ALL",
+ "ALLOCATE",
+ "ALTER",
+ "ANY",
+ "APPLICATION",
+ "ARE",
+ "AREA",
+ "ASC",
+ "ASSERTION",
+ "ATOMIC",
+ "AUTHORIZATION",
+ "AVG",
+ "BEGIN",
+ "BY",
+ "CALL",
+ "CASCADE",
+ "CASCADED",
+ "CATALOG",
+ "CHECK",
+ "CLOSE",
+ "COLUMN",
+ "COMMIT",
+ "COMPRESS",
+ "CONNECT",
+ "CONNECTION",
+ "CONSTRAINT",
+ "CONSTRAINTS",
+ "CONTINUE",
+ "CORRESPONDING",
+ "CREATE",
+ "CROSS",
+ "CURRENT",
+ "CURRENT_PATH",
+ "CURRENT_SCHEMA",
+ "CURRENT_SCHEMAID",
+ "CURRENT_USER",
+ "CURRENT_USERID",
+ "CURSOR",
+ "DATA",
+ "DATABASE",
+ "DEALLOCATE",
+ "DECLARE",
+ "DEFAULT",
+ "DEFERRABLE",
+ "DEFERRED",
+ "DELETE",
+ "DESC",
+ "DESCRIBE",
+ "DESCRIPTOR",
+ "DETERMINISTIC",
+ "DIAGNOSTICS",
+ "DIRECTORY",
+ "DISCONNECT",
+ "DISTINCT",
+ "DO",
+ "DOMAIN",
+ "DOUBLEATTRIBUTE",
+ "DROP",
+ "EACH",
+ "EXCEPT",
+ "EXCEPTION",
+ "EXEC",
+ "EXECUTE",
+ "EXTERNAL",
+ "FETCH",
+ "FOREIGN",
+ "FOUND",
+ "FULL",
+ "FUNCTION",
+ "GET",
+ "GLOBAL",
+ "GO",
+ "GOTO",
+ "GRANT",
+ "GROUP",
+ "HANDLER",
+ "HAVING",
+ "IDENTITY",
+ "IMMEDIATE",
+ "INDEX",
+ "INDEXED",
+ "INDICATOR",
+ "INITIALLY",
+ "INNER",
+ "INOUT",
+ "INPUT",
+ "INSENSITIVE",
+ "INTERSECT",
+ "INTO",
+ "ISOLATION",
+ "JOIN",
+ "KEY",
+ "LANGUAGE",
+ "LAST",
+ "LEAVE",
+ "LEVEL",
+ "LOCAL",
+ "LONGATTRIBUTE",
+ "LOOP",
+ "MODIFIES",
+ "MODULE",
+ "NAMES",
+ "NATIONAL",
+ "NATURAL",
+ "NEXT",
+ "NULLIF",
+ "ON",
+ "ONLY",
+ "OPEN",
+ "OPTION",
+ "ORDER",
+ "OUT",
+ "OUTER",
+ "OUTPUT",
+ "OVERLAPS",
+ "OWNER",
+ "PARTIAL",
+ "PATH",
+ "PRECISION",
+ "PREPARE",
+ "PRESERVE",
+ "PRIMARY",
+ "PRIOR",
+ "PRIVILEGES",
+ "PROCEDURE",
+ "PUBLIC",
+ "READ",
+ "READS",
+ "REFERENCES",
+ "RELATIVE",
+ "RESIGNAL",
+ "RESTRICT",
+ "RETURN",
+ "RETURNS",
+ "REVOKE",
+ "ROLLBACK",
+ "ROUTINE",
+ "ROW",
+ "ROWS",
+ "SCHEMA",
+ "SCROLL",
+ "SECTION",
+ "SELECT",
+ "SEQ",
+ "SEQUENCE",
+ "SESSION",
+ "SESSION_USER",
+ "SESSION_USERID",
+ "SET",
+ "SIGNAL",
+ "SOME",
+ "SPECIFIC",
+ "SQL",
+ "SQLCODE",
+ "SQLERROR",
+ "SQLEXCEPTION",
+ "SQLSTATE",
+ "SQLWARNING",
+ "STATEMENT",
+ "STRINGATTRIBUTE",
+ "SUM",
+ "SYSACC"  ,
+ "SYSHGH"  ,
+ "SYSLNK"  ,
+ "SYSNIX"  ,
+ "SYSTBLDEF",
+ "SYSTBLDSC",
+ "SYSTBT",
+ "SYSTBTATT",
+ "SYSTBTDEF",
+ "SYSTEM_USER",
+ "SYSUSR",
+ "SYSVIW"  ,
+ "SYSVIWCOL"  ,
+ "TABLE",
+ "TABLETYPE",
+ "TEMPORARY",
+ "TRANSACTION",
+ "TRANSLATE",
+ "TRANSLATION",
+ "TRIGGER"
+    };
+    private static final HashSet allowedWords = new HashSet(allowedWordsList.length);
+    private static final HashSet forbiddenWords= new HashSet(forbiddenWordsList.length);
+
+    private static final HashSet typeStrings = new HashSet(10);
+
+    static {
+        allowedWords.addAll(Arrays.asList(allowedWordsList));
+        forbiddenWords.addAll(Arrays.asList(forbiddenWordsList));
+        typeStrings.addAll(Arrays.asList(Field.getTypeStrings()));
+    }
+
+   private static String removeBackslash(String input) {
+	int length = input.length();
+	char[] dst = new char[length];
+	int i, j;
+	boolean escaping = false;
+
+	input.getChars(0, length, dst, 0);
+	i = 0;
+	for (j=0; j<length; j++) {
+	    if ((dst[j] == '\\') && (!escaping)) {
+		escaping = true;
+	    } else {
+		dst[i] = dst[j];
+		i++;
+		escaping = false;
+	    }
+	}
+	
+	return(new String(dst, 0, i));
+    }
+
+    public static void main(String[] arg) {
+        QueryNode parsedTree;
+
+        if (arg.length != 1) {
+            System.out.println("You must specify a query as an argument");
+            System.exit(1);
+        }
+
+        try {
+            parsedTree = parse(arg[0]);
+            System.out.println("Parsed string : "+parsedTree);
+        } catch (ParseException e) {
+            e.printStackTrace();
+        } catch (EMDException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static QueryNode parse(String query) 
+        throws ParseException, EMDException {
+
+        if (query == null || query == "") {
+            throw new ParseException("Query cannot be null");
+        }
+        StringReader sr = new StringReader(query);
+
+        QueryParser parser = new QueryParser(sr);
+        
+        QueryNode result = parser.parseQuery();
+
+        if (parser.getToken(0).kind != 0) {
+            int endColumn = parser.getToken(0).endColumn;
+            throw new ParseException("The query string '"+query+
+                                     "' could not be fully parsed."+
+                                     "\n\tStopped parsing at column "+
+                                     endColumn+
+                                     " after parsing initial substring"+
+                                     "\n\t'"+query.substring(0,endColumn)+"'.");
+        }
+
+        return(result);
+    } //parse
+
+    /** Remove enclosing single quotes and replace doubled 
+	single quotes with single single quotes*/
+ public static String deSingleQuote(String s) {
+        StringBuffer ret = new StringBuffer();
+
+	int pos = s.indexOf('\'') + 1;	// skip initial '
+
+        for (;;) {
+            int c = s.indexOf("''", pos);
+            if (c < 0)
+                break;
+
+            ret.append(s.substring(pos, c)).append("'");
+            pos = c+2;
+        }
+
+        return ret.append(s.substring(pos,s.length()-1)).toString();
+    } // deSingleQuote
+
+    /** Combine an array of QueryNodes into a single stream of text */
+    public static QueryNode combineOps(ArrayList operands) {
+        if (operands.size() == 1) {
+            return((QueryNode)operands.get(0));
+        } else {
+            QueryNode[] ops = new QueryNode[operands.size()];
+            operands.toArray(ops);
+            return(QueryText.multipleAnd(ops));
+        }
+    } // combineOps
+
+} // QueryParser class
+
+PARSER_END(QueryParser)
+
+SKIP:
+{
+    " " | "\t" | "\n" | "\r"
+}
+
+/* Counted Character Literal */
+//Save for later!
+
+
+
+/* Numeric Literals */
+TOKEN :
+{
+    < STRING_LITERAL: "'" (~["'"])* "'" ("'" (~["'"])* "'")*>
+|   < UNICODE_LITERAL: ("n"|"N")<STRING_LITERAL> >
+|   < HEX_CHAR_LITERAL: ("x"|"X")<STRING_LITERAL> >
+|   < INTEGER_LITERAL: ("-")?["1"-"9"] (["0"-"9"])* >
+|   < FLOATING_POINT_LITERAL: ("-")? <UNSIGNED_FLOATING_POINT_LITERAL> >
+|   < #UNSIGNED_FLOATING_POINT_LITERAL:
+        (["0"-"9"])+ "." (["0"-"9"])* (<EXPONENT_OR_SUFFIX>)?
+      | "." (["0"-"9"])+ (<EXPONENT_OR_SUFFIX>)? 
+      | (["0"-"9"])+ (<EXPONENT_OR_SUFFIX>)? 
+    >
+|   < #EXPONENT_OR_SUFFIX: ["E", "e"] (["+","-"])? (["0"-"9"])+ (["D", "d"])?
+      | (["D", "d"])
+    >
+}
+
+TOKEN : 
+{
+    < QUOTED_IDENTIFIER: "\"" (~["\"","\n","\r"])* "\"" ("\"" (~["\"","\n","\r"])* "\"")*>
+}
+/* IDENTIFIERS */
+
+TOKEN :
+{
+  < DOTTED_IDENTIFIER: <IDENTIFIER> ("." <IDENTIFIER>)+>
+| < IDENTIFIER: <LETTER> (<LETTER>|<DIGIT>)* >
+|
+  < #LETTER:
+      [
+       "A"-"Z",
+       "_",
+       "a"-"z",
+       "\u00c0"-"\u00d6",
+       "\u00d8"-"\u00f6",
+       "\u00f8"-"\u00ff",
+       "\u0100"-"\u1fff",
+       "\u3040"-"\u318f",
+       "\u3300"-"\u337f",
+       "\u3400"-"\u3d2d",
+       "\u4e00"-"\u9fff",
+       "\uf900"-"\ufaff"
+      ]
+  >
+|
+  < #DIGIT:
+      [
+       "0"-"9",
+       "\u0660"-"\u0669",
+       "\u06f0"-"\u06f9",
+       "\u0966"-"\u096f",
+       "\u09e6"-"\u09ef",
+       "\u0a66"-"\u0a6f",
+       "\u0ae6"-"\u0aef",
+       "\u0b66"-"\u0b6f",
+       "\u0be7"-"\u0bef",
+       "\u0c66"-"\u0c6f",
+       "\u0ce6"-"\u0cef",
+       "\u0d66"-"\u0d6f",
+       "\u0e50"-"\u0e59",
+       "\u0ed0"-"\u0ed9",
+       "\u1040"-"\u1049"
+      ]
+  >
+}
+
+/* SEPARATORS */
+TOKEN :
+{
+   <OLDNOTEQUALS: "!=">
+ | <OP: (["!","=","<",">","&","|","%","#","$","@",";",":","/","+","~","`","*","[","]"])+>
+ | <QUESTION: "?">
+}
+
+QueryNode parseQuery() throws EMDException:
+{
+    QueryNode result = null;
+}
+{
+    result = nonComma() 
+    <EOF> {
+    return result;
+    }
+}
+
+QueryNode nonComma() throws EMDException:
+{
+    ArrayList operands = new ArrayList();
+    QueryNode operand = null;
+}
+{
+    operand=item() {
+        operands.add(operand);
+    } ( operand=item() {
+            operands.add(operand);
+        } )* {
+        return combineOps(operands);
+    }
+}
+
+QueryNode commaList() throws EMDException:
+{
+    ArrayList operands = new ArrayList();
+    QueryNode operand = null;
+}
+{
+    operand=nonComma() 
+        {
+        operands.add(operand);
+        } 
+      ( "," operand=nonComma() 
+          {
+              operands.add(new QueryPassThrough(","));
+              operands.add(operand);
+          } 
+        )* 
+        {
+            return combineOps(operands);
+        }
+}
+
+QueryNode literal() throws EMDException:
+{
+    Token t;
+    QueryNode result = null;
+}
+{
+      t=<STRING_LITERAL> {
+          result = new QueryLiteral(deSingleQuote(t.image));
+          return(result);
+    }
+
+ |    t=<UNICODE_LITERAL> {
+         result = new QueryPassThrough(t.image);
+         return(result);
+    }
+
+ |    t=<HEX_CHAR_LITERAL> {
+         result = new QueryPassThrough(t.image);
+         return result;
+    }
+ |    t=<INTEGER_LITERAL> {
+         Long longValue;
+         try {
+             longValue = Long.valueOf(t.image);
+         } catch (NumberFormatException e) {
+             throw new ParseException("Value "+t.image+" not numeric");
+         }
+         result = new QueryLiteral(longValue);
+         return(result);
+    }
+
+ |    t=<FLOATING_POINT_LITERAL> {
+         Double dblValue;
+         try {
+             dblValue = Double.valueOf(t.image);
+         } catch (NumberFormatException e) {
+             throw new ParseException("Value "+t.image+" not numeric");
+         }
+         result = new QueryLiteral(dblValue);
+         return(result);
+ }
+}
+
+
+QueryNode jdbcEscape() throws EMDException:
+{
+    Token t1;
+    Token t2;
+    QueryNode operand = null;
+    ArrayList operands = new ArrayList();
+}
+{
+    "{" t1=<IDENTIFIER>  
+        ( t2=<STRING_LITERAL> "}"
+            {
+                String discriminator = t1.image;
+                if (typeStrings.contains(discriminator)) {
+                    // We recognize each Honeycomb object type as its
+                    // own literal type (in canonical strings format)
+                    // e.g. {timestamp '2000-01-01T12:59:01.235Z'}
+                    // e.g. {objectid 'xxxxxxxx'} (in external oid format)
+                    Object o = CanonicalStrings.decode(
+                                   deSingleQuote(t2.image),
+                                   Field.parseType(discriminator));
+                    return new QueryLiteral(o);
+                } else {
+                    // Not one of our recognized type names, so it must be
+                    // HADB or JDBC literal syntax
+                    //e.g. foo like 'bar' {escape '\' }
+                    //e.g. date_field = {d '2000-01-01'}
+                    //e.g. timestamp_field = {ts '1969-12-31 11:59:59:999'}
+                    operands.add(new QueryPassThrough("{"));
+                    operands.add(new QueryPassThrough(t1.image));
+                    operands.add(new QueryPassThrough(t2.image));
+                    operands.add(new QueryPassThrough("}"));
+                    return combineOps(operands);
+                }
+            }
+          | t2 = <IDENTIFIER> operand=parenthesizedItems() "}"
+            {
+                // e.g. {fn UCASE(arg) }
+                operands.add(new QueryPassThrough("{"));
+                operands.add(new QueryPassThrough(t1.image));
+                operands.add(new QueryPassThrough(t2.image));
+                operands.add(operand);
+                operands.add(new QueryPassThrough("}"));
+                return combineOps(operands);
+            }
+          )
+}
+
+QueryNode parenthesizedItems() throws EMDException:
+{
+    QueryNode operand1 = null;
+    ArrayList operands = new ArrayList();
+    
+}
+{
+    "(" operand1=commaList() ")"
+        {
+            operands.add(new QueryPassThrough("("));
+            operands.add(operand1);
+            operands.add(new QueryPassThrough(")"));
+            return combineOps(operands);
+        }
+}
+
+QueryNode item() throws EMDException:
+{
+    Token t;
+    QueryNode result = null;
+    QueryNode operand = null;
+}
+{
+    t = <IDENTIFIER> 
+        {
+            String id = t.image.toUpperCase();
+            if (allowedWords.contains(id)) {
+                result = new QueryPassThrough(id);
+                return(result);
+            } else if (forbiddenWords.contains(id)) {
+                throw new ParseException("Query contains forbidden word: '"+id+"'");
+            } else {
+                result = new QueryAttribute(t.image);
+                return(result);
+            }
+        }
+    |    operand = jdbcEscape()
+        {
+            return operand;
+        }
+
+    |    operand = parenthesizedItems()
+        {
+            return operand;
+        }
+    |    operand = literal() 
+        {
+            return operand;
+        }
+    |  t=<QUESTION> 
+        {
+            // Waiting for a bound parameter
+            result = new QueryParameter();
+            return(result);
+        }
+    |  t=<OLDNOTEQUALS> 
+        {
+            result = new QueryPassThrough("<>");
+            return(result);
+        }
+    |  (t=<OP> | t = "-")
+        {
+            result = new QueryPassThrough(t.image);
+            return(result);
+        }
+    |  t=<DOTTED_IDENTIFIER> 
+        {
+            result = new QueryAttribute(t.image);
+            return(result);
+        }
+    |  t=<QUOTED_IDENTIFIER> 
+        {
+            int length = t.image.length();
+            result = new QueryAttribute(
+                            removeBackslash(t.image.substring(1,length-1)));
+            return(result);
+        }
+}
+

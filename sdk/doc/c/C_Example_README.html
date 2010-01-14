@@ -1,0 +1,49 @@
+<html>
+<!--
+ $Id: C_Example_README.html 11497 2007-09-12 03:37:43Z ds158322 $
+ 
+ Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ Use is subject to license terms.
+--> 
+<head></head><body>
+<h1>@HoneycombFullProductName@ C Examples</h1>
+<p>
+Included with the @HoneycombProductName@ SDK are several commandline example applications that demonstrate the C API. The example applications are located in the SDK under c/&lt;OS&gt;/examples. These example applications are designed to be compiled with standard C/C++ compilers, and have been tested with Sun's C compiler, GNU's gcc, and Microsoft's Visual Studio 6.0 compiler. There are makefiles set up for each of these applications. In order to build them using the makefiles, GNU make must be installed. The following C examples are included:
+</p><p>
+<strong>StoreFile</strong><br>
+Allows you to specify a file from the commandline to store on a @HoneycombProductName@ as data. Also allows you to specify metadata to include with the file.
+</p><p>
+<strong>AddMetadata</strong><br>
+Allows you to specify name value pairs from the command line to store on a
+@HoneycombProductName@ as a metadata record.
+<p>
+<strong>RetrieveData</strong><br>
+Allows you to retrieve metadata and data from the @HoneycombProductName@ by Object ID. The metadata is printed to standard output. The data is saved to a file specified on the commandline.
+</p><p>
+<strong>RetrieveMetadata</strong><br>
+Allows you to retrieve a metadata record from the @HoneycombProductName@ associated with the supplied Object Identifier.
+The metadata record is printed to standard output.
+</p><p>
+<strong>DeleteRecord</strong><br>
+Deletes a record from the @HoneycombProductName@ for an Object ID supplied on the commandline. If successful returns the OID of the deleted object to standard output.
+</p><p>
+<strong>Query</strong><br>
+Query a @HoneycombProductName@ for specified Metadata. The query string is provided on the commandline. Query can print out the results as a list of name/value pairs or as a list of OIDs. Query allows you to specify the maximum number of results returned.
+</p><p>
+<strong>RetrieveSchema</strong><br>
+Retrieves the schema from a @HoneycombProductName@, printing it to standard output.
+</p><p>
+<h2>How to Build the Example Applications</h2>
+The example applications are in the c/examples/ folder in the SDK. To build the example applications go to the examples/ directory and run make. This will build the examples and put them in the c/examples/&lt;OS&gt; directory.
+</p><p>
+<h2>How to run the Example Applications</h2>
+Once you have built the example applications, go to the c/examples/&lt;OS&gt;/build folder and execute the binary file with the appropriate commandline. The examples depend on the honeycomb and libcurl libraries; set the LD_LIBRARY_PATH to c/&lt;OS&gt;/lib/, e.g. for bash,
+<pre>
+  $ export LD_LIBRARY_PATH=&lt;rootpath&gt;/c/&lt;OS&gt;/lib
+</pre>
+</p><p>
+<h2>About the Example Application Source Code</h2>
+First, parseCommandline() is called to parse the commandline and store necessary information in a struct called "Commandline". Next, any files that contain data to be sent to the @HoneycombProductName@ are opened. The appropriate @HoneycombProductName@ C API is then called. Last, output is delivered back to either standard output, a file, or both. Please refer to the comments in the sample code for further details.
+</p>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!--
+ $Id: build.xml 10856 2007-05-19 02:58:52Z bberndt $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for honeycomb server component.
+--> 
+
+<project name="media-upload-app" default="dist">
+
+  <property name="buildir" value="${demos.build.basedir}/media-upload/classes"/>
+  <property name="dist.dir" value="${demos.dist.basedir}/media-upload"/>
+  <property name="jarfile" value="${dist.dir}/hc_media_upload.jar"/>
+  <property name="dist.extra" value="${dist.dir}/extra"/>
+
+  <property name="libdir" value="${basedir}/extra"/>
+  <property name="metadata-extractor.jar" value="${libdir}/metadata-extractor-2.2.1.jar"/>
+  <property name="concurrent.jar" value="${libdir}/concurrent.jar"/>
+  <property name="honeycomb-client.jar" value="${dist.extra}/honeycomb-client.jar"/>
+  <property name="honeycomb-common.jar" value="${dist.extra}/honeycomb-common.jar"/>
+
+  <path id="classpath">
+    <pathelement location="${metadata-extractor.jar}"/>
+    <pathelement location="${concurrent.jar}"/>
+    <pathelement location="${honeycomb-client.jar}"/>
+    <pathelement location="${honeycomb-common.jar}"/>
+  </path>
+
+  <target name="prepare">
+    <tstamp/>
+    <mkdir dir="${buildir}"/>
+    <mkdir dir="${dist.dir}"/>
+    <mkdir dir="${dist.extra}"/>
+    <copy file="${common.dist.libdir}/${jarname.common}"
+      todir="${dist.extra}"/>
+    <copy file="${client.dist.libdir}/${jarname.client}"
+      todir="${dist.extra}"/>
+  </target>
+
+  <target name="clean">
+    <delete dir="${buildir}"/>
+    <delete dir="${dist.dir}"/>
+  </target>
+
+  <target name="compile" depends="prepare">
+    <javac classpathref="classpath"
+      destdir="${buildir}"
+      debug="true">
+      <src path="${basedir}/src"/>
+    </javac>
+  </target>
+
+  <target name="pkg"
+          depends="dist"
+          description="build the solaris package">
+      <exec executable="${pkgmk.bin}" failonerror="yes">
+        <!-- arg value="" does not work here for some reason -->
+        <arg line="-o -d ${demos.dist.pkgdir} -f ${basedir}/pkgdef/prototype -r ${demos.dist.basedir}"/>
+      </exec>
+
+      <exec executable="${pkgtrans.bin}" failonerror="yes">
+        <arg line="-s ${demos.dist.pkgdir} SUNWhcmediaup.pkg SUNWhcmediaup"/>
+      </exec>
+  </target>
+
+  <target name="jar" depends="compile">
+    <jar jarfile="${jarfile}"
+         manifest="MANIFEST.MF"
+         compress="false">
+      <fileset dir="${buildir}"/>
+    </jar>
+  </target>
+
+  <target name="dist" depends="jar">
+    <copy todir="${dist.extra}">
+      <fileset dir="${libdir}"/>
+    </copy>
+  </target>
+</project>

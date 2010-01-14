@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="component">
+    <info>
+         <author>
+             <name>Rodney Gomes</name>
+             <email>rodney.gomes@sun.com</email>
+         </author> 
+         <description>
+             Test the basic functionality of the function/call tag which is used 
+             to create functions and being able to call them from various points
+             in the code.
+         </description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+        <createstorage id="TESTINPUT" path="${dtf.xml.path}"/>
+       
+        <loadproperties uri="storage://INPUT/ut.properties"/>
+        
+        <property name="nomore" value="false"/>
+	   
+	    <import uri="storage://TESTINPUT/util.xml"/>
+    </local>
+    
+    <function name="func1">
+    	<param name="function" type="required"/>
+    	<param name="nomore" type="optional"/>
+    	
+    	<local><echo>In func1</echo></local>
+    	<if> 
+    		<eq op1="${nomore}" op2="true"/>
+    		<then>
+    			<local><echo>No More.</echo></local>
+    		</then>	
+    		<else>	
+		   		<call function="${function}"/> 
+    		</else>	
+    	</if>
+    </function>
+    
+    <function name="func2">
+    	<local><echo>In func2</echo></local>
+    	<call function="func1">
+    		<property name="nomore" value="true"/>
+    	</call>
+    </function>
+    
+    <function name="func3">
+    	<local><echo>In func3</echo></local>
+    	<call function="func1">
+    		<property name="nomore" value="true"/>
+    	</call>
+    </function>
+
+    <function name="func_event">
+    	<param name="iteration" type="required"/>
+    	<event name="func.event">
+    		<attribute name="iteration" value="${iteration}"/>	
+    	</event>
+    </function>
+    
+    <local>
+    	<echo>Recursive function calling.</echo>
+    </local> 
+    <call function="func1">
+   		<property name="function" value="func2"/> 
+    </call>
+
+    <call function="func1">
+   		<property name="function" value="func3"/> 
+    </call>
+    
+    <local>
+    	<echo>Inexistent function calling.</echo>
+    </local> 
+    <try>
+    	<sequence>
+            <call function="funcXXXX">
+           		<property name="function" value="func2"/> 
+            </call>
+      		<fail message="Previous function called should have failed."/>
+      	</sequence>
+       	<catch exception="${dtf.FunctionException}" property="message">
+       		<local>
+       			<echo>Caught exception correctly [${message}]</echo>
+       		</local>
+       	</catch> 
+    </try>
+    
+    <local>
+    	<echo>Parallel stress function calling.</echo>
+    </local> 
+    
+    <record type="txt" uri="storage://OUTPUT/function_events.txt">
+   		<distribute workers="5" iterations="1000" property="iteration">
+		   <call function="func_event">
+                <property name="iteration" value="${iteration}"/>
+           </call>
+   		</distribute>
+    </record>
+   
+    <call function="checkRecordCount">    
+    	<property name="recorder.location" value="storage://OUTPUT/function_events.txt"/>	
+    	<property name="recorder.type" value="txt"/>	
+    	<property name="event.name" value="func.event"/>
+    	<property name="record.count" value="1000"/>
+   	</call>
+</script>	

@@ -1,0 +1,18 @@
+
+NAME
+       RetrieveData - retrieve data 
+
+SYNOPSIS
+       java RetrieveData <IP | HOST> <OID> [FILE] [OPTIONS]
+
+DESCRIPTION
+       Retrieve data from the @HoneycombProductName@. The OID specifies what data 
+       to retrieve. Data is written to FILE, if specified, otherwise to stdout.
+
+OPTIONS
+       -h
+              print this message
+
+EXAMPLES
+       java RetrieveData server @SampleOID@ /archive/log.1
+       java RetrieveData 10.152.0.12 @SampleOID@

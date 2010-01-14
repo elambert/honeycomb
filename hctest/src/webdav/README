@@ -1,0 +1,68 @@
+hctest/src/webdav is for non-framework ad-hoc webdav testing
+
+Note: the metadata_config_ofoto.xml schema needs to be loaded
+(via cli mdconfig -c) for the ofoto tests to work.
+
+hctest/src/webdav/ofoto/c/ contains ofoto neon-based code and
+binaries, plus some general utilities (putfile and getfile).
+The src/webdav/ofoto/c/Linux/ branch is the only up-to-date
+part.  src/webdav/ofoto/c/Linux/examples/ofoto/README tells
+how to set up the compile environment on a gentoo box from
+the test client farm. Programs (see usage w/ no args):
+
+  put, get		put/get ofoto pattern of files
+  store			hc-store ofoto pattern 
+			(may not be current w/ latest hc lib; uses
+			local libhoneycomb.so)
+  mkdirs		do webdav mkdirs in ofoto pattern
+			(useless since dirs only made in cache)
+  checkdirs		check cache dirs (also kind of useless)
+
+  putfile, getfile	put/get a given file
+  getrange		get range of bytes in a given file
+  propfind		list properties of path, children, all children
+
+  README		how to compile
+
+hctest/src/webdav/ofoto/java/ contains an ofoto Slide-based
+program, 
+
+  slide-lib/		libs
+  SlideOfoto.java	source for putting/getting the ofoto pattern
+  build.sh 		script to compile
+  run.sh		script to run in current dir
+  slide.sh		script to run in installed dir
+
+The C and Java stuff is all manually rolled into an ofoto dir for
+the test clients:
+
+  /mnt/test/ofoto/:
+  bin  classes  slide-lib  tmp
+ 
+  /mnt/test/ofoto/bin:
+  get                libcurl.a   libhoneycomb.so  put   slide.sh
+  get.csh  getrange  libcurl.la  propfind               store
+ 
+  /mnt/test/ofoto/classes:
+  SlideOfoto$Getter.class        SlideOfoto$Putter.class
+  SlideOfoto$Getter2.class       SlideOfoto$Runner.class
+  SlideOfoto$PathIterator.class  SlideOfoto.class
+ 
+  /mnt/test/ofoto/slide-lib:
+  antlr.jar                       jakarta-slide-commandline-2.1.jar
+  antlr.license                   jakarta-slide-webdavlib-2.1.jar
+  commons-httpclient-contrib.jar  jdom-1.0.jar
+  commons-httpclient.jar          jdom.license
+  commons-logging.jar             xml-im-exporter.license
+  commons-transaction-1.0.jar     xml-im-exporter1.1.jar
+ 
+  /mnt/test/ofoto/tmp:
+
+hctest/src/webdav/ofoto/scripts/ has scripts to launch multi-client
+ofoto tests, where the clients have the tree just described:
+
+  LaunchOfotoPuts 	neon
+  LaunchOfotoGets 	neon
+  LaunchOfotoSlide 	slide; does put unless PUT_GET=-g at top
+  LaunchOfotoStores	uses hc store w/ C store prog
+

@@ -1,0 +1,578 @@
+<!--
+ $Id: build.xml 3416 2005-01-31 21:59:58Z rw151951 $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for honeycomb server component.
+--> 
+<project name="server" default="jar">
+  <description>
+    Honeycomb server component. Building this project results in a 
+    Solaris package named SUNWhcserver.
+  </description>
+
+  <!-- first, local, user specified .ant.properties files take precedence -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <!-- second, use the build.properties for this package -->
+  <property file="build.properties"/>
+
+  <!-- lastly, use the top-level builds properties file -->
+  <property file="../build/build.properties"/>
+
+  <!-- access ENV variables as ${env.XXX} -->
+  <!-- ie.  ${env.USER} -->
+  <property environment="env"/>
+
+  <path id="server.build.classpath">
+    <pathelement location="${external.dist.libdir}/concurrent.jar"/>
+    <pathelement location="${external.dist.libdir}/bsh-2.0b2.jar"/>
+    <pathelement location="${external.dist.libdir}/jetty-4.2.20.jar"/>
+    <pathelement location="${external.dist.libdir}/jug.jar"/>
+    <pathelement location="${server.libdir}/javacc.jar"/>
+    <pathelement location="${common.dist.libdir}/${jarname.common}"/>
+    <pathelement location="${mgmt.dist.libdir}/${jarname.mgmt}"/>
+    <pathelement location="${md_clustra.basedir.external}/hadbmgt.jar"/>
+    <pathelement location="${external.servicetags.libdir}/servicetags-api.jar"/>
+  </path>
+
+  <!-- INIT -->
+  <target name="init" depends="emma_init">
+
+  <path id="server.dist.classpath">
+    <pathelement location="${install.libdir}/${jarname.common}"/>
+    <pathelement location="${install.libdir}/${jarname.mgmt}"/>
+    <pathelement location="${install.libdir}/${jarname.server}"/>
+    <pathelement location="${install.libdir}/${jarname.ndmp}"/>
+    <pathelement location="${install.libdir}/honeycomb-fs.jar"/>
+    <pathelement location="${install.libdir}/${hadb.jar}"/>
+    <pathelement location="${install.libdir}/${jarname.adm}"/>
+    <pathelement location="${install.libdir}/${jarname.admingui}"/>
+    <pathelement location="${install.libdir}/servicetags-api.jar"/>
+    <pathelement location="${install.libdir}/jug.jar"/>
+    <pathelement location="${install.libdir}/concurrent.jar"/>
+    <pathelement location="${install.libdir}/bsh-2.0b2.jar"/>
+    <pathelement location="${install.libdir}/jetty-4.2.20.jar"/>
+    <pathelement location="${install.libdir}/${jarname.codec}"/>
+    <pathelement location="/opt/SUNWhadb/4/lib/hadbmgt.jar"/>
+    <pathelement location="${install.libdir}/servlet-4.2.19.jar"/>
+    <pathelement location="${install.libdir}/je.jar"/>
+    <pathelement location="${install.libdir}/db-4.2.jar"/>
+    <pathelement location="${install.libdir}/activation.jar"/>
+    <pathelement location="/opt/SUNWhadb/4/lib/hadbjdbc4.jar"/>
+    <pathelement location="/opt/SUNWhadb/4/lib/hadbm.jar"/>
+    <pathelement location="/opt/SUNWhadb/4/lib/jmx.jar"/>
+    <pathelement location="/opt/SUNWhadb/4/lib/jmxremote.jar"/>
+    <pathelement location="/opt/SUNWhadb/4/lib/jmxremote_optional.jar"/>
+    <pathelement location="/opt/honeycomb/web/xmlrpc-2.0.1.jar"/>
+  </path>
+
+
+    <property name="server.webdav.classpath" value="${install.libdir}/jetty-4.2.20.jar:${install.libdir}/servlet-4.2.19.jar:${install.libdir}/honeycomb.jar:${install.libdir}/jug.jar${emma.classpath}"/>
+    <property name="server.nodeconfig.classpath" value="${install.libdir}/${jarname.server}${emma.classpath}"/>
+  </target>
+
+  <!-- PREPARE ************************************************************ -->
+  <target name="prepare" depends="init">
+    <condition property="compliantOS">
+      <os name="SunOS"/>
+    </condition>
+
+    <mkdir dir="${server.build.parser.outputdir}"/>
+    <mkdir dir="${server.build.confdir}"/>
+    <mkdir dir="${server.build.classdir}"/>
+    <mkdir dir="${server.dist.basedir}"/>
+    <mkdir dir="${server.dist.bindir}"/>
+    <mkdir dir="${server.dist.libdir}"/>
+    <mkdir dir="${server.dist.sharedir}"/>
+    <mkdir dir="${server.dist.confdir}"/>
+    <mkdir dir="${server.dist.etcdir}"/>
+    <mkdir dir="${server.dist.initdir}"/>
+    <mkdir dir="${server.dist.svcdir}"/>
+    <mkdir dir="${server.dist.pkgdir}"/>
+    <mkdir dir="${server.dist.docdir}"/>
+  </target>
+
+<!-- PMD java source code analyser ******************************************-->
+  <target name="pmd" depends="compile_java" description="Automatic Code Checking">
+    <taskdef name="pmd" classname="net.sourceforge.pmd.ant.PMDTask">
+      <classpath>
+        <pathelement location="${external.dist.libdir}/pmd-2.0.jar"/>
+        <pathelement location="${external.dist.libdir}/jaxen-core-1.0-fcs.jar"/>
+        <pathelement location="${external.dist.libdir}/saxpath-1.0-fcs.jar"/>
+      </classpath>
+    </taskdef>
+    <echo message="Checking for unused/dead code"/>
+    <property name="unused-pmd" value="${pmd.logdir}/pmd-unused-report.html" />
+    <pmd printToConsole="false"
+        failuresPropertyName="unused_errors"
+         rulesetfiles="rulesets/unusedcode.xml">
+      <formatter type="html" tofile="${unused-pmd}"/>
+      <fileset dir="${server.java.srcdir}">
+        <include name="**/*.java" />
+      </fileset>
+    </pmd>
+    <echo message="=> ${unused_errors} warnings, html report is at ${unused-pmd}"/>
+    <echo message="Checking for correct Java exception handling"/>
+    <property name="exception-pmd" value="${pmd.logdir}/pmd-exception-report.html" />
+    <pmd printToConsole="false"
+        failuresPropertyName="exception_errors"
+         rulesetfiles="rulesets/strictexception.xml">
+      <formatter type="html" tofile="${exception-pmd}"/>
+      <fileset dir="${server.java.srcdir}">
+        <include name="**/*.java" />
+      </fileset>
+    </pmd>
+    <echo message="=> ${exception_errors} warnings, html report is at ${exception-pmd}"/>
+    <echo message="Checking for potentially broken code (cyclomatic complexity)"/>
+    <property name="broken-pmd" value="${pmd.logdir}/pmd-broken-report.html" />
+    <pmd printToConsole="false"
+        failuresPropertyName="codesize_errors"
+         rulesetfiles="rulesets/codesize.xml">
+      <formatter type="html" tofile="${broken-pmd}"/>
+      <fileset dir="${server.java.srcdir}">
+        <include name="**/*.java" />
+      </fileset>
+    </pmd>
+    <echo message="=> ${codesize_errors} warnings, html report is at ${broken-pmd}"/>
+    <echo message="Checking code for possible strings optimization"/>
+    <property name="strings-pmd" value="${pmd.logdir}/pmd-strings-report.html" />
+    <pmd printToConsole="false"
+        failuresPropertyName="strings_errors"
+         rulesetfiles="rulesets/strings.xml">
+      <formatter type="html" tofile="${strings-pmd}"/>
+      <fileset dir="${server.java.srcdir}">
+        <include name="**/*.java" />
+      </fileset>
+    </pmd>
+    <echo message="=> ${strings_errors} warnings, html report is at ${strings-pmd}"/>
+  </target>
+
+  <!-- COMPILE_PARSERS **************************************************** -->
+  <target name="compile_parsers" depends="prepare">
+    <antcall target="compile_parser">
+      <param name="parser.prefix"
+             value="QueryParser"/>
+    </antcall>
+  </target>
+  
+  <target name="compile_parser" depends="init,check_parser"
+    unless="parser.notrequired">
+    <java
+      classname="javacc"
+      classpathref="server.build.classpath"
+      fork="yes"
+      failonerror="yes">
+      <arg value="-OUTPUT_DIRECTORY=${server.build.parser.outputdir}"/>
+      <arg value="${server.parser.srcdir}/${parser.prefix}.jj"/>
+    </java>
+  </target>
+
+  <target name="check_parser" if="parser.prefix">
+    <uptodate property="parser.notrequired"
+	      srcfile="${server.parser.srcdir}/${parser.prefix}.jj"
+	      targetfile="${server.build.parser.outputdir}/${parser.prefix}.java"/>
+  </target>
+  
+  <!-- COMPILE_JAVA ******************************************************* -->
+  <target name="compile_java" depends="compile_parsers">
+    <depend
+           srcDir="${server.java.srcdir}:${server.build.parser.srcdir}"
+           destdir="${server.build.classdir}"
+           cache="${server.build.classdir}"
+           closure="yes">
+        <include name="**/*.java"/>
+    </depend>
+    <javac sourcepath=""
+           classpathref="server.build.classpath"
+           srcdir="${server.java.srcdir}:${server.build.parser.srcdir}"
+           destdir="${server.build.classdir}"
+           debug="${javac.debug}"
+           deprecation="${javac.deprecation}"
+           source="1.5"
+           optimize="${javac.optimize}">
+           <include name="**/*.java"/>
+    </javac>
+
+    <!-- <emma> -->
+    <antcall target="emma_instrument">
+      <param name="instrpath" value="${server.build.classdir}"/>
+      <param name="metadatafile" value="${server.build.classdir}/server.em"/>
+    </antcall>
+    <!-- </emma> -->
+  </target>
+
+
+  <!-- EMMA *************************************************************** -->
+  <target name="emma_enable">
+    <!-- turn emma on if EMMA=1 -->
+    <condition property="emma.enabled" value="true">
+      <and>
+        <isset property="env.EMMA"/>
+        <equals arg1="${env.EMMA}" arg2="1"/>
+      </and>
+    </condition>
+  </target>
+
+  <target name="emma_init" depends="emma_enable">
+    <!-- Note: emma.classpath intentionally contains leading : when set. -->
+    <condition property="emma.classpath" value=":${install.libdir}/${jarname.emma}">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.classpath" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.coverage.dir" value="-Demma.coverage.out.file=${install.etcdir}/emma">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.coverage.dir" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.rt.control.port.pfx" value="-Demma.rt.control.port=1010">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.rt.control.port.pfx" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.coverage.file.platform_servers" value="${emma.opt.coverage.dir}/PLATFORM-SERVERS.ec">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.coverage.file.platform_servers" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.rt.control.port.platform_servers" value="${emma.opt.rt.control.port.pfx}1">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.rt.control.port.platform_servers" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.coverage.file.layout_servers" value="${emma.opt.coverage.file.layout_servers}">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.coverage.file.layout_servers" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.rt.control.port.layout_servers" value="${emma.opt.rt.control.port.pfx}2">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.rt.control.port.layout_servers" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.coverage.file.api_servers" value="${emma.opt.coverage.dir}/API-SERVERS.ec">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.coverage.file.api_servers" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.rt.control.port.api_servers" value="${emma.opt.rt.control.port.pfx}3">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.rt.control.port.api_servers" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.coverage.file.io_servers" value="${emma.opt.coverage.dir}/IO-SERVERS.ec">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.coverage.file.io_servers" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.rt.control.port.io_servers" value="${emma.opt.rt.control.port.pfx}4">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.rt.control.port.io_servers" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.coverage.file.master_servers" value="${emma.opt.coverage.dir}/MASTER-SERVERS.ec">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.coverage.file.master_servers" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.rt.control.port.master_servers" value="${emma.opt.rt.control.port.pfx}5">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.rt.control.port.master_servers" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.coverage.file.admin_servers" value="${emma.opt.coverage.dir}/ADMIN-SERVERS.ec">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.coverage.file.admin_servers" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.rt.control.port.admin_servers" value="${emma.opt.rt.control.port.pfx}6">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.rt.control.port.admin_servers" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.rt.control.false" value="-Demma.rt.control=false">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.rt.control.false" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.coverage.file.cli" value="${emma.opt.coverage.dir}/CLI.ec">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.coverage.file.cli" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.coverage.file.nodemgr_mailbox" value="${emma.opt.coverage.dir}/NODEMGR-MAILBOX.ec">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.coverage.file.nodemgr_mailbox" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.coverage.file.webdav" value="${emma.opt.coverage.dir}/WEBDAV.ec">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.coverage.file.webdav" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.coverage.file.start" value="${emma.opt.coverage.dir}/START.ec">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.coverage.file.start" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.coverage.file.stop" value="${emma.opt.coverage.dir}/STOP.ec">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.coverage.file.stop" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+    <condition property="emma.opt.coverage.file.nodeconfig" value="${emma.opt.coverage.dir}/NODECONFIG.ec">
+      <isset property="emma.enabled"/>
+    </condition>
+    <condition property="emma.opt.coverage.file.nodeconfig" value="">
+      <not><isset property="emma.enabled"/></not>
+    </condition>
+
+  </target>
+
+  <target name="emma_instrument" if="emma.enabled">
+    <path id="emma.ant.classpath">
+      <pathelement location="${emma.antjar}"/>
+      <pathelement location="${emma.jar}"/>
+    </path>
+    <taskdef resource="emma_ant.properties" classpathref="emma.ant.classpath"/>
+    <emma enabled="${emma.enabled}">
+        <instr mode="overwrite" 
+               instrpath="${instrpath}"
+               metadatafile="${metadatafile}"/>
+    </emma>
+  </target>
+
+  <target name="emma_prepkgmk" if="emma.enabled">
+    <exec dir="${server.dist.libdir}" executable="ln">
+      <arg value="-s"/>
+      <arg value="${emma.jar}"/>
+    </exec>
+    <exec dir="${server.pkgdefs}" executable="cp" failonerror="true">
+      <arg value="prototype"/>
+      <arg value="prototype.bak"/>
+    </exec>
+    <exec dir="${server.pkgdefs}" executable="sh" failonerror="true">
+      <arg value="-c"/>
+      <arg value="echo f none /opt/honeycomb/lib/${jarname.emma}=lib/${jarname.emma} 0655 bin bin >> prototype"/>
+    </exec>
+    <exec dir="${server.pkgdefs}" executable="sh" failonerror="true">
+      <arg value="-c"/>
+      <arg value="echo d none /opt/honeycomb/etc/emma 777 bin bin >> prototype"/>
+    </exec>
+  </target>
+
+  <target name="emma_postpkgmk" if="emma.enabled">
+    <exec dir="${server.pkgdefs}" executable="/bin/mv" failonerror="true">
+      <arg value="prototype.bak"/>
+      <arg value="prototype"/>
+    </exec>
+    <exec dir="${server.dist.libdir}" executable="/bin/rm" failonerror="true">
+      <arg value="-f"/>
+      <arg value="${jarname.emma}"/>
+    </exec>
+  </target>
+
+  <!-- JAR ******************************************************* -->
+  <target name="jar" depends="compile_java">
+    <jar jarfile="${server.dist.libdir}/honeycomb-server.jar">
+      <fileset dir="${server.build.classdir}">
+      </fileset>
+    </jar>
+    <copy todir="${server.dist.libdir}">  	
+      <fileset dir="${external.servicetags.libdir}"/> 	
+    </copy>
+  </target>
+  <!-- COMPILE_NATIVE ***************************************************** -->
+  <target name="compile_native" depends="jar,check_native"
+                                if="compliantOS"
+                                unless="native.notrequired">
+    <ant antfile="build.xml" 
+         dir="${server.native.srcdir}" 
+         target="compile_native"/>
+  </target>
+
+  <!-- Only compile native code once instead of every single time we
+       build the server pkg.  This means IF YOU CHANGE ANY NATIVE SOURCE
+       files, you must do 'ant clean' to force native compile -->
+  <target name="check_native">
+    <uptodate property="native.notrequired"
+              srcfile="${server.native.srcdir}/oa/oamath.c"
+              targetfile="${server.build.native}/oa/oamath.o"/>
+  </target>
+  
+  <!-- CONFIG ************************************************************* -->
+  <target name="config" depends="prepare">
+    <ant antfile="build.xml" 
+         dir="${server.config.srcdir}" 
+         target="cluster_configs"/>
+  </target>
+
+  <!-- SCRIPTS ************************************************************ -->
+  <target name="scripts" depends="prepare" if="compliantOS">
+    <exec dir="${server.scripts.srcdir}" executable="${make.bin}" failonerror="true">
+      <arg value="DISTBIN=${server.dist.bindir}"/>
+      <arg value="DISTINIT=${server.dist.initdir}"/>
+      <arg value="DISTSVC=${server.dist.svcdir}"/>
+      <arg value="JAVA=${java.bin}"/>
+      <arg value="PREFIX=${install.basedir}"/>
+      <arg value="LOGCONF=${install.logconf}"/>
+      <arg value="HCJARS=${server.dist.classpath}"/>
+      <arg value="NODECONFIGCLASSPATH=${server.nodeconfig.classpath}"/>
+      <arg value="WEBDAVCLASSPATH=${server.webdav.classpath}"/>
+      <arg value="BUILDBIN=${server.build.confdir}"/>
+      <arg value="EMMA_OPT_RT_CONTROL_FALSE=${emma.opt.rt.control.false}"/>
+      <arg value="EMMA_OPT_COVERAGE_FILE_CLI=${emma.opt.coverage.file.cli}"/>
+      <arg value="EMMA_OPT_COVERAGE_FILE_NODEMGR_MAILBOX=${emma.opt.coverage.file.nodemgr_mailbox}"/>
+      <arg value="EMMA_OPT_COVERAGE_FILE_WEBDAV=${emma.opt.coverage.file.webdav}"/>
+      <arg value="EMMA_OPT_COVERAGE_FILE_START=${emma.opt.coverage.file.start}"/>
+      <arg value="EMMA_OPT_COVERAGE_FILE_STOP=${emma.opt.coverage.file.stop}"/>
+      <arg value="EMMA_OPT_COVERAGE_FILE_NODECONFIG=${emma.opt.coverage.file.nodeconfig}"/>
+    </exec>
+    <!-- copy the common platform lib script -->
+    <copy file="${platform.common.script}" todir="${server.dist.bindir}"/>
+  </target>
+
+  <!-- SERVICES ************************************************************ -->
+  <target name="services" if="compliantOS">
+    <copy todir="${server.dist.svcdir}">
+      <fileset dir="${server.services.srcdir}"/>
+    </copy>
+  </target>
+
+  <!-- PROPERTIES ********************************************************* -->
+  <target name="properties" depends="init">
+    <exec dir="${basedir}"
+	      executable="ln"
+	      failonerror="no">
+      <arg value="-sn"/>
+      <arg value="../cluster_config.properties"/>
+      <arg value="${server.dist.confdir}/system.properties"/>
+    </exec>
+    
+    <exec dir="${basedir}"
+	      executable="ln"
+	      failonerror="no">
+      <arg value="-sf"/>
+      <arg value="../cluster_config.properties"/>
+      <arg value="${server.dist.confdir}/config.properties"/>
+    </exec>
+    <copy file="${server.dist.sharedir}/admin.properties" 
+          tofile="${server.dist.confdir}/admin.properties"/>
+  </target>
+
+  <!-- PKG **************************************************************** -->
+  <target name="pkg"
+          depends="jar, compile_native,config,scripts,services"
+          description="build the solaris package">
+
+	<exec executable="${server.pkgdefs}/../create_version.pl"
+	  failonerror="yes">
+	  <env key="ORIG" value="${basedir}/../hc_version"/>
+	  <env key="DEST" value="${server.dist.basedir}"/>
+	</exec>
+
+        <antcall target="emma_prepkgmk"/>
+	<exec executable="${pkgmk.bin}" failonerror="yes">
+	  <!-- arg value="" does not work here for some reason -->
+	  <arg line="-o -d ${server.dist.pkgdir} -f ${server.pkgdefs}/prototype -r ${server.dist.basedir}"/>
+	</exec>
+        <antcall target="emma_postpkgmk"/>
+	
+	<exec executable="${pkgtrans.bin}" failonerror="yes">
+	  <arg line="-s ${server.dist.pkgdir} ${sun.pkgname.server}.pkg ${sun.pkgname.server}"/>
+	</exec>
+  </target>
+
+  <!-- ************************************************************** -->
+  <target name="build_pkg" depends="pkg"
+    description="compile sources and create the solaris package" />
+
+  <!-- CLEAN ************************************************************** -->
+  <target name="clean" depends="init"
+          description="cleans workspace of all generated files">
+    <delete dir="${server.build.basedir}"/>
+
+    <ant antfile="build.xml" 
+         dir="${server.native.srcdir}" 
+         target="native_clean"/>
+
+    <ant antfile="build.xml" 
+         dir="${server.config.srcdir}" 
+         target="config_clean"/>
+
+    <delete file="{$sun.pkgname.server}.pkg"/>
+  </target>
+
+</project>

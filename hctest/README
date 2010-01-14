@@ -1,0 +1,213 @@
+# 
+# $Id: README 10858 2007-05-19 03:03:41Z bberndt $
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+---- HONEYCOMB TEST README
+
+These instructions explain which tests should be run before committing
+changes to Honeycomb source tree, and how to run system tests
+including the regression suite. Another README describes unit tests.
+
+
+---- RELATED DOCUMENTS:
+
+Instructions on running and writing unit tests:
+../unit_tests/README
+
+
+---- PRE-CHECKIN STEPS
+
+These are the steps you should do before committing your changes to
+the source tree. 
+
+1. Write unit tests for the new code you are adding. Run the new unit
+   tests as described in README. Obviously they should be passing. 
+> cd build/unit_tests/dist; ./runtests.sh <new unit test classnames>
+
+2. Append the unit test classnames to the default set of unit tests,
+   so they will get executed during  "make check_commit"
+> vi unit_tests/test.list
+
+3. Make sure that your source tree is synced with the repository,
+   builds cleanly, and all unit tests pass. 
+> cd build; make cleanall; make check_commit
+
+4. Run regression suite. This can be done against a Honeycomb cluster
+   (if you have one), or against the emulator. Running against a
+   cluster is easy: 
+> cd build
+> make install_devXXX
+> make client=clYY install_client
+> make client=clYY regression_devXXX
+
+Note: running regression tests against the emulator is not yet
+integrated into the make framework, so you'd have to do a few steps by
+hand (start the emulator, run tests against it using runtest script
+with special options). See hctest/README for more information. I'll
+let you know when the make framework supports the emulator (soon, I
+hope!). 
+
+5. Review your outstanding changes, make sure you are not about to
+   check in something unintentionally:
+> svn status
+
+6. If there is any doubt about the impact of your changes on other
+   modules, get someone on the team to do code review before you
+   commit the change. 
+
+7. Commit your changes with the appropriate bug ID in the change
+   description: 
+> svn commit
+   
+In the change description, put bug ID and keyword "fixed" if this is
+the final putback for this bug (no keyword if it's intermediate
+putback), and of course  the description of your code change. More
+info on bugfix workflow here: 
+
+https://hc-twiki.sfbay.sun.com/twiki/bin/view/Main/BugFixCycle
+
+
+--- RUNNING REGRESSION SUITE
+
+See a more detailed README in:
+src/java/com/sun/honeycomb/hctest/README
+
+The easiest way to run regression suite is via make target.
+
+> cd ../build
+> make
+... Outputs help for all make targets ...
+> make all
+... BUILD SUCCESSFUL
+> make install_devXXX
+... Installs packages on cluster devXXX
+> make client=clYY install_client
+... Installs packages on client clYY
+> make client=clYY regression_devXXX
+... Runs regression tests from client clYY against cluster devXXX.
+
+If this does not work for you, try explicit build and runtest commands below.
+
+To run regression tests, build this module:
+> ant
+
+Then run tests locally from the built distribution, or from a test
+client. It is recommended to run from a test client, especially if you
+are building on a shared machine like "hc-dev2", so you do not
+overload the machine. To run from the client (say "clYY"), you need to upgrade it
+with your packages first:
+
+> cd hctest/src/cluster/utils
+> ./update_client.sh -b <your-source-tree-dir> -l cur -u cur clYY
+
+Then ssh to the client machine and start tests there:
+
+> ssh root@clYY
+clYY> /opt/test/bin/runtest -ctx
+explore:include=regression:cluster=devXXX
+
+If you are running tests locally from your built source tree instead
+of a client, use this path:
+
+> ../build/hctest/dist/bin/runtest -ctx explore:include=regression:cluster=devXXX
+
+devXXX is your cluster, eg: dev308. The cluster name gets expanded
+into dataVIP devXXX-data, adminVIP devXXX-admin, and service processor
+hostname devXXX-cheat. If your data/admin VIP does not follow this
+convention, use explicit arguments:
+
+> ../build/hctest/dist/bin/runtest \
+-ctx dataVIP=<devXXX-data>:adminVIP=<devXXX-admin>:spIP=<devXXX-cheat>:explore:include=regression
+
+If you want to run regression tests against the emulator and not a
+real cluster, you can supply emulator's dataVIP and 'nocluster'
+option:
+
+> ../build/hctest/dist/bin/runtest -ctx explore:include=regression:nocluster:dataVIP=<emulator>
+
+See instructions on running the emulator here:
+../emulator/README.txt
+
+
+---- RUNNING OTHER SYSTEM TESTS
+
+To run system tests which are not part of the regression suite, you
+can specify their tag in the "-ctx include=<tags>" argument to
+'runtest', or explicitly state the test classname(s) on the command
+line. 
+
+Instructions below imply running from a test client clYY against
+cluster devXXX. 
+
+For example, to run tests with tag "cmm":
+
+clYY> /opt/test/bin/runtest -ctx explore:include=cmm:cluster=devXXX
+
+To run a specific test MasterFailover:
+
+clYY> /opt/test/bin/runtest
+com.sun.honeycomb.hctest.cases.MasterFailover -ctx cluster=devXXX
+
+Note that you do not need "include" and "explore" options if you spell
+out the test classname. You may need additional command-line options
+required by the test, such as number of nodes in the cluster, file
+size etc. You should find those in test's help output:
+
+clYY> /opt/test/bin/runtest
+com.sun.honeycomb.hctest.cases.MasterFailover -h
+... Help output here ...
+
+Most test classes are in the Java package
+com.sun.honeycomb.hctest.cases, but there are exceptions. Most test
+classnames are reflected in the testcase names as logged to stdout, so
+if you see that a given test failed, you will be able to figure out
+the classname to use. For example, if you see this in the log:
+
+SUM: FAIL RESULT_ID=453209 RUNTIME=00:00:04
+APIFileSize::StoreObject::filesize=0
+
+The classname of the test is most likely APIFileSize, and you will be
+able to run just this test by using command:
+
+clYY> /opt/test/bin/runtest com.sun.honeycomb.hctest.cases.APIFileSize
+-ctx cluster=devXXX
+
+When in doubt, check the source tree under 'hctest' module.
+
+
+
+
+
+
+

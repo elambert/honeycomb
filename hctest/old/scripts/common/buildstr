@@ -1,0 +1,103 @@
+#!/usr/bin/perl -w
+#
+# $Id: buildstr 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+use strict;
+use Getopt::Long qw(:config no_ignore_case bundling);
+
+sub buildstr ()
+{
+  my $usage =
+<<EOF
+NAME
+
+    $0 - print the build string for the software installed on a cluster.
+
+SYNOPSIS
+
+    $0 [options] <vip>
+
+OPTIONS
+
+    -h, --help
+        print this message.
+
+EOF
+;
+
+  my $help=undef;
+
+  if (!GetOptions("h|help" => \$help))
+  {
+    print "${usage}\n";
+    exit 1;
+  }
+
+  if (defined($help))
+  {
+    print "${usage}\n";
+    exit 0;
+  }
+
+  my $vip = shift(@ARGV);
+  if (!defined($vip))
+  {
+    print "${usage}\n";
+    exit 1;
+  }
+
+  my $honeycomb = `ssh root\@${vip} 'cat /opt/honeycomb/version'`;
+  my @_honeycomb = split(/\s+/,$honeycomb);
+  $honeycomb = "H(" . join('-', @_honeycomb[2..7]) . " on " . $_honeycomb[9] . ")";
+  my $initrd = `ssh root\@${vip} 'cat /version'`;
+  my @_initrd = split(/\s+/,$initrd);
+  $initrd = "I(" . join('-', @_initrd[2..7]) . ")";
+  my $kernel = `ssh root\@${vip} 'uname -rv'`;
+  my @_kernel = split(/\s+/,$kernel);
+  $kernel = "K(" . join('-', @_kernel[2..7]) . ")";
+
+  
+
+#honeycomb-bin.tar.gz built Fri Jul 16 09:22:31 PDT 2004 on hc-dev.sfbay.sun.com
+ 
+#initrd.gz built Fri Jul  9 08:58:07 PDT 2004 on pratap
+ 
+#2.6.5-charter #1 Fri Jul 9 11:02:20 PDT 2004
+
+  print("${honeycomb}-${initrd}-${kernel}\n");
+}
+
+buildstr();

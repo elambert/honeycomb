@@ -1,0 +1,18 @@
+$Id: README 10858 2007-05-19 03:03:41Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+The two axes of the C api are:
+
+	Blocking ('ez') vs. nonblocking
+	NVOA vs. OA
+
+The 1.0 release (defined in client_c's hcclient.h) only covers
+the {Blocking, NVOA} quadrant. The tests in this directory include
+unused non-blocking (hcnb*.c). hcDelete.c should be hcezDelete.c.
+
+Whether a test is used is determined by inclusion in hctestharness.c's
+load_tests() of the registering function, xxxx_load_tests() (first
+routine in each test's file).
+

@@ -1,0 +1,434 @@
+
+$Id: cdkit_manual.txt 10853 2007-05-19 02:50:20Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+Solaris CD Toolkit Internal Users Manual
+----------------------------------------
+
+For Solaris 10 Updates 
+
+Revision: @(#) cdkit_manual.txt.s10updates 1.2@(#)
+Last change: 09/21/2006 
+File owner: Lou Ann Smith (lou.smith@sun.com) 
+            Solaris Release Engineering
+
+
+Contents
+--------
+
+Introduction
+What is Not Supported
+Summary of Steps
+System Requirements
+CDKIT Tool Location
+Definitions of Work Areas
+Staging Area Setup
+Creating a Build Identifier
+CDKIT BuildImage Command Usage
+Replacing An Existing Package
+Adding Or Removing Packages
+Patching Packages for Update Releases
+Making a Combined Image
+References and Aliases
+		
+
+Introduction
+------------
+
+The Solaris CD Toolkit (cdkit) provides a way for Solaris developers to make
+changes to the Solaris netinstall and CD images.  The toolkit allows internal
+developers to modify Solaris images locally and test changes prior to
+integrating the changes into Solaris.  A separate version is available for
+external ES customers who wish to add their software to Solaris and create a
+customized CD.
+
+This document only addresses the process and tools used by internal
+developers.  It requires access to Solaris RE's integration "docks" under
+/net/paradise.sfbay/export/integrate_dock.
+
+CDkit contains a subset of the tools that Solaris RE uses for creating the
+official Solaris CD and netinstall images.  It will allow users to build the
+following set of images as part of the Solaris installation:
+
+Solaris 1
+Solaris 2
+Solaris 3 
+Languages CD
+
+What Is Not Supported
+---------------------
+
+cdkit does not support the creation of the Installer CD (CD0).  For information
+on the CD0 SDK, refer to the Admin/Install website:
+
+       http://installzone.sfbay/projects/webstartos/
+
+
+Summary of Steps
+----------------
+
+set up system to meet basic requirements
+copy staging area from Solaris RE's integration docks
+create build identifier
+edit package and installation lists
+build cd and/or netinstall images
+
+
+System Requirements
+-------------------
+
+architecture: To build the bootable image, you must run cdkit on a system
+            that is the same as the target architecture (SPARC or i386).
+
+OS level:   The system must be running at least Solaris 9 Update 5.
+	    The preferred OS should be the most recent build of Solaris 10
+
+
+disk space: 4 Gbytes are required to build all 3 netinstall and CD images.
+            This includes space for copying the original packages to a
+            staging area.  Due to the use of hard links, a single partition
+            must be used.
+
+            A 1GB scratch disk is also needed for creating the miniroot for
+            CD images.  This is not necessary if only the netinstall images
+            are created.
+
+swap space: A minimum of 500Mb of swap is required. 1 GB is recommended.
+
+NFS access: Access to /net/paradise.sfbay is required.  This is Solaris RE's
+            package integration server, and is mounted as readable by all.
+
+root access: All commands referenced in this document must be executed as the
+            "root" superuser.
+
+CDKIT Tool Location
+-------------------
+The cdkit tools and documentation (including this document) can be copied from
+/net/paradise.sfbay/export/tools/cdkit.  Each release could have a separate set
+of tools.  Select the release subdirectory that you require. The README in
+the tools/cdkit directory will list the use of each cdkit directory. Use cpio
+to copy the tools to your local build system. Make sure your destination
+directory exists before issuing the cpio command.
+
+Example: # cd /net/paradise.sfbay/export/tools/cdkit/S10U3
+         # find . | cpio -pdmu /export/S10U3/cdkit
+
+Definitions of Work Areas
+-------------------------
+
+stage: 
+The staging area is a directory containing all the packages and data files
+required to build a Solaris image.  It also includes packages that are for
+internal build purposes only, and are not part of the Solaris distribution CD.  
+
+pkgpool: 
+During the build, a subdirectory called the pkgpool will be created in the
+stage area.  The pkgpool contains all the packages used for the build.  It is
+a flat-directory version of the packages in the sparc, i386 and "all"
+subdirectories of the stage area.
+
+product area:
+The location where the images are to be created.  While this can be outside of
+the stage area, it must be on the same disk partition.
+
+tool area: location of the local cdkit tools copied over in the previous step.
+
+Staging Area Setup
+------------------
+
+The staging area is set up by copying the packages and files from the Solaris
+RE integration dock for the desired release.  To determine which releases are
+available, perform an "ls *" inside /net/paradise.sfbay/export/integrate_dock.
+The releases are grouped by major release name (e.g. s9, s10, nv).  A WOS
+release (containing "wos" in the name) must be selected.  Examples are:
+
+      s10s_wos - latest package set for Solaris 10 SPARC
+      s10s_u1wos_04 - Build 04 of Solaris 10 Update 1 SPARC
+      nvs_wos_10 - Build 10 of Solaris Nevada SPARC
+
+To create the staging area, execute the following command from the tool area,
+using a valid existing release for the <release> value.  It will spawn 4
+parallel commands to copy a portion of the staging area, using cpio.  If the
+staging area exists already, BringoverBuildStage will overwrite its contents.
+
+	# ./cdkit BringoverBuildStage <release> <staging area>
+
+	Example: cdkit BringoverBuildStage s10s_u3wos_06 /export/s10u3_stage
+
+
+Creating a Build Identifier
+---------------------------
+
+When the copy-over of the build stage is complete, the build ID file must be
+created.  Determine how you want to identify the build when installed onto a
+system.  The information is part of the /etc/release file that gets generated
+and installed.  
+
+Create the bld_id file by placing the build ID string into the following
+location:
+
+        # echo <build ID> > <staging area>/pkgpool/SUNWsolnm/bld_id
+
+Examples of a build ID are:
+
+s10x_u3wos_test
+s10u3_bugID_412343
+s10s_u3wos_06test
+
+CDKIT BuildImage Command Usage
+------------------------------
+
+The cdkit routine that performs the image build is called "BuildImage".  The
+arguments for cdkit BuildImage are as follows.  Please note that you cannot
+specify a single image.  All three (solaris_1, solaris_2, solaris_3,
+solaris_4, solaris_5  and langcd) are built. 
+
+# ./cdkit BuildImage [-d <drive>] [-t [netinstall | cdimage]] <staging area> \
+  <product area>
+
+        -d <drive>:     Scratch disk to be used for transferring the miniroot
+                        directory.  The format of the name is "c?t?d?" (for
+                        example: c1t1d0). It is only required for building 
+                        the CD images. 
+
+        NOTE: The command will destroy the contents of this disk.  Please
+        make sure it is truly a scratch disk.
+
+        -t [ netinstall | cdimage ]: cdkit will build both netinstall and
+        cdimage if the option is not specified.  This option lets you
+        select one or the other.
+
+        NOTE: The "-t cdimage" option can only be used if the netinstall area
+        has already been built.
+
+If a build is successful, the netinstall and/or CD images will be created
+under <product area>.  The netinstall directories will be:
+
+	    dvdboot.product
+            solaris_1.product
+            solaris_2.product
+	    solaris_3.product
+	    solaris_4.product
+	    solaris_5.product
+            langcd.product
+        
+The CD ISO/Rock Ridge iso image files will also be in <product area>, and named:
+
+            solaris_1.iso
+            solaris_2.iso
+            solaris_3.iso
+            solaris_4.iso
+            solaris_5.iso
+            langcd.iso
+
+(SPARC only) For the bootable media there is also the following files 
+for those who may need them for debugging.
+
+	    solaris_1.rr
+	    solaris_1.miniroot
+	    solaris_1.s2
+	    solaris_1.s3
+	    solaris_1.s4
+	    solaris_1.s5
+	    solaris_1.s6
+
+All log files will be saved in <product area>/logs. 
+
+
+Replacing An Existing Package
+-----------------------------
+
+To replace an existing package with a different version, simply remove the
+package from <staging area>/pkgpool and replace it with the new one using cpio
+to copy it into place.  Then proceed with cdkit BuildImage as documented
+above.
+
+
+Adding Or Removing Packages
+---------------------------
+
+One common use of cdkit is to test out new packages before they are integrated
+into Solaris.  To add new packages, follow these steps:
+
+1) Copy the packages into the pkgpool area using cpio:
+
+    # find <new package> | cpio -pdmu <staging area>/pkgpool
+
+2) Edit the appropriate package lists in the CDKinfo package, found under
+   <staging area>/pkgpool/CDKinfo/reloc/cdbuild.  Localized packages (where
+   SUNW_PKGLIST is defined) should not be in any lists, as they are
+   automatically included based on the SUNW_PKGLIST dependency.
+
+solaris_1.pkgs	        packages placed on the solaris_1 CD product area
+
+virtual_pkgs.cd2	packages placed on the solaris_2 CD product area
+
+virtual_pkgs.cd3	packages placed on the solaris_3 CD product area
+
+virtual_pkgs.cd4	packages placed on the solaris_4 CD product area
+
+virtual_pkgs.cd5 	packages placed on the solaris_5 CD product area
+
+langcd.pkgs		packages for Language CD, including component
+			directories based on languages (EFIGSS/JKCT)
+
+dvd.miniroot.pkgs	packages containing files required for CD solaris_1
+			miniroot and the DVD miniroot 
+
+cdrom.pkgs		packages contain files for specific top-level CDROM
+			layouts
+
+oem.pkgs		special OEM packages added to CD product areas
+                        (also included in clustertoc)
+
+non_product.pkgs	packages needed for miniroot or creating the product
+                        structure, but not installed as part of the product
+
+
+3) Update both clustertoc files if the package is a non-localized package. If
+   it is localized package, you don't need to modify the clustertoc file.
+   There are also clustertocs for the asian locales.
+
+	# vi <staging area>/pkgpool/CDKsol1/reloc/Solaris_10/Product\
+          /locale/C/.clustertoc.*
+
+        # vi <staging area>/pkgpool/CDKsol1/reloc/Solaris_10/Product\
+		  /locale/ja/.clustertoc.*
+
+        # vi <staging area>/pkgpool/CDKsol1/reloc/Solaris_10/Product\
+		  /locale/ko/.clustertoc.*
+
+	# vi <staging area>/pkgpool/CDKsol1/reloc/Solaris_10/Product\
+		  /locale/zh/.clustertoc.*
+
+The package must be included in all applicable metaclusters.  The
+file does not nest the entries.  If a package is added for SUNWCuser
+and above, then it must be explicitly listed in SUNWCuser, SUNWCprog,
+SUNWCall and SUNWCxall.  SUNWCmreq is a special metacluster containing
+packages required for booting *only*.  Do not add packages to this
+metacluster unless absolutely sure it is needed there.
+
+After changing the clustertoc files, you must modify the pkgmap
+entries for the two files in the CDKsol1.  This is because the pkgadd
+command is now used to apply these files to the product area.  The
+lines to edit under <pkgpool>/CDKsol1/pkgmap are:
+
+
+1 f none Solaris_10/Product/locale/C/.clustertoc.default 0444 root root
+81321 32416 1109963783
+1 f none Solaris_10/Product/locale/C/.clustertoc.dynamic 0444 root root
+94664 65447 1109963786
+1 f none Solaris_10/Product/locale/ja/.clustertoc.default 0444 root root
+81316 32148 1109963784
+1 f none Solaris_10/Product/locale/ja/.clustertoc.dynamic 0444 root root
+94659 65179 1109963787
+1 f none Solaris_10/Product/locale/ko/.clustertoc.default 0444 root root
+81316 32148 1109963784
+1 f none Solaris_10/Product/locale/ko/.clustertoc.dynamic 0444 root root
+94659 65179 1109963787
+1 f none Solaris_10/Product/locale/zh/.clustertoc.default 0444 root root
+81316 32148 1109963784
+1 f none Solaris_10/Product/locale/zh/.clustertoc.dynamic 0444 root root
+94659 65179 1109963787
+
+Replace the 8th and 9th fields with the size and checksum of the modified
+files.  Example:
+
+     # ls -l .clustertoc.*
+     -rw-r--r--   2 root     staff      58670 Nov  8 15:08 .clustertoc.default
+     -rw-r--r--   2 root     staff      74360 Nov  8 15:09 .clustertoc.dynamic
+     # sum .clustertoc.*
+     21674 115 .clustertoc.default
+     43986 146 .clustertoc.dynamic
+
+New pkgmap entries would be:
+
+1 f none Solaris_10/Product/locale/C/.clustertoc.default 0444 root root 58670 21674 1002419747
+1 f none Solaris_10/Product/locale/C/.clustertoc.dynamic 0444 root root 74360 43986 1002419748
+
+
+4) Run cdkit BuildImage using the arguments listed above.
+
+5) (SPARC only)	To make the solaris_1 netinstall image bootable, the 
+   Boot symlink (to slice 1 of the CD) must be replaced with the
+   actual contents of the miniroot that are in slice 1.
+
+     # rm -f <product area>/solaris_1.product/Solaris_10/Tools/Boot
+     # mkdir <product area>/solaris_1.product/Solaris_10/Tools/Boot
+     # cd <product area>/dvdboot.product 
+     # find . | cpio -pdum ../solaris_1.product/Solaris_10/Tools/Boot
+
+To remove a package, delete it from <staging area>/pkgpool, and follow the
+above steps 2-5.  The package will be removed from the lists in which it
+currently exists.
+
+Patching Packages for Update Releases
+-------------------------------------
+
+Follow the steps below to apply new patches to an update image.
+For Solaris update releases, the staging area will have a patch subdirectory
+containing the patches that will be applied to the packages in the pkgpool
+area during the build. This process, also referred to as "freshbitting", uses a
+tool called "pkgpatch". The patches are categorized into lists inside the
+internal CDKpinfo package.  To apply new patches to the image, you must
+add your patches to the appropriate lists. The cdkit BuildImage command
+will pick them up automatically.
+
+1) Copy the patches into the pkgpool area using cpio:
+
+    # find <new patches> | cpio -pdmu <staging area>/pkgpool
+
+2) Edit the appropriate patch lists in the CDKpinfo package, found under
+   <staging area>/pkgpool/CDKpinfo/reloc/cdbuild.  
+
+pkgpatch.override.list: standard patches
+pointpatch.override.list: feature point patches that are later merged
+specialpatch.list:      Update-only patches for scripts, etc. (applied last)
+non.pkgpatch.list:      SolStart patches
+miniroot.patches:       miniroot patches
+
+Then run the cdkit BuildImage command as documented above.
+
+Making a Combined Image
+-----------------------
+After all the netinstall images are built, they can be combined using the
+add_to_install_server command.  This command is located within the
+solaris_2, solaris_3, solaris_4, solaris_5 and langcd product areas.  
+You can combine just the solaris_1, solaris_2, solaris_3, 
+solaris_4 and solaris_5 product 
+areas for just English. Add the langcd for multilingual. 
+
+       # cd <product area>/solaris_2.product/Solaris_10/Tools 
+       # ./add_to_install_server <product area>/solaris_1.product
+
+       # cd <product area>/solaris_3.product/Solaris_10/Tools
+       # ./add_to_install_server <product area>/solaris_1.product
+      
+       # cd <product area>/solaris_4.product/Solaris_10/Tools
+       # ./add_to_install_server <product area>/solaris_1.product
+
+       # cd <product area>/solaris_5.product/Solaris_10/Tools
+       # ./add_to_install_server <product area>/solaris_1.product
+
+       # cd <product area>/langcd.product/Tools 
+       # ./add_to_install_server <product area>/solaris_1.product
+
+Optionally, rename the solaris_1.product area to combined.product to
+denote the change of content. 
+
+
+References and Aliases
+----------------------
+
+CD0 SDK: http://installzone.sfbay.sun.com/projects/webstartos/
+Solaris packaging: //pkgteam.eng
+Patch info: http://installzone.sfbay/tsk/patching/patch.html
+clustertoc manpage
+
+aliases:
+
+cdkit-notify@sun.com: notification of new cdkit versions (replies disabled)
+cdkit-users@sun.com: cdkit users discussion forum
+    archived at http://spgweb.sfbay/SPE/SRE/Tools/cdkit/hypermail/

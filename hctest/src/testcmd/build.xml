@@ -1,0 +1,308 @@
+<!--
+ $Id: build.xml 10858 2007-05-19 03:03:41Z bberndt $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for honeycomb.
+ --> 
+<project name="testcmd" default="testcmd" basedir=".">
+
+  <!-- allow users to override properties without editing this file
+       and without having to type -Dinstalldir=$HOME/opt/hc everytime -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <property name="debug" value="on"/>
+  <property name="deprecation" value="on"/>
+  <property name="optimize" value="off"/>
+
+  <!-- target specific -->
+  <property name="target.javabin" value="/usr/lib/java/bin/java"/>
+  <property name="target.classprefix" value="com.sun.honeycomb.testcmd"/>
+
+  <property name="hc.dist" value="../../../dist"/>
+  <property name="hc.client" value="${hc.dist}/lib/honeycomb-xmlclient.jar"/>
+  <property name="hc.jar" value="${hc.dist}/lib/honeycomb.jar"/>
+  <property name="jug.jar" value="${hc.dist}/lib/jug.jar"/>
+
+  <property name="test.dist" value="../../dist"/>
+  <property name="honeycomb-test.jar" value="${test.dist}/honeycomb-test.jar"/>
+
+  
+  <!-- override in ${user.home}/.ant.properties or specify on cmdline as
+       -Dstyledir=layout to specify which directory to run checkstyle/pmd in.
+       default is to run in all java source directories. -->
+  <property name="styledir" value=""/>
+
+  <target name="prepare">
+    <tstamp/>
+    <mkdir dir="${test.dist}"/>
+  </target>
+
+  <!-- TESTCMD -->
+  <property name="testcmd" value="${test.dist}/testcmd"/>
+  <property name="testcmd.lib" value="${testcmd}/lib"/>
+  <property name="testcmd.libpl" value="${testcmd.lib}/pl"/>
+  <property name="testcmd.libplxml" value="${testcmd.libpl}/XML"/>
+  <property name="testcmd.bin" value="${testcmd}/bin"/>
+  <property name="testcmd.etc" value="${testcmd}/etc"/>
+  <property name="testcmd.jarfile" value="${testcmd.lib}/testcmd.jar"/>
+
+  <target name="prepare.testcmd" depends="prepare">
+    <mkdir dir="${testcmd}"/>
+    <mkdir dir="${testcmd.lib}"/>
+    <mkdir dir="${testcmd.libpl}"/>
+    <mkdir dir="${testcmd.libplxml}"/>
+    <mkdir dir="${testcmd.bin}"/>
+  </target>
+
+  <target name="hc.jars">
+    <ant dir="../../../" target="all-jars" inheritAll="false"/> 
+  </target>
+
+  <target name="hc.test">
+    <ant dir="../../../" target="test.jar" inheritAll="false"/> 
+  </target>
+
+  <target name="testcmd" depends="prepare.testcmd,hc.jars,hc.test">
+
+    <!-- other jars needed for testcmd to be used standalone -->
+    <copy todir="${testcmd.lib}" file="${honeycomb-test.jar}"/>
+    <copy todir="${testcmd.lib}" file="${hc.client}"/>
+    <copy todir="${testcmd.lib}" file="${hc.jar}"/>
+    <copy todir="${testcmd.lib}" file="${jug.jar}"/>
+    <copy todir="${testcmd.libplxml}" file="${basedir}/lib/XML/Simple.pm"/>
+    <exec executable="cp" >
+      <arg file="${basedir}/lib/qadb.pm" />
+      <arg path="${testcmd.libpl}"/>
+    </exec>
+    
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/path.csh" />
+      <arg path="${testcmd.lib}"/>
+    </exec>
+    <!-- copy scripts to dist/testcmd/bin (use cp to keep permissions) -->
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/StoreRetrieve" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/FillData" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/CheckData" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/FillAndCheck" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridB1" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridB1m1" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridB1p1" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridB2" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridB2m1" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridB2p1" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridM1" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridM1m1" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridM1p1" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridS1" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridS2" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridS2m1" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridS2p1" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridS3" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridS3m1" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridS3p1" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridS4" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridS4m1" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/GridS4p1" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/DumpMetadata" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/Cedars" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/Cedars2" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/Corrupt" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/BulkStore" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/failure.cluster.reboot.no-load" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/reboot.sh" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/rebootMasterLoop.sh" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/rebootAlternating.sh" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/sendException.sh" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/alternatingExceptions.sh" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/path.csh" />
+      <arg path="${testcmd.lib}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/Launch3hrGrid" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/LaunchRebootLoadForever" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/CedarsForever" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/CedarsForever2" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/LaunchCedarsForever" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/LaunchCedarsForever2" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/LaunchOvernight" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/LaunchOvernight2" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/AnalyzeFillCheck" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/AnalyzeCedars" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/AnalyzeCedars2" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/AnalyzeLog" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+    <exec executable="cp" >
+      <arg file="${basedir}/scripts/qa" />
+      <arg path="${testcmd.bin}"/>
+    </exec>
+
+  </target>
+
+</project>

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="delete">
+	<info>
+		<author>
+			<name>Rodney Gomes</name>
+			<email>rodney.gomes@sun.com</email>
+		</author>
+		<description>Honeycomb delete test.</description>
+	</info>
+
+	<local>
+		<createstorage id="INPUT" path="${dtf.xml.path}/input" />
+		<createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+		
+		<loadproperties uri="storage://INPUT/hc.properties" />
+		<!-- default values incase you want to run this test on its own
+		     instead of within the perf tessuite -->
+		<property name="runid" value="${dtf.timestamp}"/>
+        <metadata id="MDEMPTY"/>
+	</local>
+    
+    <!-- Lock as many components as necessary by the test. -->
+    <for property="client" range="1..${hc.perf.clients}">
+        <local>
+            <lockcomponent id="CLIENT${client}">
+                <attrib name="hc.client.type" value="${hc.client.type}"/>
+            </lockcomponent>
+        </local>
+    </for>
+
+	<!-- select oids from perf.db where we've already had stores -->
+	<query type="${hc.test.db.type}" 
+	       event="hc.object"
+	       uri="storage://OUTPUT/${hc.test.db.file}" 
+	       cursor="object">
+		<where>
+            <and>
+                <neq op1="deleted"     op2="true" nullable="true"/>
+                <eq  op1="file.length" op2="${hc.filesize}"/>
+                <eq  op1="storewithmd" op2="${hc.storewithmd}"/>
+            </and>
+		</where>
+	</query>
+	
+    <if>
+        <eq op1="${hc.storewithmd}" op2="true"/>
+        <then>
+            <local>
+                <property name="delete.md.type" value="md"/>
+            </local>
+        </then>
+        <else>
+            <local>
+                <property name="delete.md.type" value="data"/>
+            </local>
+        </else>
+    </if> 
+
+    <local>
+        <echo>
+        Delete ${delete.md.type} ${hc.filesize} byte(s) objects 
+        to ${hc.cluster.datavip}:${hc.cluster.dataport} 
+        using ${hc.perf.clients} client(s) and ${hc.perf.threads} thread(s)
+        for ${hc.perf.duration}</echo>
+    </local>
+   
+	<record type="txt"
+            event="hc.delete"
+			uri="storage://OUTPUT/delete_${delete.md.type}_perf_${hc.filesize}.txt">
+    	<record type="${hc.test.db.type}"
+                event="hc.object"
+    			uri="storage://OUTPUT/${hc.test.db.file}">
+            <attribute name="runid" value="${runid}"/>
+            <try>
+              	<parallelloop property="client" range="1..${hc.perf.clients}">
+            	    <component id="CLIENT${client}">
+                        <attribute name="client" value="CLIENT${client}"/>
+                        <loop range="1..${hc.perf.threads}"
+                              property="thread"
+                              type="parallel"> 
+                    		<loop range="${hc.perf.duration}" 
+                                  property="iteration"
+                                  type="timer">
+    					       <fetchresult cursor="object"/>
+                               <attribute name="size" value="${hc.filesize}"/>
+        					   <delete datavip="${hc.cluster.datavip}"
+        							   port="${hc.cluster.dataport}" 
+        							   oid="${object.oid}"
+                                       node="${hc.loadgaming.node}"
+                					   continueOnFailure="${hc.continueonfailure}"/>
+                            </loop>
+                        </loop>
+					</component>
+            	</parallelloop>
+                <catch exception="${dtf.NoMoreResultsException}">
+            		<local>
+            			<echo>
+            				All done deleting, no more data to delete.
+            			</echo>
+            		</local>
+            	</catch>
+            </try>
+    	</record>
+    </record>
+    <local>
+         <echo>
+         Runid: ${runid}</echo>
+    </local>
+</script>

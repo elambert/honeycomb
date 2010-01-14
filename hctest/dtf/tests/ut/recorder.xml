@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="recorder">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF recorder unit test.</description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+      
+        <loadproperties uri="storage://INPUT/ut.properties"/>
+        
+		<lockcomponent id="DTFA1">
+			<attrib name="type" value="dtfa"/>
+		</lockcomponent>
+        
+        <echo>Recorder Unit Tests</echo>
+    </local>
+
+	<local>
+		<echo>DB inserts with funky character for field names.</echo>	
+	</local> 
+	<record type="database" 
+	        uri="storage://OUTPUT/test.db"
+	        append="false">
+        <for property="index" range="[1..10]">
+            <event name="dtf.echo">
+            	<attribute name="testing_with_funky" value=""/>
+            </event>
+        </for>
+    </record>
+    
+    <local>
+        <echo>TXT Recorder Unit Tests</echo>
+    </local>
+       
+    <record type="txt" uri="storage://OUTPUT/recorder.txt">
+        <for property="index" range="[1..10]">
+            <event name="dtf.echo"/>
+        </for>
+    </record>
+    
+    <record type="txt" uri="storage://OUTPUT/recorder2.txt">
+        <for property="index" range="[1..10]">
+            <event name="dtf.echo.outter"/>
+        </for>
+        <record type="txt" uri="storage://OUTPUT/recorder3.txt">
+            <for property="index" range="[1..10]">
+                <event name="dtf.echo.inner"/>
+            </for>
+        </record>
+    </record>
+    
+    <local>
+        <echo>Database Recorder Unit Tests</echo>
+    </local>
+   
+    <local>
+        <echo>Generating data...</echo>
+        <property name="external_prop" value="2"/>
+    </local> 
+    <record type="database" 
+            uri="storage://OUTPUT/recorder.db" 
+            append="false">
+        <parallelloop property="thread" range="[1..5]">
+            <for property="index" range="[1..50]">
+                <event name="dtf.echo">
+                    <attribute name="prop1" value="${thread}${index}" index="true" type="int"/>
+                    <attribute name="prop2" value="${external_prop}"/>
+                </event>
+            </for>
+        </parallelloop>
+    </record>
+    
+    <local> 
+        <property name="external_prop" value="4"/>
+    </local>
+    <record type="database" 
+            uri="storage://OUTPUT/recorder.db"
+            append="true">
+        <parallelloop property="index" range="[1..15]">
+            <event name="dtf.echo">
+                <attribute name="prop1" value="${index}" index="true"/>
+                <attribute name="prop3" value="${external_prop}"/>
+            </event>
+        </parallelloop>
+    </record>
+    
+    <query type="database" 
+           event="dtf.echo" 
+           uri="storage://OUTPUT/recorder.db" 
+           cursor="element">
+        <select>
+            <field name="prop1" type="int"/>
+            <field name="prop3"/>
+            <field name="prop2"/>
+        </select>
+        <where>
+            <lt op1="prop1" op2="5"/>
+        </where>
+    </query>
+    
+    <local>
+        <echo>Object Recorder Unit Tests</echo>
+    </local>
+    
+    <record type="object" uri="property://object1">
+        <event name="dtf.echo">
+            <attribute name="property1" value="1"/>
+        </event>
+    </record>
+    
+    <!-- Remote events recorded by local recorder --> 
+    <record type="database" uri="storage://OUTPUT/recorder2.db" append="false">
+        <for property="prop" range="[1..100]">
+        	<component id="DTFA1">
+            	<event name="dtfa1.remote_event">
+            		<attribute name="dummy" value="${dtf.node.name}"/>
+            	</event>
+            </component>
+        </for>
+    </record>
+
+    <query type="database" 
+           event="dtfa1.remote_event" 
+           uri="storage://OUTPUT/recorder2.db" 
+           cursor="remote_event_property">
+        <select>
+            <field name="dummy" type="int"/>
+        </select>
+    </query>
+    
+    <try>
+        <sequence>
+        	<!-- up to 99 because when you do the query the property already
+        	     contains the first result of the query. -->
+		    <for property="n" range="[1..99]">
+		        <nextresult cursor="remote_event_property"/>
+		    </for> 
+        </sequence>
+        <catch exception="${dtf.NoMoreResultsException}">
+            <sequence>
+                <local>
+                	<fail message="This should never be seen."/>
+                </local>
+            </sequence>
+        </catch>
+    </try> 
+    
+    <local>
+        <echo> Previous echo started at: ${object1.start} </echo>
+        <echo> Previous echo ended at: ${object1.stop} </echo>
+        <echo> Previous event had property1 set to: ${object1.property1} </echo>
+    </local>
+    
+</script>

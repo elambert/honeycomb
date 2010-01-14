@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="parallelloop">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF parallelloop unit test.</description>
+    </info>
+       
+    <parallelloop property="j" range="[1..6]">
+	    <parallelloop property="k" range="[1..6]">
+	        <local>
+	            <echo>Creating property property.${j}.${k}</echo>
+	            <property name="property.${j}.${k}" value="${j}-${k}"/>
+	        </local>
+        </parallelloop>
+    </parallelloop>
+    
+</script>

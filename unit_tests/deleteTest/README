@@ -1,0 +1,164 @@
+
+$Id: README 10887 2007-05-21 22:58:01Z mgoff $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+
+Using the OA unit test framework
+--------------------------------
+
+This unit test framework is known as the "delete unit test framework"
+because it began as a way to test Honeycomb delete functionality. This
+is now a misnomer because unit tests cover store, add, delete, backup
+(coming soon), compliance (coming soon), fault injection tests, etc.
+
+To compile OA unit tests:
+
+$ cd unit_tests/delete
+$ ant
+
+To run OA unit tests:
+
+$ cd build/unit_tests/delete/dist
+$ ./runAll.sh
+
+Another way is to run compilation as part of unit tests "make" target,
+but it will compile other UT as well, so it may take longer:
+
+$ cd build
+$ make unit_tests
+
+All unit tests live in unit_tests/delete/scenarii directory.
+To run a specific OA unit test:
+
+$ cd build/unit_tests/delete/dist
+$ ./run.sh scenarii/<test_name>
+
+The test will log to stdout, and also to a saved log file here:
+  build/unit_tests/delete/dist/logs/scenario.txt
+
+The Honeycomb server log will also be saved in the logs dir:
+  build/unit_tests/delete/dist/logs/deleteFmk.log
+
+When you execute all OA unit tests, some will fail and be flagged in
+the output as "known failure". Don't worry about those. If you see a
+"NEW FAILURE" that will be a regression, something you broke. You may
+also see a "NEW PASS" if you fixed a test listed in "known failures".
+
+
+Unused unit tests
+-----------------
+
+The unit_tests/deleteTest/unused_scenarii directory has been created
+to store tests in the source tree which should not be run individually
+nor by runAll.sh. It has initially been populated with
+compliance.java, which will be restored when compliance is finished up
+in the 1.2 release.
+
+
+Writing a new testcase
+----------------------
+
+$ vi unit_tests/deleteTest/scenarii/newTest.txt
+
+The extension of the testcase file can be .txt or .java or whatever
+you want. In reality it's compiled as java code. You can use
+primitives from BshOpCode, which look like macros, and also normal
+java code (includes and all). UT primitives are documented here:
+  unit_tests/deleteTest/operations.txt
+
+Any scenario that doesn't throw an exception counts as a PASS. If the
+test throws an exception, that's a FAIL, and the testcase will not run
+any further. You do not need to exit(1) or print any particular
+message on failure. 
+
+If you are writing a test that cannot yet pass, add its name to the
+list of known failures, so it doesn't get flagged as a regression:
+  unit_tests/deleteTest/scenarii/KNOWN_FAILURES
+
+You can choose to create a separate scenario file for each testcase,
+or group multiple testcases into a single scenario. If you group them,
+be sure to use ECHO() liberally, so different test steps are easily
+distinguishable in the log when the test runs. If you are looping over
+a set of values (for example executing the same test on different file
+sizes, or all fragment numbers), be sure to log loop iterations:
+  ECHO("Test iteration " + i + " frag number " + j);
+
+If your new testcase needs a new UT primitive, you'll need to
+implement it. Code walkthrough section below explains how to add one.
+
+
+Code walkthrough
+----------------
+
+Top level: BshOpCode.java
+
+Specify your operation here. This will become the primitive called
+from unit tests, for example STORE(oid). The body of the method will
+call either a FragAction method, or an OpCode method. 
+
+The distinction is made by the level on which operation is
+performed. If it's an object-level primitive (like STORE, RETRIEVE,
+ADDHOLD) then you implement it as an OpCode method. If it's a
+fragment-level primitive (like FRAGREMOVE, FRAGRESTORE) then you
+implement it as a FragAction method.
+
+Most primitives have a void return type because they don't need to return
+anything. If your method needs to return something, be sure to pass
+the return value through all 3 levels of indirection. See GETRETENTION
+primitive for an example. This level is a good place to cast the
+return type.
+
+Second level: OpCode.java or FragAction.java
+
+The OpCode createXYZ methods convert the call arguments into the
+args[] array which can be passed to the Factory
+allocateOpCode(XYZ_code) method. The allocate() returns an OpCode
+object. The caller (BshOpCode level) is then supposed to call the
+execute() method on the OpCode object.
+
+The execute() is a big switch statement on the OpCode type. For each
+type, we call the matching executeXYZ() method in the same OpCode
+class (it's a pretty big class). The return type of execute() itself
+is an Object (for void executeXYZ() methods, the execute() returns
+null). If your method needs to return something, call 
+  return executeXYZ();  
+otherwise call
+  executeXYZ();
+  break;
+
+You need to define an abstract executeXYZ() method for your primitive
+in OpCode class. It will be implemented in DeleteFmkFactory class.
+
+Third level: DeleteFmkFactory.java
+
+This class, finally, contains the real implementation meat of your
+unit test primitive! Define the executeXYZ() method here and make it
+do the work, which will probably involve calling LayoutClient or
+Coordinator or some other methods from real OA classes.
+
+Fault injection class:
+
+Fault injection primitives are special, they are not BshOpCode
+methods. The implementation extends the OA FragmentFile class into an
+ErrorInjectingFragmentFile. You can request a FaultPoint on a given
+fragment/chunk number of an OID while doing a read/write/commit etc.,
+or you can interrupt threads working on the FragmentFileSet. The
+interruption is implemented through reflection, see ReflectedAccessor
+class. This code is located here:
+  unit_tests/deleteTest/src/java/com/sun/honeycomb/oa
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+

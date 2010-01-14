@@ -1,0 +1,27 @@
+{
+    IBClasses = (
+        {
+            ACTIONS = {changeDrawer = id; preferencesUpdated = id; updatePreferences = id; }; 
+            CLASS = Controller; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {
+                clusterTF = id; 
+                dropMusicView = id; 
+                dropPanel = id; 
+                logDrawer = id; 
+                logOutput = id; 
+                preferencesWindow = id; 
+                storeProgress = id; 
+            }; 
+            SUPERCLASS = NSObject; 
+        }, 
+        {
+            CLASS = DropBox; 
+            LANGUAGE = ObjC; 
+            OUTLETS = {controller = id; label = id; }; 
+            SUPERCLASS = NSBox; 
+        }, 
+        {CLASS = FirstResponder; LANGUAGE = ObjC; SUPERCLASS = NSObject; }
+    ); 
+    IBVersion = 1; 
+}

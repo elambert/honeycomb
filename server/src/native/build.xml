@@ -1,0 +1,282 @@
+<!--
+ $Id: build.xml 11395 2007-08-23 00:13:27Z ks202890 $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+ 
+ ant buildfile for honeycomb server native code sub-component.
+--> 
+<project name="server_native" default="default" basedir=".">
+  <description>
+    This build file is used to build honeycomb server component native code
+  </description>
+
+  <property name="server.native.syslogdir"
+    value="${server.build.native}/syslog"/>
+  <property name="server.native.mboxdir"
+    value="${server.build.native}/mbox"/>
+  <property name="server.native.oadir"
+    value="${server.build.native}/oa"/>
+  <property name="server.native.posixdir"
+    value="${server.build.native}/posix"/>
+  <property name="server.native.solarisdir"
+    value="${server.build.native}/solaris"/>
+  <property name="server.native.kstatdir"
+    value="${server.build.native}/kstat"/>
+  <property name="server.native.contractdir"
+    value="${server.build.native}/contract"/>
+  <property name="server.native.setuiddir"
+    value="${server.build.native}/setuid"/>
+  <property name="server.native.sendarpdir"
+    value="${server.build.native}/sendarp"/>
+
+  <target name="compile_native">
+    <mkdir dir="${server.build.native}"/>
+    <mkdir dir="${server.native.incdir}"/>
+    <mkdir dir="${server.native.switchdir}"/>
+    <mkdir dir="${server.native.admindir}"/>
+    <mkdir dir="${server.native.powerdir}"/>
+    <mkdir dir="${server.native.syslogdir}"/>
+    <mkdir dir="${server.native.mboxdir}"/>
+    <mkdir dir="${server.native.oadir}"/>
+    <mkdir dir="${server.native.posixdir}"/>
+    <mkdir dir="${server.native.solarisdir}"/>
+    <mkdir dir="${server.native.kstatdir}"/>
+    <mkdir dir="${server.native.contractdir}"/>
+    <mkdir dir="${server.native.setuiddir}"/>
+    <mkdir dir="${server.native.sendarpdir}"/>
+    <mkdir dir="${sucker.build}"/>
+
+    <exec dir="syslog" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="DIST=${server.dist.basedir}"/>
+      <arg value="BUILDDIR=${server.native.syslogdir}"/>
+      <arg value="LIBDIR=${server.dist.libdir}"/>
+      <arg value="INCDIR=${server.native.incdir}"/>
+      <arg value="INSTALLDIR=${server.dist.libdir}"/>
+      <arg value="SERVERJAR=${jarname.server}"/>
+    </exec>
+
+    <exec dir="mbox" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="DIST=${server.dist.basedir}"/>
+      <arg value="BUILDDIR=${server.native.mboxdir}"/>
+      <arg value="LIBDIR=${server.dist.libdir}"/>
+      <arg value="INCDIR=${server.native.incdir}"/>
+      <arg value="INSTALLDIR=${server.dist.libdir}"/>
+      <arg value="SERVERJAR=${jarname.server}"/>
+    </exec>
+
+    <exec dir="oa" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="BUILDDIR=${server.native.oadir}"/>
+      <arg value="DIST=${server.dist.basedir}"/>
+      <arg value="LIBDIR=${server.dist.libdir}"/>
+      <arg value="INCDIR=${server.native.incdir}"/>
+      <arg value="INSTALLDIR=${server.dist.libdir}"/>
+      <arg value="SERVERJAR=${jarname.server}"/>
+    </exec>
+	
+    <exec dir="oa/checksum" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="BUILDDIR=${server.native.oadir}"/>
+      <arg value="DIST=${server.dist.basedir}"/>
+      <arg value="LIBDIR=${server.dist.libdir}"/>
+      <arg value="INCDIR=${server.native.incdir}"/>
+      <arg value="INSTALLDIR=${server.dist.libdir}"/>
+      <arg value="SERVERJAR=${jarname.server}"/>
+    </exec>
+
+    <exec dir="oa/hash" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="BUILDDIR=${server.native.oadir}"/>
+      <arg value="DIST=${server.dist.basedir}"/>
+      <arg value="LIBDIR=${server.dist.libdir}"/>
+      <arg value="INCDIR=${server.native.incdir}"/>
+      <arg value="INSTALLDIR=${server.dist.libdir}"/>
+      <arg value="SERVERJAR=${jarname.server}"/>
+    </exec>
+
+    <exec dir="oa/hcnfs" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="BUILDDIR=${server.native.oadir}"/>
+      <arg value="DIST=${server.dist.basedir}"/>
+      <arg value="LIBDIR=${server.dist.libdir}"/>
+      <arg value="INCDIR=${server.native.incdir}"/>
+      <arg value="INSTALLDIR=${server.dist.libdir}"/>
+      <arg value="BDBPATH=${external.dist.basedir}"/>
+      <arg value="SERVERJAR=${jarname.server}"/>
+    </exec>
+
+    <exec dir="posix" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="BUILDDIR=${server.native.posixdir}"/>
+      <arg value="DIST=${server.dist.basedir}"/>
+      <arg value="LIBDIR=${server.dist.libdir}"/>
+      <arg value="INCDIR=${server.native.incdir}"/>
+      <arg value="INSTALLDIR=${server.dist.libdir}"/>
+      <arg value="SERVERJAR=${jarname.server}"/>
+    </exec>
+
+    <exec dir="solaris" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="BUILDDIR=${server.native.solarisdir}"/>
+      <arg value="DIST=${server.dist.basedir}"/>
+      <arg value="LIBDIR=${server.dist.libdir}"/>
+      <arg value="INCDIR=${server.native.incdir}"/>
+      <arg value="INSTALLDIR=${server.dist.libdir}"/>
+      <arg value="SERVERJAR=${jarname.server}"/>
+    </exec>
+
+    <exec dir="solaris/util" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="BUILDDIR=${server.native.solarisdir}"/>
+      <arg value="DIST=${server.dist.basedir}"/>
+      <arg value="LIBDIR=${server.dist.libdir}"/>
+      <arg value="INCDIR=${server.native.incdir}"/>
+      <arg value="INSTALLDIR=${server.dist.libdir}"/>
+      <arg value="SERVERJAR=${jarname.server}"/>
+      <arg value="install"/>
+    </exec>
+
+    <exec dir="kstat" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="BUILDDIR=${server.native.kstatdir}"/>
+      <arg value="DIST=${server.dist.basedir}"/>
+      <arg value="LIBDIR=${server.dist.libdir}"/>
+      <arg value="INCDIR=${server.native.incdir}"/>
+      <arg value="INSTALLDIR=${server.dist.libdir}"/>
+      <arg value="SERVERJAR=${jarname.server}"/>
+    </exec>
+
+
+    <exec dir="zrule2" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="DIST=${server.dist.basedir}"/>
+      <arg value="BUILDDIR=${server.native.switchdir}"/>
+      <arg value="BINDIR=${server.dist.bindir}"/>
+      <arg value="LIBDIR=${server.dist.libdir}"/>
+      <arg value="INCDIR=${server.native.incdir}"/>
+      <arg value="INSTALLDIR=${server.dist.libdir}"/>
+      <arg value="SERVERJAR=${jarname.server}"/>
+      <arg value="install"/>
+    </exec>
+
+    <exec dir="sendarp" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="DIST=${server.dist.basedir}"/>
+      <arg value="BUILDDIR=${server.native.sendarpdir}"/>
+      <arg value="BINDIR=${server.dist.bindir}"/>
+      <arg value="LIBDIR=${server.dist.libdir}"/>
+      <arg value="INCDIR=${server.native.incdir}"/>
+      <arg value="INSTALLDIR=${server.dist.libdir}"/>
+      <arg value="SERVERJAR=${jarname.server}"/>
+      <arg value="install"/>
+    </exec>
+
+    <exec dir="power-control" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="DIST=${server.dist.basedir}"/>
+      <arg value="BUILDDIR=${server.native.powerdir}"/>
+      <arg value="BINDIR=${server.dist.bindir}"/>
+      <arg value="LIBDIR=${server.dist.libdir}"/>
+      <arg value="INCDIR=${server.native.incdir}"/>
+      <arg value="INSTALLDIR=${server.dist.libdir}"/>
+      <arg value="SERVERJAR=${jarname.server}"/>
+      <arg value="install"/>
+    </exec>
+
+    <exec dir="contract" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="DIST=${server.dist.basedir}"/>
+      <arg value="BUILDDIR=${server.native.contractdir}"/>
+      <arg value="LIBDIR=${server.dist.libdir}"/>
+      <arg value="INCDIR=${server.native.incdir}"/>
+      <arg value="INSTALLDIR=${server.dist.libdir}"/>
+      <arg value="SERVERJAR=${jarname.server}"/>
+    </exec>
+     
+    <exec dir="setuid" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="DIST=${server.dist.basedir}"/>
+      <arg value="BUILDDIR=${server.native.setuiddir}"/>
+      <arg value="BINDIR=${server.dist.bindir}"/>
+      <arg value="LIBDIR=${server.dist.libdir}"/>
+      <arg value="INCDIR=${server.native.incdir}"/>
+      <arg value="INSTALLDIR=${server.dist.libdir}"/>
+      <arg value="SERVERJAR=${jarname.server}"/>
+      <arg value="install"/>
+    </exec>
+
+    <exec dir="${sucker.src}" executable="${make.bin}" failonerror="true">
+      <arg value="SRC_DIR=${sucker.src}"/>
+      <arg value="BUILD_DIR=${sucker.build}"/>
+      <arg value="DIST_DIR=${server.dist.basedir}"/>
+    </exec>    
+
+  </target>
+
+
+
+  <target name="native_clean">
+
+    <exec dir="zrule2" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="DIST=${server.dist.basedir}"/>
+      <arg value="BUILDDIR=${server.native.switchdir}"/>
+      <arg value="BINDIR=${server.dist.bindir}"/>
+      <arg value="LIBDIR=${server.dist.libdir}"/>
+      <arg value="INCDIR=${server.native.incdir}"/>
+      <arg value="INSTALLDIR=${server.dist.libdir}"/>
+      <arg value="SERVERJAR=${jarname.server}"/>
+      <arg value="clean"/>
+    </exec>
+
+    <exec dir="sendarp" executable="${make.bin}" failonerror="true">
+      <arg value="HONEYCOMBDIR=${basedir}"/>
+      <arg value="DIST=${server.dist.basedir}"/>
+      <arg value="BUILDDIR=${server.native.sendarpdir}"/>
+      <arg value="BINDIR=${server.dist.bindir}"/>
+      <arg value="LIBDIR=${server.dist.libdir}"/>
+      <arg value="INCDIR=${server.native.incdir}"/>
+      <arg value="INSTALLDIR=${server.dist.libdir}"/>
+      <arg value="SERVERJAR=${jarname.server}"/>
+      <arg value="clean"/>
+    </exec>
+
+  </target>
+
+  <target name="default">
+    <echo>You cannot run this build.xml directly. It is called from 
+above, just like Jean d'Arc and other crazy people that 
+hear voices</echo>
+  </target>
+</project>

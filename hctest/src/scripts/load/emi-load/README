@@ -1,0 +1,200 @@
+#
+# $Id: README 11258 2007-07-21 01:47:02Z sarahg $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+Background
+----------
+
+This set of scripts launches the emi stress test on a node so
+they store, retrieve, query forever over different file sizes
+(small, medium, large, xlarge).  The emi stress test tool
+is a set of scripts that does not depend on our test libraries
+or a specific schema.  See also
+
+https://hc-twiki.sfbay.sun.com/twiki/bin/view/Main/EmiStressTest
+
+This README assumes the scripts live under /opt/test/bin/load/emi-load/ ,
+which is the default client install path, but you can move them 
+anywhere and adjust the paths as needed below.  Each of these commands
+is launched from the client.
+
+The main script in this directory, start-master-stress.sh, launches
+4 processes of store (over the file size groups of small, medium,
+large, xlarge), as well as 4 processes of retrieve, and 4 processes of
+query.  The retrieve and query processes loop through all the oids
+stored and attempt to retrieve and query on them.  When the test
+retrieve and query tests hit the end of the oids stored, it repeats 
+from the beginning.
+
+The default configuration of the test is to launch stores, retrieves
+and queries.  Optionally, you can launch deletes.  Deletes do not 
+affect files stored by other threads, but rather the test does a new store
+and delete within the DeleterStress thread.  The variable STARTDELETES, 
+which defaults to 0, can be changed to 1 to launch deletes as well.
+You can control the frequency of deletes via SECONDS_BETWEEN_DELETES.
+
+You can disable content verification by setting
+CONTENT_VERIFICATION=0.  It defaults to 1.
+
+You can enable enhanced metadata usage by setting
+EXTENDED_METADATA=1.  This requires the performance
+schema (or its superset, the QA schema) be installed on the system.
+
+The RUNONCETESTS variable in the ENV file enables launching of 4
+additional processes of query and retrieve that block waiting on the oids
+stored by the store process and immediately retrieve/query them.  
+This test is off by default to not overburden the clients.
+
+There are "quick launch" java wrappers in the directory above
+this directory in the tree  (emi_store.sh, emi_retrieve.sh,
+emi_query.sh) if you just want to launch a single process and
+not do the larger load test. There is also a distribute_emi.sh wrapper
+that starts simple tests (store, retrieve or query, but not combined)
+from multiple clients.
+
+
+How to Launch the Test
+----------------------
+
+0.  Install the scripts on the client.  They are part of the standard
+client hctest software so they should just be there on an up-to-date
+client.
+
+
+1.  Customize the ENV file in the emi-load directory for cluster, 
+log location, etc.   The default install location on the clients
+is assumed below.  You must set the DATAVIP property.  The others
+have reasonable defaults.
+
+  vi /opt/test/bin/load/emi-load/ENV
+
+
+2.  How to launch the test on a single client or multiple clients at once.
+
+NOTE:  If you re-use the LOGDIR between runs without deleting its contents,
+it is assumed that you are targeting the same cluster and that a wipe hasn't 
+occurred.  The test will start its retrieves/queries with the old oids from 
+the previous runs and store new data in parallel.  Eventually, the 
+retrieves/queries will get to the new oids stored and start using those and
+loop through both old and new repeatedly.  You can use a different LOGDIR
+or remove the logfiles in the LOGDIR to avoid this behavior.
+
+2a) Launch the test on a single client.  
+
+Make sure the directory you redirect output to exists.  The main script 
+exits quickly, but it launches a bunch of processes before exiting.  
+
+
+ mkdir -p /mnt/test/emi-stresslogs/
+ nohup /opt/test/bin/load/emi-load/start-master-stress.sh >> /mnt/test/emi-stresslogs/master.out 2>>/mnt/test/emi-stresslogs/master.err &
+
+or
+
+2b) Launch the test on a bunch of clients at once
+
+One way to launch the test from a bunch of clients at once is to do so
+from the service node.  To do this, use the standard utils directory
+and customize the utils/ENV 
+file on the service node to list your clients.  Validate the client setup 
+with ./do-clients.sh hostname
+
+  SP honeycomb-sp ~ $ cd utils/
+  SP honeycomb-sp utils $ vi ENV
+
+from each client.
+
+
+ ./do-clients.sh mkdir -p /mnt/test/emi-stresslogs/
+ ./do-clients-parallel.sh "nohup /opt/test/bin/load/emi-load/start-master-stress.sh >> /mnt/test/emi-stresslogs/master.out 2>>/mnt/test/emi-stresslogs/master.err"
+
+
+3.  Monitor test by looking at the .out and .err files in the configured
+log directory.  There are tools for looking for errors and perf.  Again,
+the "do-clients" scripts can run these against multiple clients in serial
+if that is desired.
+
+  /opt/test/bin/load/emi-load/list-all-logs.sh
+  /opt/test/bin/load/emi-load/list-error-logs-with-errors.sh
+  /opt/test/bin/load/emi-load/list-error-logs.sh
+  /opt/test/bin/load/emi-load/list-info-logs.sh
+
+  /opt/test/bin/load/emi-load/analyze-perf.sh
+
+
+
+4.   Kill test (careful, as this might kill non-stres test related other things, too):
+
+ /opt/test/bin/load/emi-load/kill-stress-test.sh
+
+
+If you'd rather just kill one piece of the test, do this:
+
+ pkill -f store.sh
+ pkill -f StoreStress
+
+ pkill -f retrieve-each-repeat.sh
+ pkill -f RetrieveStress
+
+ pkill -f query-each-repeat.sh
+ pkill -f QueryStress
+
+ pkill -f delete.sh
+ pkill -f DeleterStress
+
+5.  Clean up old logs:
+
+ /opt/test/bin/load/emi-load/clean-stress-logs.sh
+
+
+
+Misc Notes
+----------
+
+- If solaris clients are used, date +%s does not work, and it will print %s.
+
+- It may appear that the tests are hanging, but often the performance is
+  just slow.  It can take awhile for the first xlarge store to happen,
+  which means the query and retrieves for xlarge files will be blocked.
+
+- I noticed one instance where the outputed log got a bit jumbled on one
+  line.  I haven't seen that again, but it is something to look out for.
+  Quick glance suggests the threading is okay, but perhaps further analysis
+  is required.  If it continues to happen, we can investigate further.
+
+- An RFE would be to aggregate the perf stats across clients.  Currently,
+  these focus only on the local client.  Similarly, dumping of logs
+  is on a single client.  For that, you could leverage the "do-clients.sh"
+  utility on the service node to iterate through all clients to run the
+  script.

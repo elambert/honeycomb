@@ -1,0 +1,308 @@
+
+<!--
+ $Id: build.xml 10846 2007-05-19 02:34:13Z bberndt $
+ 
+ Copyright © 2008, Sun Microsystems, Inc.
+
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+
+    * Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+
+    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+--> 
+
+<project name="mgmt" default="pkg">
+  
+  <description>
+    Honeycomb mgmt component. Building this module results in a
+    SUNWhcmgmt package.
+  </description>
+
+  <!-- first, local, user specified .ant.properties files take precedence -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <!-- second, use the build.properties for this package -->
+  <property file="build.properties"/>
+
+  <!-- lastly, use the top-level builds properties file -->
+  <property file="${basedir}/../build/build.properties"/>
+
+  <property name="javacc.jar" value="${server.libdir}/javacc.jar"/>
+
+  <target name="prepare">
+    <tstamp/>
+    <mkdir dir="${mgmt.build.basedir}"/>
+    <mkdir dir="${mgmt.build.mofCompiler}"/>
+    <mkdir dir="${mgmt.build.mofCompiler.src}"/>
+    <mkdir dir="${mgmt.build.mofCompiler.src}"/>
+    <mkdir dir="${mgmt.build.mofCompiler.classes}"/>
+    <mkdir dir="${mgmt.build.anttasks}"/>
+    <mkdir dir="${mgmt.dist.basedir}"/>
+    <mkdir dir="${mgmt.dist.libdir}"/>
+    <mkdir dir="${mgmt.dist.bin}"/>
+    <mkdir dir="${mgmt.build.src}"/>
+    <mkdir dir="${mgmt.build.xsd}"/>
+    <mkdir dir="${mgmt.build.classes}"/>
+    <mkdir dir="${mgmt.jaxb.build}"/>
+    <mkdir dir="${mgmt.jaxb.classes}"/>
+  </target>
+
+  <target name="jaxbPlugins" depends="prepare">
+    <javac classpath="${mgmt.lib}/jaxb-api.jar:${mgmt.lib}/jaxb-xjc.jar"
+      srcdir="${mgmt.jaxb.src}"
+      destdir="${mgmt.jaxb.classes}"
+      debug="${javac.debug}"
+      deprecation="${javac.deprecation}"
+      optimize="${javac.optimize}"/>
+    <jar jarFile="${mgmt.jaxb.jar}">
+      <fileset dir="${mgmt.jaxb.classes}"/>
+      <fileset dir="${mgmt.jaxb.src}/jar"/>
+    </jar>
+  </target>
+
+  <target name="buildAntTasks" depends="prepare, jaxbPlugins">
+    <javac classpath="${ant.home}/lib/ant.jar"
+      srcdir="${mgmt.anttasks}"
+      destdir="${mgmt.build.anttasks}"
+      debug="${javac.debug}"
+      deprecation="${javac.deprecation}"
+      source="${javac.source}"
+
+      optimize="${javac.optimize}"/>
+    <taskdef name="javacc" classname="JavaCC" classpath="${mgmt.build.anttasks}"/>
+    <taskdef name="compileMof" classname="MOFCompiler" classpath="${mgmt.build.anttasks}"/>
+    <taskdef name="xjc" classname="com.sun.tools.xjc.XJCTask" classpath="${mgmt.xjc.jar}:${mgmt.jaxb.jar}"/>
+  </target>
+
+  <target name="compiler.create" depends="prepare, buildAntTasks">
+    <javacc javaCC="${javacc.jar}"
+      srcDir="${mgmt.mofCompiler}"
+      outputDir="${mgmt.build.mofCompiler.src}"
+      pkgName="com.sun.honeycomb.mof"
+      className="CIMCompiler"/>
+  </target>
+  
+  <target name="compiler.compile" depends="prepare, compiler.create">
+    <javac classpath="${mgmt.lib}/jaxb-api.jar"
+      srcdir="${mgmt.build.mofCompiler.src}:${mgmt.mofCompiler}"
+      destdir="${mgmt.build.mofCompiler.classes}"
+      debug="${javac.debug}"
+      deprecation="${javac.deprecation}"
+      source="${javac.source}"
+      optimize="${javac.optimize}"/>
+    <copy toDir="${mgmt.build.mofCompiler.classes}/com/sun/honeycomb/mof">
+      <fileset dir="${mgmt.mofCompiler}/com/sun/honeycomb/mof"
+        includes="Compiler.properties"/>
+    </copy>
+  </target>
+
+  <target name="compiler.jar" depends="prepare, compiler.compile">
+    <jar jarfile="${mgmt.compiler.jar}"
+      manifest="${mgmt.mofCompiler}/MANIFEST.MF">
+      <fileset dir="${mgmt.build.mofCompiler.classes}"/>
+    </jar>
+  </target>
+
+  <target name="compileAdmMof" depends="prepare, compiler.jar">
+    <compileMof mofCompilerJar="${mgmt.compiler.jar}"
+      moffile="${mgmt.admMofFile}"
+      outputDir="${mgmt.build.src}"
+      clientXsdFile="${mgmt.client.admXsdFile}"
+      serverXsdFile="${mgmt.server.admXsdFile}"
+      rootPackage="com.sun.honeycomb.admin.mgmt"/>
+    <xjc schema="${mgmt.client.admXsdFile}"
+      destdir="${mgmt.build.src}"
+      package="com.sun.honeycomb.admin.mgmt.client"
+      extension="true">
+      <arg value="-Xhc"/>
+    </xjc>
+    <xjc schema="${mgmt.server.admXsdFile}"
+      destdir="${mgmt.build.src}"
+      package="com.sun.honeycomb.admin.mgmt.server"
+      extension="true"/>
+  </target>
+
+  <target name="compileMCMof" depends="prepare, compiler.jar">
+    <compileMof mofCompilerJar="${mgmt.compiler.jar}"
+      moffile="${mgmt.mcMofFile}"
+      outputDir="${mgmt.build.src}"
+      clientXsdFile="${mgmt.client.mcXsdFile}"
+      serverXsdFile="${mgmt.server.mcXsdFile}"
+      rootPackage="com.sun.honeycomb.multicell.mgmt"/>
+    <xjc schema="${mgmt.client.mcXsdFile}"
+      destdir="${mgmt.build.src}"
+      package="com.sun.honeycomb.multicell.mgmt.client"
+      extension="true">
+      <arg value="-Xhc"/>
+    </xjc>
+    <xjc schema="${mgmt.server.mcXsdFile}"
+      destdir="${mgmt.build.src}"
+      package="com.sun.honeycomb.multicell.mgmt.server"
+      extension="true"/>
+  </target>
+
+
+  <target name="compilePrivMof" depends="prepare, compiler.jar">
+    <compileMof mofCompilerJar="${mgmt.compiler.jar}"
+      moffile="${mgmt.privMofFile}"
+      outputDir="${mgmt.build.src}"
+      clientXsdFile="${mgmt.client.privXsdFile}"
+      serverXsdFile="${mgmt.server.privXsdFile}"
+      rootPackage="com.sun.honeycomb.priv.mgmt"/>
+    <xjc schema="${mgmt.client.privXsdFile}"
+      destdir="${mgmt.build.src}"
+      package="com.sun.honeycomb.priv.mgmt.client"
+      extension="true">
+      <arg value="-Xhc"/>
+    </xjc>
+    <xjc schema="${mgmt.server.privXsdFile}"
+      destdir="${mgmt.build.src}"
+      package="com.sun.honeycomb.priv.mgmt.server"
+      extension="true"/>
+  </target>
+
+  <!--target name="jaxb_postprocessing" depends="compilePrivmof, compileAdmMof">
+    <exec executable="/usr/bin/perl">
+      <arg line="${mgmt.bin}/patch_jaxb.pl ${mgmt.build.src}/com/sun/honeycomb/multicell/mgmt/client ${mgmt.build.src}/com/sun/honeycomb/admin/mgmt/client"/>
+    </exec>
+  </target-->
+
+  <target name="compileEvXsd" depends="prepare, compiler.jar">
+    <xjc schema="${mgmt.basedir}/xsd/evClient.xsd"
+      destdir="${mgmt.build.src}"
+      package="com.sun.honeycomb.mgmt.client"
+      extension="true">
+      <arg value="-Xhc"/>
+    </xjc>
+    <xjc schema="${mgmt.basedir}/xsd/evServer.xsd"
+      destdir="${mgmt.build.src}"
+      package="com.sun.honeycomb.mgmt.server"
+      extension="true"/>
+  </target>
+
+  <target name="compile" depends="prepare, compiler.jar, compileAdmMof, compileMCMof, compilePrivMof, compileEvXsd">
+    <javac classpath="${mgmt.lib}/jaxb-api.jar:${mgmt.lib}/jaxb-ri.jar:${mgmt.lib}/saaj-api.jar:${mgmt.lib}/wiseman-client.jar:${mgmt.lib}/wiseman.jar:${mgmt.lib}/jsr173_api.jar:${external.dist.libdir}/jetty-4.2.20.jar"
+      srcdir="${mgmt.build.src}:${mgmt.src.basedir}"
+      destdir="${mgmt.build.classes}"
+      debug="${javac.debug}"
+      deprecation="${javac.deprecation}"
+      optimize="${javac.optimize}"/>
+  </target>
+
+  <target name="jar" depends="prepare, compile">
+    <jar jarfile="${mgmt.jar}">
+      <fileset dir="${mgmt.build.classes}"/>
+      <zipfileset src="${mgmt.lib}/jaxb-api.jar"/>
+      <zipfileset src="${mgmt.lib}/jaxb-impl.jar"/>
+      <zipfileset src="${mgmt.lib}/saaj-api.jar"/>
+      <zipfileset src="${mgmt.lib}/saaj-impl.jar"/>
+      <zipfileset src="${mgmt.lib}/wiseman.jar"/>
+      <zipfileset src="${mgmt.lib}/wiseman-client.jar"/>
+      <zipfileset src="${mgmt.lib}/jsr173_api.jar"/>
+    </jar>
+  </target>
+
+  <target name="copyLibs" depends="prepare">
+    <copy toDir="${mgmt.dist.libdir}">
+      <fileset dir="${mgmt.lib}"
+        includes="*jar"/>
+    </copy>
+  </target>
+
+  <target name="copyBins" depends="prepare">
+    <copy toDir="${mgmt.dist.bin}">
+      <fileset dir="${mgmt.bin}"
+        includes="*.sh"/>
+    </copy>
+    <chmod perm="755">
+      <fileset dir="${mgmt.dist.bin}"
+        includes="*sh"/>
+    </chmod>
+  </target>
+
+  <target name="examples" depends="jar, exampleCli, exampleSvcJar"/>
+
+  <target name="exampleCli" depends="prepare"
+    description="Builds the examples">
+    <mkdir dir="${mgmt.examples.cli.classes}"/>
+    <javac classpath="${mgmt.jar}:${mgmt.lib}/saaj-api.jar:${mgmt.lib}/jaxb-api.jar:${mgmt.lib}/wiseman-client.jar"
+      srcdir="${mgmt.examples.cli.src}"
+      destdir="${mgmt.examples.cli.classes}"
+      debug="${javac.debug}"
+      deprecation="${javac.deprecation}"
+      optimize="${javac.optimize}"/>
+    <copy toDir="${mgmt.examples.cli.classes}"
+      file="${mgmt.examples.cli.src}/run_example.sh"/>
+    <chmod perm="755"
+      file="${mgmt.examples.cli.classes}/run_example.sh"/>
+    <copy toDir="${mgmt.examples.cli.classes}"
+      file="${mgmt.examples.cli.src}/load_test.sh"/>
+    <chmod perm="755"
+      file="${mgmt.examples.cli.classes}/load_test.sh"/>
+  </target>
+
+  <target name="exampleSvc" depends="prepare"
+    description="Builds the example for the adaptors">
+    <mkdir dir ="${mgmt.examples.svc.classes}"/>
+    <javac classpath="${mgmt.jar}:${external.dist.libdir}/jetty-4.2.20.jar"
+      srcdir="${mgmt.examples.svc.src}"
+      destdir="${mgmt.examples.svc.classes}"
+      debug="${javac.debug}"
+      deprecation="${javac.deprecation}"
+      optimize="${javac.optimize}"/>
+  </target>
+
+  <target name="exampleSvcJar" depends="prepare, exampleSvc">
+    <jar jarfile="${mgmt.examples.svc.jar}">
+      <fileset dir="${mgmt.examples.svc.classes}"/>
+    </jar>
+  </target>
+
+
+  <target name="pkg"
+    depends="prepare, jar, copyLibs, copyBins"
+    description="Builds the SUNWhcmgmt package (main target)">
+
+    <mkdir dir="${mgmt.pkgdir}"/>
+
+	<exec executable="${pkgmk.bin}" failonerror="yes">
+	  <arg line="-o -d ${mgmt.pkgdir} -f ${mgmt.pkg.srcdir}/prototype -r ${mgmt.dist.basedir}"/>
+	</exec>
+	
+	<exec executable="${pkgtrans.bin}" failonerror="yes">
+	  <arg line="-s ${mgmt.pkgdir} SUNWhcmgmt.pkg SUNWhcmgmt"/>
+	</exec>
+  </target>
+
+  <target name="build_pkg" depends="pkg"
+    description="compile sources and create the solaris package" />
+
+  <!-- CLEAN ************************************************************** -->
+  <target name="clean" description="cleans workspace of all generated files">
+    <delete dir="${mgmt.build.basedir}"/>
+  </target>
+  
+</project>

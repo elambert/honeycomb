@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 
+
+  $Id:$
+
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+
+Use /opt/honeycomb/bin/metadata_merge_config.sh to add this config to
+the existing one -->
+
+<!-- This file contains the performance schema, used to pass the performance and
+blockstore suite tests. Merge accordingly before running those ! -->
+
+<metadataConfig>
+  <schema>
+
+    <namespace name="advquery_onetable_noidx" writable="true" extensible="true">
+            
+      <field name="test_start_timestamp" type="long" />
+      <field name="test_id" type="string" length="64" />
+      <field name="iteration" type="long" />
+      <field name="insert_timestamp" type="long" />
+      <field name="client" type="string" length="64" />
+      
+      <field name="one" type="string" length="64" />
+      <field name="two" type="string" length="64" />
+      <field name="three" type="string" length="64" />
+      <field name="four" type="string" length="64" />
+      <field name="five" type="string" length="64" />
+      <field name="six" type="string" length="64" />
+      <field name="seven" type="string" length="64" />
+      <field name="eight" type="string" length="64" />
+      <field name="nine" type="string" length="64" />
+      <field name="ten" type="string" length="64" />
+      <field name="eleven" type="string" length="64" />
+      <field name="twelve" type="string" length="64" />
+      <field name="thirteen" type="string" length="64" />
+      <field name="fourteen" type="string" length="64" />
+      <field name="fifteen" type="string" length="64" />
+      <field name="sixteen" type="string" length="64" />
+      <field name="seventeen" type="string" length="64" />
+      <field name="eighteen" type="string" length="64" />
+      <field name="nineteen" type="string" length="64" />
+      <field name="twenty" type="string" length="64" />
+      <field name="twenty_one" type="string" length="64" />
+      <field name="twenty_two" type="string" length="64" />
+      <field name="twenty_three" type="string" length="64" />
+      <field name="twenty_four" type="string" length="64" />
+      <field name="twenty_five" type="string" length="64" />
+      
+    </namespace>
+
+  </schema>
+ <fsViews>
+</fsViews>
+
+  <tables>
+    <table name="advquery_onetable_noidx">
+      <column name="advquery_onetable_noidx.test_start_timestamp"/>
+      <column name="advquery_onetable_noidx.test_id"/>
+      <column name="advquery_onetable_noidx.iteration"/>
+      <column name="advquery_onetable_noidx.insert_timestamp"/>
+      <column name="advquery_onetable_noidx.client"/>
+      
+      <column name="advquery_onetable_noidx.one"/>
+      <column name="advquery_onetable_noidx.two"/>
+      <column name="advquery_onetable_noidx.three"/>
+      <column name="advquery_onetable_noidx.four"/>
+      <column name="advquery_onetable_noidx.five"/>
+      <column name="advquery_onetable_noidx.six"/>
+      <column name="advquery_onetable_noidx.seven"/>
+      <column name="advquery_onetable_noidx.eight"/>
+      <column name="advquery_onetable_noidx.nine"/>
+      <column name="advquery_onetable_noidx.ten"/>
+      <column name="advquery_onetable_noidx.eleven"/>
+      <column name="advquery_onetable_noidx.twelve"/>
+      <column name="advquery_onetable_noidx.thirteen"/>
+      <column name="advquery_onetable_noidx.fourteen"/>
+      <column name="advquery_onetable_noidx.fifteen"/>
+      <column name="advquery_onetable_noidx.sixteen"/>
+      <column name="advquery_onetable_noidx.seventeen"/>
+      <column name="advquery_onetable_noidx.eighteen"/>
+      <column name="advquery_onetable_noidx.nineteen"/>
+      <column name="advquery_onetable_noidx.twenty"/>
+      <column name="advquery_onetable_noidx.twenty_one"/>
+      <column name="advquery_onetable_noidx.twenty_two"/>
+      <column name="advquery_onetable_noidx.twenty_three"/>
+      <column name="advquery_onetable_noidx.twenty_four"/>
+      <column name="advquery_onetable_noidx.twenty_five"/>
+  </table>
+
+  </tables>
+
+</metadataConfig>

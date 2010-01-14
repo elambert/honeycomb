@@ -1,0 +1,66 @@
+#
+# $Id: prototype 10857 2007-05-19 03:01:32Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# This required package information file contains a list of package contents.
+# The 'pkgmk' command uses this file to identify the contents of a package
+# and their location on the development machine when building the package.
+# Can be created via a text editor or through use of the 'pkgproto' command.
+ 
+#!search <pathname pathname ...>        # where to find pkg objects
+#!include <filename>                    # include another 'prototype' file
+#!default <mode> <owner> <group>        # default used if not specified on entry
+#!<param>=<value>                       # puts parameter in pkg environment
+
+i pkginfo
+i depend
+i postinstall
+i preremove
+
+d none /opt 0755 bin bin
+d none /opt/honeycomb 755 bin bin
+f none /opt/honeycomb/lib/honeycomb-wbcluster.jar=lib/honeycomb-wbcluster.jar 0655 bin bin
+f none /opt/honeycomb/sbin/start_cmm_only=bin/start_cmm_only 0555 bin bin 
+f none /opt/honeycomb/sbin/check_hold_cache.sh=bin/check_hold_cache.sh 0555 bin bin 
+f none /opt/honeycomb/sbin/check_sys_cache.sh=bin/check_sys_cache.sh 0555 bin bin 
+f none /opt/honeycomb/sbin/start_sniffer=bin/start_sniffer 0555 bin bin 
+f none /opt/honeycomb/sbin/stop_sniffer=bin/stop_sniffer 0555 bin bin 
+f none /opt/honeycomb/sbin/update_sniffer=bin/update_sniffer 0555 bin bin 
+f none /opt/honeycomb/sbin/print_layout.sh=bin/print_layout.sh 0555 bin bin 
+f none /opt/honeycomb/sbin/backup.sh=bin/backup.sh 0555 bin bin
+f none /opt/honeycomb/sbin/objcount.sh=bin/objcount.sh 0555 bin bin 
+f none /opt/honeycomb/config/sniffer_behaviour.conf=cfg/sniffer_behaviour.conf 0555 bin bin
+f none /root/.ssh/id_dsa=etc/ssh/id_dsa 0600 root root
+f none /root/.ssh/id_dsa.pub=etc/ssh/id_dsa.pub 0644 root root
+f none /root/.ssh/authorized_keys=etc/ssh/authorized_keys 0644 root root

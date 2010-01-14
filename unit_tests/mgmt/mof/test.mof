@@ -1,0 +1,23 @@
+//
+// $Id: test.mof 10854 2007-05-19 02:52:12Z bberndt $
+//
+// Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+// Use is subject to license terms.
+//
+
+[Description ("TestClass")]
+class HC_TestClass {
+
+    [Key, Read, Description ("The id field")]
+    sint32 id;
+
+    [Description ("Simple method")]
+    sint32 testSimpleMethod();
+
+    [Interactive, Description ("Sample method")]
+    sint32 testMethod(string msg);
+
+    [Description ("Sample xml method")]
+    sint32 testXMLMethod(xml msg);
+
+};

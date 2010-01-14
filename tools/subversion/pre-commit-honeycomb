@@ -1,0 +1,175 @@
+#!/usr/bin/perl -w
+#
+# $Id: pre-commit-honeycomb 10853 2007-05-19 02:50:20Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+#
+# XXX Don't edit this directly on hc-subversion!
+# Edit this in your copy of the repository
+# in honeycomb/tools/subversion and then scp 
+# it over to hc-subversion after commiting the change.
+#
+# Note that the target file name must omit the repository name:
+#
+# scp pre-commit-honeycomb root@subversion:/usr/local/svnrepos/honeycomb/hooks/pre-commit
+#
+# To test this script, you can change the DEBUG line and copy it to
+# the practic repository:
+#
+# scp pre-commit-honeycomb root@subversion:/usr/local/svnrepos/practice/hooks/pre-commit
+
+# XXX if bugster is down, just let it go and exit 0
+#exit 0;
+
+# To enable debugging change the value of DEBUG to something other than
+# "false"
+#my $DEBUG = "true";
+my $DEBUG = "false";
+
+# if 1, skip bugster interaction
+# if 0, then do bugster interaction
+my $no_bugster = 0;
+#my $no_bugster = 1;
+
+my $BTHOME = "/usr/local/bt-client";
+my $USERTOEMAIL = "$BTHOME/map_btuser_to_email.pl";
+my $HOOKSDIR="/usr/local/svnrepos/honeycomb/hooks";
+
+# Check if we are in debug mode and make some changes if we are
+if ($DEBUG ne "false") {
+    $HOOKSDIR = "/usr/local/svnrepos/practice/hooks";
+}
+
+# open commit log file
+my $PRECOMMITLOGFILE="$HOOKSDIR/pre-commit-log.txt";
+open PRECOMMITLOG, ">>$PRECOMMITLOGFILE" or
+    die "Can't open logfile $PRECOMMITLOGFILE";
+
+
+my $repo = $ARGV[0];
+my $txn = $ARGV[1];
+my $date = `date`;
+print PRECOMMITLOG "------------------------------------------------\n";
+print PRECOMMITLOG "Processing new commit repo(${repo}) txn(${txn}) (DEBUG flag is $DEBUG) at $date\n";
+my $transop = "--transaction $txn";
+#my $transop = ""; # use this instead of above for testing
+my $log = `/usr/local/bin/svnlook info $repo $transop`;
+chomp $log;
+my @loglines = split(/\n/, $log);
+if(scalar(@loglines) < 4) {
+    print STDERR "Please include change request number(s).\n";
+    exit 1;
+}
+
+my $user = $loglines[0];
+my $timestamp = $loglines[1];
+my $logcharlen = $loglines[2];
+my $crline = $loglines[3];
+
+print PRECOMMITLOG "crline: ${crline}\n";
+
+if(!ValidChangeRequestList($crline)) {
+    exit 1;
+}
+
+# Verify that we know about this user in our user -> email map
+if(!ValidUser($user)) {
+    exit 1;
+}
+
+print PRECOMMITLOG "all checks passed\n";
+exit 0;
+
+#print STDERR $log;
+#exit 1;
+
+# Returns 1 if valid, else returns 0
+sub ValidChangeRequestList {
+    my $list = shift;
+    my $num_errors = 0;
+    if ($list =~ /^\s*[0-9]+(\s+(fixed|integrated))?(,\s*[0-9]+(\s+(fixed|integrated))?)*/) {
+        foreach my $crspec (split(/\s*,\s*/, $list)) {
+            print PRECOMMITLOG "crspec: ${crspec}\n";
+            my ($bugid, $crstatus) = ($crspec =~ /^([0-9]+)(\s+(fixed|integrated))?$/);
+            # special case this one bugid since Sacha was complaining
+            # the updates took too long and this is used only for the
+            # HC release scripts
+            if ($bugid =~ /6226407/) {
+                $no_bugster = 1;
+            }
+            if (!$no_bugster) {
+                if (!ValidCR($bugid)) {
+                    $num_errors++;
+                    print STDERR "ERROR: invalid bugid, ${bugid}\n";
+                }
+            }
+        }
+    } else {
+        $num_errors++;
+        print STDERR "ERROR: incorrect bugid list, ${list}\n";
+        print STDERR "valid: <bug id#> [fixed|integrated] [, <bugid> [fixed|integrated]]...\n";
+    }
+    return ($num_errors == 0);
+}
+
+sub ValidCR() {
+    my $cr = shift;
+
+    my $output = `/usr/local/bt-client/bt-cli print cr -U honeycomb -pFile /usr/local/bt-client/passwd.txt -id $cr`;
+
+    if(!($output =~ /1 Record\(s\) Returned/)) {
+        print STDERR "Error: Change Request Number $cr is not a valid ID\n";
+        return 0;
+    }
+
+    if (!($output =~ /^Product: honeycomb/m)) {
+        # bug is not a honeycomb bug...we shouldn't process it with our scripts
+        print STDERR "Error: Change Request Number $cr is not a honeycomb product bug ID\n";
+        return 0;
+    }
+
+    return 1;
+}
+
+sub ValidUser {
+    my $user = shift;
+    my $email = `$USERTOEMAIL $user`;
+    if (!defined $email || !($email =~ /sun/)) {
+        print STDERR "Hey $user, you aren't in the map of email to users at $USERTOEMAIL.  Please get yourself added\n";
+        return 0;
+    }
+
+    return 1;
+}

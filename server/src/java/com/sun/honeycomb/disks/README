@@ -1,0 +1,10 @@
+$Id: README 10855 2007-05-19 02:54:08Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+
+This directory contains disk "utility" classes, i.e. things which are
+independent of any Honeycomb internals. No managed services, no
+platform, nothing. It uses util.sysdep to do all system-dependent low
+level stuff like mkfs.

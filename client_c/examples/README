@@ -1,0 +1,6 @@
+$Id: README 10856 2007-05-19 02:58:52Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+This directory contains the source code for the @HoneycombProductName@ C client examples.  A makefile is include which by default will build all the examples.  To build individual examples type "make <example name>".  For example, "make StoreFile" will just build the StoreFile example.  Examples are built in an <OS>/build directory that is created at build time.

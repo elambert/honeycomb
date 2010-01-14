@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="hc_smokeperf">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>Honeycomb smoke performance test.</description>
+    </info>
+
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input" />
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+        <createstorage id="TINPUT" path="${dtf.xml.path}" />
+
+        <loadproperties uri="storage://INPUT/hc.properties" />
+
+        <import uri="storage://TINPUT/perfmonitor_util.xml" />
+
+        <!-- RunID is used by all subtests -->
+        <property name="runid" value="${dtf.timestamp}" />
+        <property name="continueOnFailure" value="true" />
+
+        <property name="hc.perf.stats.filename" 
+                  value="storage://OUTPUT/smokeperf_perf_${runid}.results"/>
+        
+        <property name="client" value="client1"/>
+        <metadata id="MDEMPTY"/>
+    </local>
+   
+    <local>
+        <lockcomponent id="CLUSTER" timeout="${hc.lockcomponent.timeout}">
+            <attrib name="hc.cluster.type" value="${hc.cluster.type}" />
+        </lockcomponent>
+    </local> 
+    
+    <if>
+        <eq op1="${hc.snapshot.enabled}" op2="true"/>
+        <then>
+            <local>
+                <!-- If we're using the snapshotting mechanism then we can't 
+                     keep the results of any objects created in the main 
+                     object.db -->
+                <property name="hc.test.db.file" 
+                          value="smoke_object-${dtf.timestamp}.db"
+                          overwrite="true"/>
+                <echo>Shutting down cluster in devmode</echo> 
+            </local> 
+            <component id="CLUSTER">
+                <setdevmode/>
+                <cli>
+                    <reboot/>
+                </cli>
+            </component>
+        
+            <local>
+                <echo>Saving snapshot [smoke${runid}] of the current data.</echo>
+                <echo>
+                      If the test fails somewhere below and your snapshot has not been
+                      restored, then you can set your cluster into dev mode by 
+                      shutting down the nodes with /config/nohoneycomb and 
+                      /config/noreboot present, then use the following:
+                              
+                      ./ant.sh -f hcrun.xml run_snapshot -Dsnapshot.name=smoke${runid} -Dsnapshot.mode=restore -Dsnapshot.type=move -Dhc.cluster.adminvip=${hc.cluster.adminvip}
+                      
+                      This will restore your previous data and delete any existing data
+                      put in place by this test. At that point all you have to do is 
+                      restart honeycomb and you should back into a happy state, with 
+                      your previous data accessible.
+                </echo>
+            </local> 
+            <component id="CLUSTER">
+                <snapshot name="smoke${runid}" mode="save" type="move"/>
+            </component>
+            
+            <local>
+                <echo>Unsetting devmode and rebooting honeycomb nodes.</echo>
+            </local> 
+            <component id="CLUSTER">
+                <unsetdevmode/>
+                <rebootnode/> 
+            </component>
+        </then>
+        <else>
+            <local>
+                <echo>
+                      Running Smoke performance test against the current data 
+                      on the cluster and not making use of the snapshotting
+                      mechanism</echo>
+            </local>
+        </else>
+    </if>
+
+    <component id="CLUSTER">
+        <waitforhadb/>
+    </component>
+    
+    <component id="CLUSTER">
+        <validateschema schema="${hc.metadata.schema}"/>
+    </component>
+
+    <local>
+        <echo>Running smoke performance test.</echo>
+        <echo>Retrieves will all run against node 2, while all other operations will run against node 1</echo>
+        <property name="hc.loadgaming.node" value="1" overwrite="true"/>
+    </local> 
+    <testsuite name="honeycomb_performance_suite">
+        
+        <call function="startPerfMonitor">
+            <property name="cluster.id" value="CLUSTER"/>
+        </call>
+    
+        <for property="hc.filesize" range="${hc.perf.filesizes}">
+            <local><echo>Store with ${hc.filesize} byte objects.</echo></local>
+            
+            <local>
+                <property name="hc.md.refid" value="MDEMPTY" overwrite="true"/>
+            </local>
+
+            <testscript uri="storage://TINPUT/store.xml" />
+            <call function="collectLogs">
+                <property name="cluster.id" value="CLUSTER"/>
+                <property name="towhere" 
+                          value="storage://OUTPUT/server_store_stats_${hc.filesize}.log" />
+            </call>
+        </for>
+
+        <local>
+            <property name="hc.md.refid" value="MDREF" overwrite="true"/>
+        </local>
+        
+        <for property="hc.filesize" range="${hc.perf.filesizes}">
+            <local><echo>MDStore with ${hc.filesize} byte objects.</echo></local>
+            <testscript uri="storage://TINPUT/store.xml" />
+            <call function="collectLogs">
+                <property name="cluster.id" value="CLUSTER"/>
+                <property name="towhere" 
+                          value="storage://OUTPUT/server_mdstore_stats_${hc.filesize}.log" />
+            </call>
+        </for>
+
+        <for property="hc.filesize" range="${hc.perf.filesizes}">
+            <local>
+                <echo>Retrieve with ${hc.filesize} byte objects.</echo>
+                <property name="hc.loadgaming.node" value="2" overwrite="true"/>
+            </local>
+            
+            <testscript uri="storage://TINPUT/retrieve.xml" />
+            <call function="collectLogs">
+                <property name="cluster.id" value="CLUSTER"/>
+                <property name="towhere" 
+                          value="storage://OUTPUT/server_retrieve_stats_${hc.filesize}.log" />
+            </call>
+        </for>
+
+        <!-- Set the load gaming back to node 1 -->
+        <local>
+            <property name="hc.loadgaming.node" value="1" overwrite="true"/>
+        </local>
+
+        <for property="hc.filesize" range="${hc.perf.filesizes}">
+            <local><echo>Addmd with ${hc.filesize} byte objects.</echo></local>
+            <testscript uri="storage://TINPUT/addmd.xml" />
+            <call function="collectLogs">
+                <property name="cluster.id" value="CLUSTER"/>
+                <property name="towhere" 
+                          value="storage://OUTPUT/server_addmd_stats_${hc.filesize}.log" />
+            </call>
+        </for>
+
+        <for property="md.type" range="${md.results.types},${md.ops.types}">
+            <local><echo>Running ${md.type} queries</echo></local>
+            
+            <testscript uri="storage://TINPUT/hcquery.xml" />
+            <call function="collectLogs">
+                <property name="cluster.id" value="CLUSTER"/>
+                <property name="towhere" 
+                          value="storage://OUTPUT/server_hcquery_${md.type}_stats.log" />
+            </call>
+        </for>
+
+        <for property="hc.filesize" range="${hc.perf.filesizes}">
+            <local>
+                <property name="hc.storewithmd" value="true" overwrite="true"/> 
+            </local>
+            <local><echo>DeleteMD with ${hc.filesize} byte objects.</echo></local>
+            <testscript uri="storage://TINPUT/delete.xml" />
+            <call function="collectLogs">
+                <property name="cluster.id" value="CLUSTER"/>
+                <property name="towhere" 
+                          value="storage://OUTPUT/server_delete_md_stats_${hc.filesize}.log" />
+            </call>
+        </for>
+            
+        <for property="hc.filesize" range="${hc.perf.filesizes}">
+            <local>
+                <property name="hc.storewithmd" value="false" overwrite="true"/> 
+            </local>
+            <local><echo>DeleteData with ${hc.filesize} byte objects.</echo></local>
+            <testscript uri="storage://TINPUT/delete.xml" />
+            <call function="collectLogs">
+                <property name="cluster.id" value="CLUSTER"/>
+                <property name="towhere" 
+                          value="storage://OUTPUT/server_delete_data_stats_${hc.filesize}.log"/>
+            </call>
+        </for>
+        
+    </testsuite>
+
+    <if>
+        <eq op1="${hc.snapshot.enabled}" op2="true"/>
+        <then>
+            <local>
+                <echo>Shutting down cluster in devmode</echo> 
+            </local> 
+            <component id="CLUSTER">
+                <setdevmode/>
+                <cli>
+                    <reboot/>
+                </cli>
+            </component>
+            
+            <local>
+                <echo>Restoring snapshot [smoke${runid}] of the old data.</echo>
+            </local> 
+            <component id="CLUSTER">
+                <snapshot name="smoke${runid}" mode="restore" type="move"/>
+            </component>
+        
+            <local>
+                <echo>Starting honeycomb up, waiting for HADB to be HAFaultTolerant</echo>
+            </local> 
+            <component id="CLUSTER">
+                <unsetdevmode/>
+                <rebootnode/>
+                <waitforhadb/>
+            </component>
+        </then>
+   </if>
+   
+   <testscript uri="storage://TINPUT/hc_perf_stats.xml"/>
+       
+</script>

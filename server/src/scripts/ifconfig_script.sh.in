@@ -1,0 +1,182 @@
+#! /bin/sh
+
+#
+# $Id: ifconfig_script.sh.in 10855 2007-05-19 02:54:08Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+#
+# The script should be invoked such as :
+# ifconfig_script.sh if_name vip subnet gateway (start|stop) [noroute|master|shared]
+#
+
+# Before anything, make sure the PATH is sane
+PATH="/bin:/sbin:/usr/bin:/usr/sbin:/opt/honeycomb/bin"
+export PATH
+
+# Arguments
+
+DEVICE=$1
+IP_ADDR=$2
+NETMASK=$3
+GW=$4
+VLAN=$5
+
+
+# Logical interface 1 is the default; we use logical interface 2 for
+# the admin VIP on the master node and 3 for the data VIP
+LOGICAL=1
+
+NETSTAT=netstat
+IFCONFIG=ifconfig
+TEST=test
+SLEEP=sleep
+ROUTE=route
+
+SETUP_VLAN="yes"
+ROUTE_CONFIG="yes"
+PROMISC="no"
+
+# Remove the interface instance number (device PPA, physical point of
+# attachment) from DEVICE to get the name of the device. The VLAN's
+# PPA is given by:
+#    VLAN logical PPA = 1000 * VID + Device_PPA 
+# See http://docs.sun.com/app/docs/doc/816-1664-10/6m82lv9lt?a=view
+
+DEVNAME=`echo $DEVICE | sed 's/[0-9]$//'`
+DEV_PPA=`echo $DEVICE | sed s/$DEVNAME//`
+VLAN_PPA=`expr 1000 \* $VLAN + $DEV_PPA`
+VDEVICE="$DEVNAME$VLAN_PPA"
+
+usage()
+{
+    echo "Usage : `basename $0` device addr netmask gw [start | stop] [noroute|master|shared]"
+    echo ""
+    exit 1
+}
+
+start()
+{
+    $IFCONFIG $VDEVICE plumb || exit 1
+    if [ "yes" = "$SETUP_VLAN" ]; then
+        $IFCONFIG $VDEVICE:$LOGICAL plumb || exit 1
+        $IFCONFIG $VDEVICE:$LOGICAL $IP_ADDR netmask $NETMASK up || exit 2
+        $SLEEP 2
+    fi
+
+    if [ "yes" = "$ROUTE_CONFIG" ]; then
+        $ROUTE add default $GW || echo "Couldn't add default route" >&2
+    fi
+
+    # Promiscuous?
+#    if [ "yes" = "$PROMISC" ]; then
+#        $IFCONFIG $VDEVICE promisc || exit 4
+#    fi
+
+    # Send a gratuitous arp if we're the master node
+    if ps -ef | grep 'DMASTER-SERVERS' > /dev/null; then
+        /opt/honeycomb/bin/sendarp $VDEVICE $IP_ADDR 
+    fi
+}
+
+stop()
+{
+    # check if gateway exists in the routing table
+    # if yes, then delete
+    $NETSTAT -rn | awk {'print $2'} | grep $GW > /dev/null 2>&1
+    rc=$?
+    if [ "yes" = "$ROUTE_CONFIG" ] && [ $rc -eq 0 ]; then
+        $ROUTE delete default $GW || echo "Couldn't delete default route" >&2
+    fi
+
+    # check if interface exists,
+    # if node reboots then bge1000:3 is not configured with data vip
+    # whereas if working in dev mode i.e. with /config/noreboot and 
+    # /config/nohoneycomb, interface still exits. In this case, unplumb
+    # the interface
+    reset 
+}
+
+reset() {
+    # clean up all the interfaces
+    $IFCONFIG $VDEVICE:$LOGICAL > /dev/null 2>&1
+    if [ $? -eq 0 ]; then
+        $IFCONFIG $VDEVICE:$LOGICAL down >/dev/null || exit 7
+        $IFCONFIG $VDEVICE unplumb >/dev/null || exit 7
+    fi
+}
+
+# Defaults:
+# SETUP_VLAN="yes"
+# ROUTE_CONFIG="yes"
+# PROMISC="no"
+# DEVICE=bond0
+
+if [ "$#" -ge 7 ]; then
+    case "$7" in
+    "noroute")
+        ROUTE_CONFIG="no"
+    ;;
+
+    "master")
+        ROUTE_CONFIG="no"
+        LOGICAL=2
+    ;;
+
+    "shared")
+        LOGICAL=3
+        PROMISC="yes"
+    ;;
+    esac
+fi
+
+case "$6" in
+    "start")
+        stop 
+        start
+        ;;
+
+    "stop")
+        stop
+        ;;
+
+    "reset")
+        reset
+        ;;
+
+    *)
+        usage
+esac
+
+exit 0

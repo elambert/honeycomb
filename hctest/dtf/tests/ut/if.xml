@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="if">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF If unit test.</description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <loadproperties uri="storage://INPUT/ut.properties"/>
+        
+        <property name="test1" value="true"/>
+        <property name="test2" value="true"/>
+    </local>
+
+    <function name="validateTolerance">
+        <param name="op1" type="required" />
+        <param name="op2" type="required" />
+        <param name="tolerance" type="required" />
+        <param name="expected.result" type="required" />
+
+        <if>
+            <within op1="${op1}" op2="${op2}" tolerance="${tolerance}" />
+            <then>
+                <if>
+                    <eq op1="${expected.result}" op2="true" />
+                    <then>
+                        <local>
+                            <echo>${op1} within ${op2} by ${tolerance} as expected.</echo>
+                        </local>
+                    </then>
+                    <else>
+                        <fail message="${op1} not within ${op2} by ${tolerance} not expected." />
+                    </else>
+                </if>
+            </then>
+            <else>
+                <if>
+                    <eq op1="${expected.result}" op2="false"/>
+                    <then>
+                        <local>
+                            <echo>${op1} not within ${op2} by ${tolerance} as expected.</echo>
+                        </local>
+                    </then>
+                    <else>
+                        <fail message="${op1} within ${op2} by ${tolerance} not expected." />
+                    </else>
+                </if>
+            </else>
+        </if>
+    </function>
+
+    <if>
+   		<eq op1="${test1}" op2="${test2}"/>
+   		
+   		<then>
+   			<local>
+   				<echo>${test1} equals ${test2}</echo>
+   			</local>
+   		</then> 
+   		<else>
+   			<local>
+   				<fail message="CRAP!"/>
+   			</local>
+   		</else>
+    </if>
+
+	<if>
+   		<neq op1="${test1}" op2="${test2}"/>
+   		
+   		<then>
+   			<local>
+   				<fail message="CRAP!"/>
+   			</local>
+   		</then> 
+   		<else>
+			<local>
+   				<echo>${test1} equals ${test2}</echo>
+   			</local>
+   		</else>
+    </if>
+
+	<if>
+   		<gt op1="12345z" op2="12345a"/>
+   		
+   		<then>
+   			<local>
+   				<echo>12345z greater than 12345a</echo>
+   			</local>
+   		</then> 
+   		<else>
+   			<local>
+   				<fail message="CRAP!"/>
+   			</local>
+   		</else>
+    </if>
+    
+	<if>
+   		<lt op1="abc12345z" op2="abc12345a"/>
+   		
+   		<then>
+   			<local>
+   				<fail message="CRAP!"/>
+   			</local>
+   		</then> 
+   		<else>
+   			<local>
+   				<echo>abc12345z greater than abc12345a</echo>
+   			</local>
+   		</else>
+    </if>
+    
+	<if>
+   		<lt op1="3.1459" op2="3.1458"/>
+   		
+   		<then>
+   			<local>
+   				<fail message="CRAP!"/>
+   			</local>
+   		</then> 
+   		<else>
+   			<local>
+   				<echo>3.1459 greater than 3.1458</echo>
+   			</local>
+   		</else>
+    </if>
+   
+    <call function="validateTolerance">
+        <property name="op1"                value="95" />
+        <property name="op2"                value="100" />
+        <property name="tolerance"          value="5%" />
+        <property name="expected.result"    value="true" />
+    </call>
+    
+    <call function="validateTolerance">
+        <property name="op1"                value="95" />
+        <property name="op2"                value="100" />
+        <property name="tolerance"          value="[5,1]%" />
+        <property name="expected.result"    value="true" />
+    </call>
+     
+    <call function="validateTolerance">
+        <property name="op1"                value="110" />
+        <property name="op2"                value="100" />
+        <property name="tolerance"          value="[1,10]%" />
+        <property name="expected.result"    value="true" />
+    </call>
+    
+    <call function="validateTolerance">
+        <property name="op1"                value="94" />
+        <property name="op2"                value="100" />
+        <property name="tolerance"          value="5%" />
+        <property name="expected.result"    value="false" />
+    </call>
+    
+</script>

@@ -1,0 +1,3 @@
+[profile]
+merge_dir=%HC_BUILD%/test/src
+tree=%HC_SRC%/test/common

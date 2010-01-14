@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="loadproperties">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF loadproperties unit test.</description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        
+        <loadproperties uri="storage://INPUT/ut.properties"/>
+        <echo>The previous loadproperties should succeed.</echo>
+        <echo>dtf.test.property1 = ${dtf.test.property1}</echo>
+    </local>
+  
+    <try>
+        <sequence>
+            <local>
+                <loadproperties uri="storage://INEXISTENT/ut.properties"/>
+                <echo>*** This line should never be printed ***</echo>
+            </local>
+        </sequence>
+        <catch exception="${dtf.StorageException}">
+            <sequence>
+                <local>
+                    <echo>The previous loadproperties has failed correctly.</echo>
+                </local>
+            </sequence>
+        </catch>
+    </try>
+    
+</script>

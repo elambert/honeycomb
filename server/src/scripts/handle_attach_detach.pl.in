@@ -1,0 +1,499 @@
+#!/usr/bin/perl
+#
+# $Id: handle_attach_detach.pl.in 10855 2007-05-19 02:54:08Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+# XXXXX - TODO. This code is currently unused, but intended to be used in future
+# when disk push pull will work seamlesslesly. This is blocked because
+# of solaris driver issues. When we start using this code we need to
+# modularize the code in handle_online_offline.pl. Many of the fn are common
+# b/w these two files. 
+#
+# handle attach or detach commands from the HC stack
+#
+# arguments: attach/detach <devname> <portnum>
+#
+# There are two possible return values:
+#
+# "ok: <accessptid>"
+# "error: <string describing problem>"
+#
+# The access pt id is returned so it can be used to configured
+# a disk that was pushed.
+#
+
+#
+# Inner workings of confirm_dev_state.
+#
+# parameters:
+#
+#	is_attach
+#		non-zero	this is a suspected attach
+#		0	  	suspected detach
+#
+#	devName			name of the device
+#
+#	portName		name of the port
+#
+# There are 3 possible return values:
+#
+# "ok: <accessptid>"
+# "try_again"
+# "error: <string describing problem>"
+#
+sub confirm_dev_state_meat {
+
+  my ($is_attach, $devName, $port) = @_;
+
+  my $full_devName = "/devices${devName}:$port";	# the full device name as reported by cfgadm
+  my ($ap, $physid, $r_state, $o_state);
+
+  # run the cfgadm command, looking for sata lines
+
+  #
+  # the cfgadm below produces output that looks like this (fields are
+  # seperated by multiple spaces):
+  #
+  # sata0/0::dsk/c1t0d0 /devices/pci@0,0/pci108e,5348@7:0 connected configured
+  #
+
+  my $pid = open(CFGADM,
+	 "cfgadm -s 'cols=ap_id:physid:r_state:o_state,noheadings'|grep sata|")
+    || die "can't run cfgadm command\n";
+
+  while (<CFGADM>) {
+    split;
+    $ap = $_[0];
+    $physid = $_[1];
+    $r_state = $_[2];
+    $o_state = $_[3];
+
+    next unless (/$full_devName/);
+
+    # found it
+
+    if ($is_attach) {
+      if ($o_state == "unconfigured") {
+	return "ok: $ap";
+      } else {
+	return "error: $full_devName should be unconfigured but is $o_state\n";
+      }
+    } else {
+      # detach
+      if ($r_state == "empty") {
+	return "ok: $ap";
+      } else {
+	return "error: $full_devName should be empty but is $o_state\n";
+      }
+    }
+  }
+  
+  # Didn't find it,  This may be a transient problem; advise the caller accordingly.
+
+  return "try_again";
+}
+
+# Tries to confirm that the disk is in the appropriate state.
+# Retries if the disk can't be found, which may be the case, esp.
+# after the disk has been pushed.
+#
+# There are two possible return values:
+#
+# "ok: <accessptid>"
+# "error: <string describing problem>"
+#
+# The access pt id is returned so it can be used to configured
+# a disk that was pushed.
+#
+sub confirm_dev_state {
+  my ($is_attach, $devName, $portName) = @_;
+
+  my $result;
+  my $i;
+
+  while ($i++ < 4) {
+    $result = confirm_dev_state_meat($is_attach, $devName, $portName);
+
+    if ($result ~= /^try_again/) {
+      sleep(10);
+    } else {
+      return $result;
+    }
+  }
+
+  return "error: couldn't find $devName:$portName in cfgadm output\n";
+}
+
+# map device to boot images index.
+%device_to_boot = (
+                   "dsk/c0t0d0" => "0",
+                   "dsk/c0t1d0" => "1",
+                   "dsk/c1t0d0" => "2",
+                   "dsk/c1t1d0" => "3"
+                  );
+
+# map  boot images index to device name.
+%boot_to_device = (
+                   "0" => "c0t0d0",
+                   "1" => "c0t1d0",
+                   "2" => "c1t0d0",
+                   "3" => "c1t1d0"
+                  );
+
+
+#
+# Searches for other valid disks to configure dump.
+#
+# input parameter:
+#    index : Takes the disk index that is getting offlined.
+#
+# There are 2 possible return values:
+#  Any of {0,1,2,3} for valid disks.
+#  -1 for no valid disk found.
+#
+sub get_valid_disk_index {
+   my $curr_index = shift @_;
+   my $expected_state = "configured";
+   my $i = keys(%boot_to_device) - 1;
+   # find one of the other 3 valid disk for dump setup
+   while ($i >= 0 ) {
+       # skip the current disk which is going offline
+       if ($i == $curr_index) {
+          $i--;
+          next;
+       }
+       my $result = &confirm_dev_state_poll($boot_to_device{$i},
+                                            $expected_state, 5);
+
+       if ($result =~ /^ok: /) {
+           &log("$result");
+           return $i;
+       }
+       $i--;
+   }
+   &log("Failed to find any valid disk, No dump device configured\n");
+   return -1;
+}
+
+# If a disk goes offline we need to move the dump device file to
+# next valid disk. If no disk found bail out printing a warning
+# as not having dump setup is not critical for normal operations.
+#
+# input parameter:
+#    device name : Takes the device name of disk going tata-tata!
+#
+# There are no return values, just print a warning as it is not
+# critical to have a dump device configured for normal operations.
+#
+sub handle_crash_dump_configuration {
+   my $dev_name = shift @_;
+   my $open_status = "ok";
+   my $diskIndex = 0;
+   my $dumpFile = "";
+   my $mkfile_status="false";
+   my $dump_config="/config/dumpadm";
+
+   # The idea is to let basedir be either /data/ or /boot/images
+   # but for now it will work only on boot/images.
+   my $basedir="/boot/images";
+
+   &log("$dev_name going offline, checking if dump configured on it");
+   open(DUMPCONF, "+<", $dump_config) or $open_status="failed";
+   if ($open_status =~ "failed") {
+       warn "Failed to open $dump_config using dumpadm";
+       my $x=`/usr/sbin/dumpadm | grep device`;
+       if ($x =~ /.*\/(\d+)\/(.*)\(dedicated\)/) {
+           $diskIndex = $1;
+           $dumpFile = $2;
+       } else {
+           warn "Dump is not configured on $basedir. Configuration Failed";
+           return;
+       }
+   } else {
+       while (<DUMPCONF>) {
+          if ( $_ =~ /DISK_INDEX=(.*)/) {
+              $diskIndex = $1;
+          }
+          if ( $_ =~ /DUMPFILE=(.*)/) {
+              $dumpFile = $1;
+          }
+       }
+   }
+   if ($diskIndex != $device_to_boot{$dev_name}) {
+       &log("$dev_name going offline, dump currently not configured on it");
+       if (!($open_status =~ "failed")) {
+           close DUMPCONF;
+       }
+       return;
+   }
+
+   # Now unmount the existing boot images
+   system("umount -f  $basedir/$diskIndex") == 0 or
+       warn "Failed to unmount $basedir:$diskIndex:$dev_name";
+
+   $diskIndex = get_valid_disk_index($diskIndex);
+
+   if ($diskIndex == -1) {
+       &log("WARNING: No valid disks found to configure dump");
+       if (!($open_status =~ "failed")) {
+           close DUMPCONF;
+       }
+       return;
+   }
+
+   # rewrite the dumpadm with new index.
+   if (!($open_status =~ "failed")) {
+       seek DUMPCONF,0,0;
+       truncate DUMPCONF,0;
+       print DUMPCONF "DISK_INDEX=$diskIndex\n";
+       print DUMPCONF "DUMPFILE=$dumpFile\n";
+       close DUMPCONF;
+   }
+
+   # Now move the dump device file to new diskIndex
+   my $rc=system("mount $basedir/$diskIndex");
+   # If it is already mounted (ret code 32, right shift by 8, ask perldoc)
+   # do not fail.
+   if (($rc !=0) && (($rc>>8) != 32)) {
+       warn "Failed to mount boot for $diskIndex, crash dump will fail";
+       return;
+   }  else {
+       my $fname = "$basedir/$diskIndex/$dumpFile";
+       # Recreate the dumpfile
+       system("mkfile 1g $fname") == 0 or $mkfile_status = "failed";
+       if ($mkfile_status =~ "failed") {
+           warn "Failed to create the dump file on $basedir/$diskIndex";
+           warn "Dump will not work, live with it.";
+           return;
+       } else {
+          &log("Configuring dumpadm on disk $diskIndex");
+          system("/usr/sbin/dumpadm -d $fname") == 0
+             or warn "dumpadm failed on disk:$diskIndex";
+       }
+   }
+}
+
+#
+# Handle a disk pull:
+# * confirm that the disk is pulled
+# 
+# in HC, we would go on to delete the disk object too
+#
+sub handlePull {
+  # print "pull of device $devName port $portName\n";
+
+  my ($devName, $portName) = @_;
+  my $result;
+  my $i;
+
+  # Unconfigure crash dump on this disk and reconfigure on another disk
+  &handle_crash_dump_configuration($devName);
+
+  $result = confirm_dev_state($devName, $portName);
+
+
+  if ($result ~= /^ok: /) {
+    # in a pull, the access pt field in the result doesn't include the
+    # ::dsk/xxx name of the pulled device.  We need to patch it up so it
+    # includes that field
+
+    ($junk, $ap) = split($result);
+    my($device) = $ap_to_device{$ap}
+    $result = "ok: $ap::$device";
+  }
+
+  print $result;
+
+  if (! $result ~= /^ok: /) {
+    exit (1);
+  }
+
+  exit (0);
+}
+
+#
+# Handle a disk push:
+# * confirm that the disk is pushed
+# * config the disk
+#
+# in HC, we would go on to create the disk object too.
+#
+sub handlePush {
+  my ($devName, $portName) = @_;
+  my $result;
+
+  print "push of device $devName port $portName\n";
+
+  $result = confirm_dev_state($devName, $portName);
+
+  if (! $result ~= /^ok: /) {
+    print "error: Can't confirm push of $devName $portName\n";
+    exit (1);
+  }
+
+  # config the disk
+
+  # @result_tokens = split(' ', $result);
+  ($ok_string, $ap_id) = split(' ', $result, 3);
+
+  $cfg_result = `cfgadm -c configure $ap_id`;
+
+  if ($? == 0) {
+    # success
+    print "ok: push of $devName $portName\n";
+    exit (0);
+  }
+
+  # error
+  print "error: Can't cfgadm disk $devName $portName: $cfg_result\n";
+  exit (1);
+}
+
+# map access point to device
+%ap_to_device = (
+		 "sata0/0" => "dsk/c1t0d0",
+		 "sata0/1" => "dsk/c1t1d0",
+		 "sata1/0" => "dsk/c2t0d0",
+		 "sata1/1" => "dsk/c2t1d0"
+		);
+
+#
+# Test code
+#
+# The following is used for testing purposes.
+#
+
+
+# &parseDevName("Sep 11 12:27:58 foonly sata: [ID 801593 kern.warning] WARNING: /pci@0,0/pci108e,5348@8:");
+# &parsePortName("Sep 11 12:27:58 foonly  SATA device detached at port 1");
+
+#########################################################################
+# Log parsing code.  In HC, this is replaced by Java-based code and is
+# used for below for testing.
+#########################################################################
+
+# extract the device name from the appropriate log string
+# and store it in the global $devName
+sub parseDevName {
+  if ($_[0] =~ m#.* WARNING: (/.*):$#) {
+    $devName = $1;
+    return 1;
+  }
+
+  return 0;
+}
+
+# extract the port name from the appropriate log string
+# and store it in the global $portName
+sub parsePortName {
+  if ($_[0] =~ /.* SATA device (attached|detached) at port (.+)$/) {
+    $portName = $2;
+    return 1;
+  }
+
+  return 0;
+}
+
+
+# expects syslog input on stdin
+# detects disk pushes & pulls
+#
+# This is test code.
+sub parseLog {
+  while (<>) {
+
+    if (/sata: \[/ && /kern.warning/) {
+
+      # start of sequence
+      $seq_type = $START_SEQ;
+    
+      if (! &parseDevName($_)) {
+	print "warning: unexpected line after start of seq: $_";
+      
+	$seq_type = $NO_SEQ;
+      }
+
+    } elsif (/SATA device detached/) {
+      if ($seq_type == $START_SEQ) {
+	# second part of pull message
+	$portName = &parsePortName($_);
+
+	if ($portName != "unknown") {
+	  &handlePull();
+	  $seq_type = $NO_SEQ;
+	} else {
+	  # couldn't find port name
+	  print "warning: couldn't find port name in pull message: $_";
+	}
+      } else {
+	print "warning: 2nd part of pull message but seq state is $seq_type: $_";
+      }
+      
+    } elsif (/SATA device attached/) {
+      if ($seq_type == $START_SEQ) {
+	# second part of push message
+	$portName = &parsePortName($_);
+
+	if ($portName != "unknown") {
+	  &handlePush();
+	  $seq_type = $NO_SEQ;
+	} else {
+	  # couldn't find port name
+	  print "warning: couldn't find port name in push message: $_";
+	  $seq_type = $NO_SEQ;
+	}
+      } else {
+	print "warning: 2nd part of push message but seq state is $seq_type: $_";
+      }
+    }
+  }
+}
+
+# &parseLog();
+
+
+###### main #######
+
+$op = $ARGV[1];
+$devName = $ARGV[2];
+$portName = $ARGV[3];
+
+die "illegal operation $op\n" unless (($op eq "push") or ($op eq "pull"));
+
+if ($op eq "push") {
+  &handlePush($op, $devName, $portName)
+} else {
+  &handlePull($op, $devName, $portName)
+}

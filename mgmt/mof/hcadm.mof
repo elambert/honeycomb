@@ -1,0 +1,966 @@
+//
+// $Id: hcadm.mof 11960 2008-04-08 15:03:43Z ktripp $
+//
+// Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+// Use is subject to license terms.
+//
+
+// This file is the Honeycomb MOF file that describe the Honeycomb
+// cell management objects
+
+
+[Description (
+"Cell object contains management information related to the "
+"cell")]
+class HC_Silo {
+
+    [Description ("The cellid on which this CLI is connected to"), Read]
+    sint8 cellId;
+
+    [Description ("The number of cells in the cluster"), Read]
+    sint32 noCells;
+
+    [Description ("The list of adminVIP used to talk to each cell"), Read]
+    string adminVIPs[];
+
+    [Description ("The list of adminVIP used to talk to each cell"), Read]
+    sint8 cellIds[];
+
+    [Descricption ("The action to login")]
+    sint32 login(sint32 sessionId);
+
+    [Description ("The action to logout")]
+    sint32 logout(sint32 sessionId);
+
+    [Description ("checkLoggedIn")]
+    sint32 loggedIn(sint32 sessionId);
+
+    [Description ("The action to set protcol password")]
+    sint32 setProtocolPassword(String realm, String userName, String hash);
+
+};
+
+[Description (
+"Silo_Props object contains management information related to the "
+"silo. "
+"NOTE: If you add or delete values from this objec you must"
+"alter the object count value stored in"
+"HCSetupCellAdapter.SILO_PROPS_LENGTH")]
+class HC_Silo_Props {
+
+    [Description ("The ntp server")]
+    string ntpServer;
+
+    [Description ("The smtp server")]
+    string smtpServer;
+
+    [Description ("The smtp port")]
+    string smtpPort;
+
+    [Description ("The list of authorized clients")]
+    string authorizedClients;
+
+    [Description ("The number of rules per authorized client")]
+    string numAuthRules;
+
+    [Description ("The external logger")]
+    string extLogger;
+
+    [Description ("DNS server")]
+    string dns;
+
+    [Description ("Domain name")]
+    string domainName;
+
+    [Description ("DNS Search")]
+    string dnsSearch;
+
+    [Description ("Primary DNS server")]
+    string primaryDnsServer;
+
+    [Description ("Secondary DNS server")]
+    string secondaryDnsServer;
+};
+
+
+
+[Description (
+"Cell object contains management information related to the "
+"setting of the cell after factrory install")]
+class HC_Setup_Cell: HC_Silo_Props {
+
+    [Description ("The cell id")]
+    String cellId;
+    //
+    // Duplication of the cell props because of the way the CLI works.
+    //
+    [Description ("The admin VIP")]
+    string adminVIP;
+
+    [Description ("The Data VIP")]
+    string dataVIP;
+
+    [Description ("The SP VIP")]
+    string spVIP;
+
+    [Description ("The subnet")]
+    string subnet;
+
+    [Description ("The gateway")]
+    string gateway;
+};
+
+[Description (
+"contains management information related to log levels")]
+class HC_Audit_Logger {
+
+    [Description ("Without a dummy, it doesn't pick up bigInteger"), Read]
+    sint32 dummy;
+
+    [Description ("The action to 'write message to log'")]
+    sint32 log(sint32 dest, String message );
+
+    [Description ("The action to 'write message to external log'")]
+    sint32 logExt( String extLevel, String msgKey, String className, String methodName);
+
+};
+
+
+[Description (
+"contains management information related to log levels")]
+class HC_Loglevels {
+
+    [Description ("log levels"), Read]
+    string logLevels[];
+
+    [Description ("Without a dummy, it doesn't pick up bigInteger"), Read]
+    sint32 dummy;
+
+    [Description ("The action to 'set log level'")]
+    sint32 setLevel(sint32 nodeId, sint32 level,String jvmName );
+};
+
+
+[Description (
+"profiler start/stop/check")]
+class HC_Profiler {
+    [Description ("The list of available modules"), Read]
+    string modules;
+
+    [Description ("Without a dummy, it doesn't pick up bigInteger"), Read]
+    sint32 dummy;
+
+    [Description ("The action to stop")]
+    sint32 stop(sint32 dummy);
+
+    [Description ("The action to tarResult")]
+    String tarResult(sint32 dummy);
+
+    // Command Start
+    [Description ("The action to 'start'")]
+    sint32 start(String module, sint32 nodeId, sint32 howlong);
+};
+
+
+[Description (
+"Fru object contains management information related to the "
+"FRU")]
+class HC_Fru {
+     [Description ("The FRU id."), Read]
+     string fruId;
+
+     [Description ("The FRU name of the object.   This should be defined"
+     "as a key used to lookup all fru's during the loadXX() method in"
+     "the adapter.  See CR6643979"), Read]
+     string fruName;            
+
+     [Description ("The status of the object"), Read]
+     sint32 status;
+
+     [Description ("The FRU type"), Read]
+     sint32 fruType;
+};
+
+[Description (
+"Disk collection object - returns all avaiable disks")]
+class HC_Disks {
+    [Description ("")]
+    HC_Disk Ref disksList[];
+
+    [Description ("The estimated free disk space of the Cell in MB - Double value"), Read]
+    String estimatedFreeDiskSpace; 
+
+    [Description ("The total capacity of the Cell in MB"), Read]
+    sint64 totalCapacity;
+
+    [Description ("The used capacity of the Cell in MB"), Read]
+    sint64 usedCapacity;
+
+};
+
+
+
+
+
+
+[Description (
+"Information about the disk fru object")]
+class HC_Disk : HC_Fru {
+
+    [Key, Description ("The disk id.  Althought this is defined as a key"
+    "the actual key used in the HCDiskAdapter.loadHCDisk() is the fruName."
+    "See CR6643979"), Read]
+    string diskId;
+
+    [Description ("The node id"), Read]
+    sint32 nodeId;
+
+    [Description ("The device assiciated with the Disk"), Read]
+    string device;
+
+    [Description ("The path of the Disk"), Read]
+    string path;
+
+    [Description ("The mode of the disk"), Read]
+    string mode;
+
+    [Description ("The total capacity of the Disk in MB"), Read]
+    sint64 totalCapacity;
+
+    [Description ("The used capacity of the Disk in MB"), Read]
+    sint64 usedCapacity;
+
+    // Label
+    [Description("The label for the disk"), Read]
+    string diskLabel;
+
+    // Command Hwcfg
+    [Interactive, Description ("The action to 'enable' the disk")]
+    sint32 enable(sint32 dummy);
+
+    [Interactive, Description ("The action to 'disable' the disk")]
+    sint32 disable(sint32 dummy);
+
+    [Description("The label to set on the disk")]
+    sint32 applyDiskLabel(string label);
+
+    [Interactive, Description ("The action to 'online' the disk")]
+    sint32 online(sint32 dummy);
+    
+    [Description ("The action to 'offline' the disk")]
+    sint32 offline(sint32 dummy);
+
+    [Interactive, Description ("The action to 'wipe' the disk")]
+    sint32 wipe(sint32 dummy);
+};
+
+[Description (
+"Information about the switch fru object")]
+class HC_Switch : HC_Fru {
+    [Key, Description ("The name of the switch.  This is equivalent to"
+    "to the fruName but since the HC_FRU class does not defined the fru_name as"
+    "a key we must defined our own key value so we can pass a value to the"
+    "loadHCSwitch() method in HCSwitchAdapter.  See CR6643979")]
+    String switchName;
+
+    [Description ("The version info for the switch")]
+    String version;
+};
+
+class HC_SP: HC_Fru {
+};
+
+
+[Description (
+"Cell_Props object contains management information related to the "
+"cell"
+"NOTE: If you add or delete values from this objec you must"
+"alter the object count value stored in"
+"HCSetupCellAdapter.CELL_PROPS_LENGTH")]
+class HC_Cell_Props {
+
+    [Description ("The admin VIP")]
+    string adminVIP;
+
+    [Description ("The Data VIP")]
+    string dataVIP;
+
+    [Description ("The SP VIP")]
+    string spVIP;
+
+    [Description ("The subnet")]
+    string subnet;
+
+    [Description ("The gateway")]
+    string gateway;
+};
+
+[Description (
+"Alert_Addr object contains management information related to the "
+"silo")]
+class HC_Alert_Addr {
+
+    [Description ("The address to where we send the mail")]
+    string smtpTo;
+
+    [Description ("The copied address to where we send the mail")]
+    string smtpCC;
+};
+
+
+[Description (
+"Explorer_props object contains information needed by the logdump command "
+"to configure the Sun Explorer tool")]
+class HC_Exp_Props {
+
+    [Description ("Proxy server hostname")]
+    string proxyServer;
+    [Description ("Proxy server port")]
+    sint32 proxyPort;
+    [Description ("Geography")]
+    string geoLocale;
+    [Description ("Contact person's name")]
+    string contactName;
+    [Description ("Contact person's email")]
+    string contactEmail;   
+    [Description ("Contact person's phone number")]
+    sint32 contactPhone;
+};
+
+
+[Description (
+"hadb object conains hadb status. This is slow, needs to be alone.")]
+
+class HC_Hadb {
+
+
+    [Description ("The flag indicating if the cluster is sane (hadb view)"), Read]
+    boolean clusterSane;
+
+    [Description  ("The action to get hadb status as a string") ]
+    String getHadbStatus(sint32 dummy);
+
+    [Description  ("The action to get hadb status as an integer") ]
+    sint32 getCacheStatus(sint32 dummy);
+
+    [Description  ("The action to clear hadb failure") ]
+    sint32 clearHadbFailure(sint32 dummy);
+
+    [Description  ("The action to get last HADB create time as a long") ]
+    sint64 getLastCreateTime(sint32 dummy);
+
+    [Description ("Without a dummy, it doesn't pick up bigInteger"), Read]
+    sint32 dummy;
+};
+
+
+[Description (
+"Fru collection object - returns all avaiable FRUs")]
+class HC_Frus {
+      [Description ("")]
+
+   HC_Fru Ref frusList[];
+};
+
+
+[Description (
+"Cell object contains management information related to the "
+"cell")]
+class HC_Cell {
+    [Description ("The cell id"), Read]
+    sint8 cellId;    
+
+    [Description ("The flag describing if the cell is alive"), Read]
+    boolean isAlive;
+
+    [Description ("The flag indicating whether some data may be lost"), Read]
+    boolean possibleDataLoss;
+
+    [Description ("The number of unhealed failures"), Read]
+    sint32 noUnhealeadFailures;
+
+    [Description ("The number of unique unhealed failures"), Read]
+    sint32 noUnhealeadUniqueFailures;
+
+    [Description ("The time in seconds of the last recovery cycle"), Read]
+    sint64 endTimeLastRecoverCycle;
+
+    [Description ("The flag indicating if the cluster has quorum"), Read]
+    boolean quorumReached;
+
+    [Description ("The time that assures all unresolved stores are resolved."), Read]
+    sint64 queryIntegrityTime;
+
+
+    [Description ("The number of nodes in the cell"), Read]
+    sint32 numNodes;
+
+    [Description ("The maximum number of disks per node in this cell"), Read]
+    sint32 numDisksPerNode;
+
+    //
+    // Maps to command 'cellcfg'
+    //
+    [Description ("The cell props. Can be changed using setCellProps"), Read]
+    HC_Cell_Props Ref cellProps;
+
+    //
+    // Maps to command 'silocfg'
+    //
+    [Description ("All silo proprerties")]
+    HC_Silo_Props Ref siloProps;
+
+    //
+    // Maps to command 'alertcfg'
+    //
+    [Description ("The alert addr")]
+    HC_Alert_Addr Ref alertAddr;
+
+    //
+    // Maps to command 'logdump'
+    //
+    [Description ("The explorer default params")]
+    HC_Exp_Props Ref expProps;
+
+    //
+    // Maps to command 'license'
+    //
+    [Description ("The license")]
+    string license;
+
+    [Description ("The action to set the encrypted password")]
+    sint32 setEncryptedPasswd(String encryptedPasswd);
+
+    [Description ("The action to set the public key")]
+    sint32 setPublicKey(String publicKey);
+
+    [Description ("Password verification happens here"), Read]
+    string cryptedPassword;
+
+    //
+    // Action to change the per/cell properties 
+    //
+    [Interactive, Description ("The action to change the per cell properties"), Read]
+    sint32 setCellProps(HC_Cell_Props Ref props, sint8 cellId);
+
+    //
+    // Maps properties related to command cellAdmin
+    //
+
+    [Description ("The expansion status"), Read]
+    sint32 expansionStatus(sint32 dummy);
+    
+    //
+    // Maps properties related to command locale
+    //
+    [Description ("The language")]
+    string language;
+
+    //
+    // supported languages
+    //
+    [Description ("The list of available languages"), Read]
+    string languages[];
+
+
+    [Description ("date"), Read]
+    string date;
+     
+
+    // Command CellAdmin
+    [Description ("The action to expand the cell to 16 nodes")]
+    sint32 startExpansion(sint32 dummy);
+
+    // Command CellAdmin
+    [Description ("Abort expansion action")]
+    sint32 stopExpansion(sint32 dummy);
+
+    // Command Wipe
+    [Interactive, Description ("The action to wipe the cell")]
+    sint32 wipe(sint32 dummy);
+
+    // Command Reboot
+    [Interactive, Description ("The action to 'reboot'")]
+    sint32 reboot(sint32 switches, sint32 sp);
+
+
+    // Command PowerOff
+    [Interactive, Description ("The action to shut down a cluster using (or not using) ipmi (0 for true)")]
+    sint32 powerOff(sint32 useIpmi, sint32 sp);
+
+
+    // Command PowerNodeOff
+    [Interactive, Description ("The action to 'power node off' using ipmi (0 for true)")]
+    sint32 powerNodeOff(sint32 nodeId, sint32 useIpmi);
+
+
+    // Command PowerNodeOn
+    [Interactive, Description ("The action to 'power node on' using ipmi")]
+    sint32 powerNodeOn(sint32 nodeId);
+
+
+
+    [Interactive, Description ("The action to add a cell in the silo")]
+    sint32 addCell(String adminVIP, String dataVIP);
+
+    [Description ("The action to remove a cell in the silo")]
+    sint32 delCell(sint8 cellId);
+
+    [Description ("The action to verify NTP servers 0 is good retval")]
+    sint32 verifyNtpServers(String ntpServers);
+
+
+
+    [Interactive, Description ("The action to upgrade the schema")]
+    sint32 updateSchema(String schema, sint64 timestamp, sint8 lastMessage,
+    sint8 updateSchema);
+
+    [Interactive, Description ("The action to retrieve the schema or template")]
+    sint32 retrieveSchema(sint8 template);
+
+    [Description  ("The action to clear the schema") ]
+    sint32 clearSchema(sint32 dummy);
+
+    [Description  ("The action to retry loading the previous hadb config") ]
+    sint32 retrySchema(sint32 dummy);
+
+    [Description ("Update Switch") ]
+    sint32 updateSwitch(sint32 dummy);
+
+    [Description ("Update Cheat") ]
+    sint32 updateServiceProcessor(sint32 dummy);
+
+    [Description ("The action to query switch state")]
+    sint32 getSwitchesState(sint32 dummy);
+
+    [Interactive, Description ("The action to run the explorer tool.  It "
+    "runs the extractor and log scraper utilities and sends the information "
+    "back to Sun Service.")]
+    sint32 scrapeLogs(HC_Exp_Props Ref expProps);
+
+    [Interactive, Description ("Update the service tag data properties associated"
+    "with a single cell.  This update routine must be invoked on every cell.")]
+    sint32 updateServiceTagData(HC_Service_Tag_Cell_Data Ref data);
+
+    [Interactive, Description ("Update the service tag data properties associated"
+    "with more than 1 cell.  This update routine must be invoked on every cell.")]
+    sint32 updateAllServiceTagData(HC_Service_Tags Ref data, sint32 updateRegistry);
+};
+
+
+[Description (
+"Nodes collection object - returns all avaiable disks")]
+class HC_Nodes {
+    [Description ("")]
+    HC_Node Ref nodesList[];
+
+    //[Description ("The list of nodes"), Read, ValueMap {1..16}]
+    [Description ("The list of nodes"), Read]
+    sint32 nodeIds[];
+
+    [Description ("The number of nodes alive in the cells"), Read]
+    sint32 numAliveNodes;
+
+    [Description ("The number of disks alive in the cells"), Read]
+    sint32 numAliveDisks;
+
+    [Description ("The nodeid associated with the Master node"), Read]
+    sint32 masterNode;
+
+    [Description ("The flag indicating the status of the protocol"), Read]
+    boolean protocolRunning;
+
+};
+
+
+
+
+[Description (
+"The Node object contains the management information at the "
+"node level")]
+class HC_Node : HC_Fru {
+    [Key, Description ("The node id"), Read]
+    sint32 nodeId;
+
+    [Description ("The hostname for this node"), Read]
+    string hostname;
+
+    [Description ("The flag describing if the node is alive"), Read]
+    boolean isAlive;
+
+    [Description ("The flag describing if the node is eligible"), Read]
+    boolean isEligible;
+
+    [Description ("The flag describing if the node is master"), Read]
+    boolean isMaster;
+
+    [Description ("The flag describing if the node is vice master"), Read]
+    boolean isViceMaster;
+
+    [Description ("Number of online disks"), Read]
+    sint32 diskCount;
+
+    // Command Reboot
+    [Description ("The action to 'reboot'")]
+    sint32 reboot(sint32 dummy);
+
+};
+
+
+
+[Description (
+"The Version object contains hardware and bios versions of the components of the cell")]
+class HC_Versions {
+
+    [Description ("The version of the software running on the cell"), Read]
+    string version;
+
+    [Description ("sp bios version"), Read]
+    string spBios;
+
+    [Description ("sp smdc version"), Read]
+    string spSmdc;
+
+    [Description ("Switch 1 overlay version"), Read]
+    string switchOneOverlay;
+
+    [Description ("Switch 2 overlay version"), Read]
+    string switchTwoOverlay;
+
+    [Description ("Per-node bios version"), Read]
+    string bios[];
+
+    [Description ("Per-node SMDC version"), Read]
+    string smdc[];
+};
+
+
+
+[Description (
+"The Sensor object contains the management information at the "
+"node level")]
+class HC_Sensor {
+
+    [Key, Description ("The node id"), Read]
+    string nodeid;
+
+    [Description ("The DDR Voltage"), Read]
+    string ddrVoltage;
+
+    [Description ("The 3.3 VCC Voltage"), Read]
+    string threeVCC;
+
+    [Description ("The 5 VCC Voltage"), Read]
+    string fiveVCC;
+
+    [Description ("The 12 VCC Voltage"), Read]
+    string twelveVCC;
+
+    [Description ("The Battery Voltage"), Read]
+    string batteryVoltage;
+
+
+    [Description ("The CPU Voltage"), Read]
+    string cpuVoltage;
+
+    [Description ("The CPU Temparature"), Read]
+    string cpuTemperature;
+
+    [Description ("The CPU Fan Speed"), Read]
+    string cpuFanSpeed;
+
+    [Description ("The System Temparature"), Read]
+    string systemTemperature;
+
+
+    [Description ("The System Fan 1 Speed"), Read]
+    string systemFan1Speed;
+
+    [Description ("The System Fan 2 Speed"), Read]
+    string systemFan2Speed;
+
+    [Description ("The System Fan 3 Speed"), Read]
+    string systemFan3Speed;
+
+    [Description ("The System Fan 4 Speed"), Read]
+    string systemFan4Speed;
+
+    [Description ("The System Fan 5 Speed"), Read]
+    string systemFan5Speed;
+};
+
+
+
+
+
+[Description (
+"Data doctor cycle values, for internal use only.")]
+class HC_DDCycles {
+
+    [Description ("The action to restore default dd cycles")]
+    sint32 restoreDdDefaults(sint32 dummy);
+
+    [Description ("Remove duplicate fragments cycle")]
+    sint32 removeDupFragsCycle;
+
+    [Description ("Remove templicate fragments cycle")]
+    sint32 removeTempFragsCycle;
+
+    [Description ("Populate system cache cycle")]
+    sint32 populateSysCacheCycle;
+
+    [Description ("Populate external cache cycle")]
+    sint32 populateExtCacheCycle;
+
+    [Description ("Recover lost fragments cycle")]
+    sint32 recoverLostFragsCycle;
+
+    [Description ("Slosh fragments cycle")]
+    sint32 sloshFragsCycle;
+
+    [Description ("Scan fragments cycle")]
+    sint32 scanFragsCycle;
+
+};
+
+
+[Description (
+"Data doctor task status.")]
+class HC_DD_Tasks {
+    [Description ("get num tasks"), Read]
+    sint32 numTasks;
+
+    [Description ("get TaskCompletion time")]
+    sint32 getTaskCompletionTime(sint32 task);
+
+    [Description ("get slowest task")]
+    sint32 getTaskSlowestDisk(sint32 task);
+
+    [Description ("get Fastest Disk")]
+    sint32 getTaskFastestDisk(sint32 task);
+    [Description ("get average disk")]
+    sint32 getTaskAverageDisk(sint32 task);
+    [Description ("get num faults")]
+    sint32 getTaskNumFaults(sint32 task);
+    [Description ("get completionPercent")]
+    sint32 getTaskCompletionPercent(sint32 task);
+    [Description ("get task error free start time")]
+    sint32 getTaskErrorFreeStartTime(sint32 task);
+    [Description ("get task one cycle ago time")]
+    sint32 getTaskOneCycleAgoTime(sint32 task);
+
+    [Description ("get task id")]
+    sint32 getTaskId(String name);
+
+    [Description ("get task name")]
+    String getTaskName(sint32 id);
+};
+
+
+ 
+[Description (
+"Cell level performance statstics.")]
+class HC_Perf_Stats {
+    [Description ("interval")]
+    sint32 newInterval;
+
+    [Description ("nodeId")]
+    sint32 nodeId;
+
+    [Description ("The action to reset perf stat state")]
+    sint32 reset(sint32 dummy);
+
+    [Description ("The action to collect perf stats from cell")]
+    sint32 cellCollect(sint32 dummy);
+
+    [Description ("The action to collect perd stats from node")]
+    sint32 nodeCollect(sint32 dummy);
+
+
+    [Description ("Store performance"), Read]
+    HC_Perf_Element Ref storeOnly;
+
+    [Description ("Store metadata"), Read]
+    HC_Perf_Element Ref storeMd;
+
+    [Description ("Store Md and data"), Read]
+    HC_Perf_Element Ref storeBoth;
+
+    [Description ("Store Md Side"), Read]
+    HC_Perf_Element Ref storeMdSide;
+
+    [Description ("retrieveOnly"), Read]
+    HC_Perf_Element Ref retrieveOnly;
+
+    [Description ("retrieveMd"), Read]
+    HC_Perf_Element Ref retrieveMd;
+        
+    [Description ("query"), Read]
+    HC_Perf_Element Ref query;
+
+    [Description ("delete"), Read]
+    HC_Perf_Element Ref delete;
+
+    [Description ("schema"), Read]
+    HC_Perf_Element Ref schema;
+
+    [Description ("webdav put"), Read]
+    HC_Perf_Element Ref webdavPut;
+
+    [Description ("webdav get"), Read]
+    HC_Perf_Element Ref webdavGet;
+
+    [Description ("one minute load"), Read]
+    string loadOneMinute;
+
+    [Description ("five minute load"), Read]
+    string loadFiveMinute;
+
+    [Description ("fifteen minute load"), Read]
+    string loadFifteenMinute;
+
+    [Description ("Disk Space Used (MB)"), Read]
+    sint32 diskUsedMb;
+
+    [Description ("Total Disk Space (MB)"), Read]
+    sint32 diskTotalMb;
+
+    [Description ("Disk Space Used (%)"), Read]
+    string usePercent;
+};
+
+ 
+[Description ("Perf stat element.")]
+class HC_Perf_Element {
+    [Description ("kb/s"), Read]
+    string kbSec;
+
+    [Description ("total ops"), Read]
+    sint32 ops;
+
+    [Description ("op/s"), Read]
+    string opSec;
+
+    [Description ("Execution Time"), Read]
+    sint32 execTime;
+};
+
+
+
+[Description ("NDMP support.")]
+class HC_NDMP {
+    [Description ("Current backup/restore activity"), Read]
+    string backupStatus;
+
+//    [Description ("NDMP Server Control Port")]
+//    sint32 backupControlPort;
+
+//    [Description ("NDMP Server Outgoing Data Port")]
+//    sint32 backupOutboundDataPort;
+
+//    [Description ("NDMP Server Incoming Data Port")]
+//    sint32 backupInboundDataPort;
+};
+
+
+[Description ("Upgrade support.")]
+class HC_Upgrade {
+    [Description ("The action mount the iso")]
+    sint32 mountIso(String spdvd);
+
+    [Description ("The action to unmount the iso")]
+    sint32 uMountIso(String spdvd);
+ 
+    [Interactive, Description ("The action to check the status of the cluster")]
+    sint32 statusCheck(sint32 dummy);
+
+    [Description ("The action to set up the upgrader")]
+    sint32 initializeUpgrader(sint32 dummy);
+	
+    [Description ("The action to get next CLI question")]
+    String getNextQuestion(sint32 dummy);
+
+    [Description ("The action to get confirmation question")]
+    String getConfirmQuestion(sint32 dummy);
+
+    [Interactive ("The action to retrieve and invoke next method")]
+    sint32 invokeNextMethod(sint32 answer);
+
+    [Interactive, Description ("The action to set options if force invoked")]
+    sint32 setForceOptions(sint32 dummy);
+
+    [Interactive, Description("Download the upgrade jar")]
+    sint32 downloadJar(String src);
+
+    [Description ("The action to copy the upgrade jar from a mounted image")]
+    sint32 copyJar(sint32 dummy);
+	
+    [Interactive, Description ("httpFetch")]
+    sint32 httpFetch(String url);       
+
+    [Interactive, Description ("Start the upgrade")]
+    sint32 startUpgrade(String spdvd, sint8 cellid);
+
+    [Interactive, Description ("Finish the upgrade")]
+    sint32 finishUpgrade(sint32 type, sint32 reboot, sint8 cellid);
+
+    [Description ("Without a dummy, it doesn't pick up bigInteger"), Read]
+    sint32 dummy;
+    
+};
+
+[Description ("The service tag information for a given cell."
+"NOTE: This basic structure is decleared twice but under two different"
+"names - once here and once in HC_Service_Tag_Cell_Info in hcmof.mof."
+"This is due to the differences in the way the cli and the multi-cell"
+"library interact with the system.  Declarations in the mof file can"
+"not be shared so the same structure has to be declared twice.")]
+class HC_Service_Tag_Cell_Data {
+    [Description ("The id of the cell this data pertains to."), Read]
+    sint8 cellId;
+
+    [Description ("The Manufacturing product number for the top level "
+    "assembly # that cells resides in.")]
+    String productNumber;
+
+    [Description ("The product serial # that the cell resides in.  Today "
+    "this corresponds to the top level assembly #.")]
+    String productSerialNumber;
+
+    [Description ("The Marketing number for the top level "
+    "assembly # that cells resides in.")]
+    String marketingNumber;
+
+    [Description ("The instanceURN that corresponds the service tag registry"
+    "entry associated with this entity.")]
+    String instanceURN;
+};
+
+[Description ("This calls retrieves the service tag information stored for"
+"each cell and allows control operations.")]
+class HC_Service_Tags {
+    [Description ("The service tag data for all cells in the hive.")]
+    HC_Service_Tag_Cell_Data Ref data[];
+
+    [Description ("The status of service tag registry file"
+    "needs updating.")]
+    sint32 registryStatus;
+
+    [Description ("The status service tag service")] 
+    sint32 status;
+
+    [Description ("Only valid on a single cell system.  Disable service tags"
+    "generation for the cell.The term disable refers actually to whether the service"
+    "tag registration file will be created or not.  The ability to disable/enable"
+    "the service tag service is only valid for a single cell system."
+    "This is intended to provide a workaround"
+    "for the case where 2 cells in the top level assembly component are"
+    "running as standalone cells.  To be a proper configuration only"
+    "1 cell can respond to the service tag registration client, one must"
+    "be disabled.")]
+    sint32 disable(sint32 dummy);
+
+    [Description ("Only valid on a single cell system.  Enable service tags"
+    "generation for the cell.")]
+    sint32 enable(sint32 dummy);
+};

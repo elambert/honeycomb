@@ -1,0 +1,79 @@
+#
+# $Id: crontab.hc-flamebox.txt 11678 2007-12-03 21:03:04Z jk142663 $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+#
+# NOTE: If you edit this file, please copy the change to
+#          tools/flamebox/config/crontab.hc-flamebox.txt
+#
+# Flamebox run every few hours
+#
+
+# Weekend Load test
+# Starts saturday early morning (12am) and runs for 48 hours. 
+0 0 * * 6 logger -p daemon.notice flamebox run starting; source /export/home/build/.bash_profile; cd $HOME/svn/trunk/tools/flamebox/config/ ; rm tasks; ln -s tasks.trunk tasks; cd ../bin; USER=build JAVA_HOME=/usr/java PATH=/opt/csw/bin:/opt/SUNWspro/bin:/bin:/usr/bin:/usr/sfw/bin:/opt/sfw/bin:/usr/local/bin:/usr/ccs/bin:/export/release/tools/bin:/usr/sbin:/usr/dt/bin ./flamebox-client.pl --cluster devxxx --clients cl41,cl42,cl43,cl44 --nodes x -- --once --verbose WeekendLoadTest ; logger -p daemon.notice flamebox run ended
+
+# Overnite Load Test
+# Thursday early morning / Wed night.
+0 0 * * 4 logger -p daemon.notice flamebox run starting; source /export/home/build/.bash_profile; cd $HOME/svn/trunk/tools/flamebox/config/ ; rm tasks; ln -s tasks.trunk tasks; cd ../bin; USER=build JAVA_HOME=/usr/java PATH=/opt/csw/bin:/opt/SUNWspro/bin:/bin:/usr/bin:/usr/sfw/bin:/opt/sfw/bin:/usr/local/bin:/usr/ccs/bin:/export/release/tools/bin:/usr/sbin:/usr/dt/bin ./flamebox-client.pl --cluster devxxx --clients cl41,cl42,cl43,cl44 --nodes x -- --once --verbose OverniteLoadTest ; logger -p daemon.notice flamebox run ended
+
+# Regular Trunk Tasks
+# Monday, Tuesday, Friday.
+0 0,8,16 * * 1,2,5 logger -p daemon.notice flamebox run starting; source /export/home/build/.bash_profile; cd $HOME/svn/trunk/tools/flamebox/config/ ; rm tasks; ln -s tasks.trunk tasks; cd ../bin; USER=build JAVA_HOME=/usr/java PATH=/opt/csw/bin:/opt/SUNWspro/bin:/bin:/usr/bin:/usr/sfw/bin:/opt/sfw/bin:/usr/local/bin:/usr/ccs/bin:/export/release/tools/bin:/usr/sbin:/usr/dt/bin ./flamebox-client.pl --cluster devxxx --clients cl41,cl42,cl43,cl44 --nodes x -- --once --verbose --taskdir /export/home/build/svn/trunk/tools/flamebox/config; logger -p daemon.notice flamebox run ended
+
+# Last test run against the trunk before official build
+0 0 * * 3 logger -p daemon.notice flamebox run starting; source /export/home/build/.bash_profile; cd $HOME/svn/trunk/tools/flamebox/config/ ; rm tasks; ln -s tasks.trunk tasks; cd ../bin; USER=build JAVA_HOME=/usr/java PATH=/opt/csw/bin:/opt/SUNWspro/bin:/bin:/usr/bin:/usr/sfw/bin:/opt/sfw/bin:/usr/local/bin:/usr/ccs/bin:/export/release/tools/bin:/usr/sbin:/usr/dt/bin ./flamebox-client.pl --cluster devxxx --clients cl41,cl42,cl43,cl44 --nodes x -- --once --verbose --taskdir /export/home/build/svn/trunk/tools/flamebox/config; logger -p daemon.notice flamebox run ended
+
+# check to see if official build is available. 
+# run script every 30 mins on wednesdays from 9am - 4pm
+15 9-16 * * 3 /export/home/build/svn/trunk/tools/flamebox/src/scripts/check_release.sh
+
+
+###############################################################################
+# Schedule to run network, admin & perf tests
+# These tests are run on dev309 - 8 node cluster
+###############################################################################
+
+# 8 node cluster
+0 0 * * 0 source /export/home/build/.bash_profile; cd $HOME/svn/trunk/tools/flamebox/bin/ ; USER=build JAVA_HOME=/usr/java PATH=/opt/csw/bin:/opt/SUNWspro/bin:/bin:/usr/bin:/usr/sfw/bin:/opt/sfw/bin:/usr/local/bin:/usr/ccs/bin:/export/release/tools/bin:/usr/sbin:/usr/dt/bin ./flamebox-client.pl --cluster dev309 --clients cl41,cl42,cl45,cl46 --nodes 8 -- --once --verbose --taskdir /export/home/build/svn/trunk/tools/flamebox/config/network/; ./flamebox-client.pl --cluster dev309 --clients cl41,cl42,cl45,cl46 --nodes 8 -- --once --verbose --taskdir /export/home/build/svn/trunk/tools/flamebox/config/admin/; ./flamebox-client.pl --cluster dev309 --clients cl41,cl42,cl45,cl46 --nodes 8 -- --once --verbose --taskdir /export/home/build/svn/trunk/tools/flamebox/config/perf/
+ 
+
+###############################################################################
+# Schedule to run sloshing, backup & other tests
+# These tests are run on dev308 - 16 node cluster
+###############################################################################
+
+# 16 node cluster
+0 0 * * 0 source /export/home/build/.bash_profile; cd $HOME/svn/trunk/tools/flamebox/bin/ ; USER=build JAVA_HOME=/usr/java PATH=/opt/csw/bin:/opt/SUNWspro/bin:/bin:/usr/bin:/usr/sfw/bin:/opt/sfw/bin:/usr/local/bin:/usr/ccs/bin:/export/release/tools/bin:/usr/sbin:/usr/dt/bin ./flamebox-client.pl --cluster dev308 --clients cl37,cl38,cl39,cl40 --nodes 16 -- --once --verbose --taskdir /export/home/build/svn/trunk/tools/flamebox/config/sloshing/; ./flamebox-client.pl --cluster dev308 --clients cl37,cl38,cl39,cl40 --nodes 16 -- --once --verbose --taskdir /export/home/build/svn/trunk/tools/flamebox/config/backup/; ./flamebox-client.pl --cluster dev308 --clients cl37,cl38,cl39,cl40 --nodes 16 -- --once --verbose --taskdir /export/home/build/svn/trunk/tools/flamebox/config/other/

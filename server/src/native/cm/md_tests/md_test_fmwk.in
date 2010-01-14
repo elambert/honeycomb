@@ -1,0 +1,151 @@
+#!/bin/sh
+#
+# $Id: md_test_fmwk.in 10855 2007-05-19 02:54:08Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+# chkconfig: 2345 61 61
+# description: MD test framework
+
+INSTALL_DIR=@prefix
+NM_CONFIG_FILE=@prefix/tests/md/md_test_config.xml
+
+MAILBOXES_ROOT=/config/mailboxes
+
+STOP_TIMEOUT=30
+
+usage()
+{
+    echo "Usage : `basename $0` [start | stop | restart]"
+    echo ""
+    exit 1
+}
+
+reset_dir()
+{
+    if test -d $1
+    then
+        rm -fr $1/*
+    else
+        mkdir -p $1
+    fi
+}
+
+start()
+{
+    ulimit -c unlimited
+    reset_dir $MAILBOXES_ROOT
+
+    CUR_DIR=`pwd`
+    cd @prefix
+
+    echo "Starting in the cluster mode"
+    NODEID=`@prefix/bin/hc_compute_nodeid`
+    CMM_CONFIG=$INSTALL_DIR/share/hccm/clustermode_cnt
+
+    $INSTALL_DIR/sbin/hccmmd -n $NODEID -f $CMM_CONFIG
+    sleep 3
+    echo "CMM has been started on node $NODEID"
+
+    $INSTALL_DIR/sbin/hcnmd -f $NM_CONFIG_FILE > /dev/null 2>&1 &
+    sleep 1
+    echo "The node manager has been started."
+    echo "Starting the node ..."
+    if $INSTALL_DIR/bin/hcnm_client -c start_node
+    then
+        echo "The node has been started successfully"
+    else
+        echo "The node failed to start"
+    fi
+
+    cd $CUR_DIR
+}
+
+stop()
+{
+    if pgrep hcnmd > /dev/null
+    then
+        echo "Asking the Node Manager to stop"
+        $INSTALL_DIR/bin/hcnm_client -c exit
+    fi
+
+    echo -n "Shutdown in progress "
+
+    i=0
+    while test $i -le $STOP_TIMEOUT
+    do
+        sleep 1
+        pgrep hcnmd > /dev/null
+        if test $? -ne 0
+        then
+            i=$(($STOP_TIMEOUT))
+        fi
+        i=$(($i+1))
+        echo -n "."
+    done
+
+    if pgrep hcnmd > /dev/null
+    then
+        echo " FAILED"
+        echo "The node manager failed to stop. Killing it ..."
+        pkill -9 hcnmd > /dev/null 2>&1
+    else
+        echo " DONE"
+    fi
+
+    if pgrep hccmmd > /dev/null
+    then
+        echo "Killing the CMM"
+        pkill -9 hccmmd > /dev/null 2>&1
+    fi
+}
+
+case $1 in
+    "start")
+        start
+        ;;
+
+    "stop")
+        stop
+        ;;
+
+    "restart")
+        stop
+        start
+        ;;
+
+    *)
+        usage
+esac
+    

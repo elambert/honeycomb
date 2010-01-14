@@ -1,0 +1,65 @@
+#
+# $Id: prototype 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+i pkginfo
+i depend
+i postinstall
+i preremove
+
+d none /opt 0755 bin bin
+d none /opt/test 755 bin bin
+d none /opt/test/lib 755 bin bin
+d none /opt/test/bin 755 bin bin
+d none /opt/test/config 755 bin bin
+d none /opt/test/etc 755 bin bin
+d none /opt/test/etc/ssh 755 bin bin
+f none /opt/test/lib/honeycomb-factory_test.jar=lib/honeycomb-factory_test.jar 0644 bin bin
+f none /opt/test/lib/honeycomb-client.jar=lib/honeycomb-client.jar 0644 bin bin
+f none /opt/test/lib/honeycomb-wbsp.jar=lib/honeycomb-wbsp.jar 0644 bin bin
+f none /opt/test/lib/honeycomb-server.jar=lib/honeycomb-server.jar 0644 bin bin
+f none /opt/test/lib/honeycomb-common.jar=lib/honeycomb-common.jar 0644 bin bin
+f none /opt/test/lib/AdminResources_en.properties=lib/AdminResources_en.properties 0644 bin bin
+f none /opt/test/config/config_defaults.properties=cfg/config_defaults.properties 0644 bin bin
+f none /opt/test/bin/cmm_verifier=bin/cmm_verifier 0755 bin bin
+f none /opt/test/bin/dfck.sh=bin/dfck.sh 0755 bin bin
+f none /opt/test/bin/celltest=bin/celltest 0755 bin bin
+f none /opt/test/bin/cell_common.sh=bin/cell_common.sh 0755 bin bin
+f none /opt/test/bin/factoryClient.sh=bin/factoryClient.sh 0755 bin bin
+f none /opt/test/bin/load_nodes_java.sh=bin/load_nodes_java.sh 0755 bin bin
+f none /opt/test/bin/hcload_java.sh=bin/hcload_java.sh 0755 bin bin
+f none /opt/test/etc/ssh/id_dsa=etc/ssh/id_dsa 0600 root root
+f none /opt/test/etc/ssh/id_dsa.pub=etc/ssh/id_dsa.pub 0644 root root
+f none /opt/test/etc/ssh/authorized_keys=etc/ssh/authorized_keys 0644 root root

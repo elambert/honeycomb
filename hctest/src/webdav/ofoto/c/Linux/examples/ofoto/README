@@ -1,0 +1,20 @@
+
+$Id: README 10858 2007-05-19 03:03:41Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+
+This is now set to compile on our old gentoo linux boxes.
+The compile environment must be created manually.. note that
+this must be re-done after each reboot.
+
+1. Copy hcwin101:/usr/include to /mnt/test and add a symlink
+2. Copy  hcwin101:/usr/lib/libc_nonshared.a to /usr/lib
+
+ln -s /mnt/test/usr2/include /usr/include
+cp libc_nonshared.a /usr/lib/
+
+The neon & expat .a files were created in the neon & expat subdirs.
+
+Compiled progs are also included.

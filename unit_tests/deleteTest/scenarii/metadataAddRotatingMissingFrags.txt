@@ -1,0 +1,143 @@
+/*
+ * Copyright © 2008, Sun Microsystems, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+
+import com.sun.honeycomb.delete.Constants;
+
+chunksize = com.sun.honeycomb.delete.Constants.MAX_CHUNK_SIZE;
+
+// XXX try also hiding MD frags
+// XXX try also deleting when frags are missing
+
+ECHO("missing frags during addMD, reconciliation of refcnts");
+ECHO("chunksize is " + chunksize);
+
+storesize = 2 * chunksize - 1;
+ECHO("--> Store data and md obj for size " + storesize);
+STORE(1, storesize);
+DEREF(1, 0);
+
+ECHO("--> add md while rotating frags are down");
+
+FRAGREMOVE(0, 0, 0);
+FRAGREMOVE(0, 1, 0);
+FRAGREMOVE(0, 0, 1);
+FRAGREMOVE(0, 2, 1);
+ADDM(1, 2);
+FRAGRESTORE(0, 0, 0);
+FRAGRESTORE(0, 1, 0);
+FRAGRESTORE(0, 0, 1);
+FRAGRESTORE(0, 2, 1);
+
+FRAGREMOVE(0, 1, 0);
+FRAGREMOVE(0, 2, 0);
+FRAGREMOVE(0, 1, 1);
+FRAGREMOVE(0, 3, 1);
+ADDM(1, 3);
+FRAGRESTORE(0, 1, 0);
+FRAGRESTORE(0, 2, 0);
+FRAGRESTORE(0, 1, 1);
+FRAGRESTORE(0, 3, 1);
+
+FRAGREMOVE(0, 2, 0);
+FRAGREMOVE(0, 3, 0);
+FRAGREMOVE(0, 2, 1);
+FRAGREMOVE(0, 4, 1);
+ADDM(1, 4);
+FRAGRESTORE(0, 2, 0);
+FRAGRESTORE(0, 3, 0);
+FRAGRESTORE(0, 2, 1);
+FRAGRESTORE(0, 4, 1);
+
+FRAGREMOVE(0, 3, 0);
+FRAGREMOVE(0, 4, 0);
+FRAGREMOVE(0, 3, 1);
+FRAGREMOVE(0, 5, 1);
+ADDM(1, 5);
+FRAGRESTORE(0, 3, 0);
+FRAGRESTORE(0, 4, 0);
+FRAGRESTORE(0, 3, 1);
+FRAGRESTORE(0, 5, 1);
+
+FRAGREMOVE(0, 4, 0);
+FRAGREMOVE(0, 5, 0);
+FRAGREMOVE(0, 4, 1);
+FRAGREMOVE(0, 6, 1);
+ADDM(1, 6);
+FRAGRESTORE(0, 4, 0);
+FRAGRESTORE(0, 5, 0);
+FRAGRESTORE(0, 4, 1);
+FRAGRESTORE(0, 6, 1);
+
+FRAGREMOVE(0, 5, 0);
+FRAGREMOVE(0, 6, 0);
+FRAGREMOVE(0, 5, 1);
+FRAGREMOVE(0, 0, 1);
+ADDM(1, 7);
+FRAGRESTORE(0, 5, 0);
+FRAGRESTORE(0, 6, 0);
+FRAGRESTORE(0, 5, 1);
+FRAGRESTORE(0, 0, 1);
+
+FRAGREMOVE(0, 6, 0);
+FRAGREMOVE(0, 0, 0);
+FRAGREMOVE(0, 6, 1);
+FRAGREMOVE(0, 1, 1);
+ADDM(1, 8);
+FRAGRESTORE(0, 6, 0);
+FRAGRESTORE(0, 0, 0);
+FRAGRESTORE(0, 6, 1);
+FRAGRESTORE(0, 1, 1);
+
+ECHO("--> Delete all but one MD");
+DELETE(2, true);
+DELETE(3, true);
+DELETE(4, true);
+DELETE(5, true);
+DELETE(6, true);
+DELETE(7, true);
+DELETE(8, true);
+
+ECHO("--> Verify frags");
+REFCNTCHECK(0, Constants.ALL_FRAGS, 1, 8);
+FRAGISDELETED(0, Constants.ALL_FRAGS, false);
+
+ECHO("--> Try retrieve using non-deleted MD");
+RETRIEVE(1, true);
+
+ECHO("--> Delete last md and verify");
+DELETE(1, true);
+REFCNTCHECK(0, Constants.ALL_FRAGS, 0, 8);
+FRAGISDELETED(0, Constants.ALL_FRAGS, true);
+
+ECHO("--> Retrieve (should fail)");
+RETRIEVE(1, false);

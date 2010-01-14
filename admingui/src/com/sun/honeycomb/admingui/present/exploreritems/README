@@ -1,0 +1,16 @@
+$Id: README 10842 2007-05-19 02:24:31Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+
+This folder contains classes for explorer items that have children.  Each explorer item
+with children should populate those children in the populateChildren class.
+It should also define its own properties in the call to super() in the constructor.
+
+If any children of an item itself has children, that child should have its own class
+and populate its children in populateChildren.
+
+If any child of an item does not have children, that child can be created using
+the ExplorerItem class in the populateChildren method of its parent.  
+A derived class for the child is not necessary.

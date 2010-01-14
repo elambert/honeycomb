@@ -1,0 +1,81 @@
+$Id: README 10855 2007-05-19 02:54:08Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+
+**********************************************************************
+
+                             HoneyComb project
+                                     
+                      Cluster Management source code
+
+                                  README
+
+**********************************************************************
+
+COMPILATION
+-----------
+
+Here are the instructions to compile the source :
+
+1. Generate the configure script
+   Run the following commands :
+   > aclocal
+   > autoconf
+   > autoheader
+   > automake --foreign -a -c
+
+2. To generate the Makefiles, run
+   > ./configure
+
+   configure can take some optionnal parameters. Run ./configure --help to
+   have a list
+
+   The main one is --prefix which specifies in which directory the binaries
+   should be installed (see step 4.). For example, if you want to install
+   in /opt/CM, run :
+   ./configure --prefix=/opt/CM
+
+3. To build, run :
+   > make
+
+4. To install the product, run :
+   > make install
+   
+If you want to distribute a tarball containing the CM source, enter :
+> make dist
+
+It creates a file hccm-<version>.tar.gz
+
+CONFIGURATION
+-------------
+
+To get honeycomb configured, you simply have to set up syslog.
+
+All the traces coming from the management will be sent to syslog under the
+facility local0.
+The used levels are : notice, error and debug.
+
+Here is an example of an entry in syslog.conf file :
+
+local0.*	/var/log/honeycomb.log
+
+Edit your /etc/syslog.conf file (or the equivalent) and restart your syslog
+daemon.
+
+NOTE : you can specify at the daemon level if the debug traces should be
+generated or not. To run the daemons (hccmmd and hcnmd) with debug traces,
+run them with the -d switch.
+
+EXECUTION
+---------
+
+To start honeycomb, simply use the script in :
+<prefix>/etc/init.d/honeycomb start
+(by default, <prefix> is /opt/CM)
+
+This will launch the CMM, the node manager and ask the node manager to
+start all the services
+
+You can use the same script to stop / restart the honeycomb node.

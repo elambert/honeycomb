@@ -1,0 +1,94 @@
+#!/bin/sh
+#
+# $Id: cmm_verifier 10854 2007-05-19 02:52:12Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# This script runs CMMVerifier app. 
+# It must run on the cluster's internal network, i.e. from the cheat node or one of the cluster nodes.
+# Args: 
+# (1) number of nodes in the cluster (MUST SPECIFY)
+# (2) number of retries before failing if the cluster state is inconsistent (default = 1, 0 = run forever)
+# (3) time interval between retries (default = 1 second)
+# (4) 'cmm-only' to verify only CMM state (default = verify CMM and nodemgr mailboxes) 
+# (5) 'quorum' if the cluster is expected to have quorum
+#
+NODES=$1
+TRIES=$2
+INTERVAL=$3
+NOMAILBOX=$4
+QUORUM=$5
+
+# Defaults: single verification attempt, cluster is expected to have quorum
+#
+if [ $# -lt 1 ]; then
+  echo "Error: Specify number of nodes in the cluster"
+  echo "Usage: $0 <NODES> [TRIES] [INTERVAL] [CMM-ONLY] [QUORUM]"
+  exit 1
+fi
+
+if [ $# -eq 1 ]; then
+  NOMAILBOX="full-hc"
+  QUORUM="quorum"
+  TRIES=1
+  INTERVAL=1
+fi
+
+if [ "$NOMAILBOX" = "cmm-only" ]; then
+  NOMAILBOX="-Dcmm-only=true"
+else
+  NOMAILBOX=""
+fi
+
+if [ "$QUORUM" = "quorum" ]; then
+  QUORUM="-Dquorum=true"
+else
+  QUORUM=""
+fi
+
+DIR=`dirname $0`
+if [ "$DIR" = "." ]; then
+    DIR=`pwd`
+fi
+
+DIR=`dirname $DIR`
+LIB=$DIR/lib
+
+java -Djava.library.path=$LIB \
+-classpath $LIB/honeycomb-utests.jar:$LIB/honeycomb-server.jar:$LIB \
+-Dhoneycomb.config.dir=$DIR/config \
+-Dnodes=$NODES -Dtries=$TRIES -Dinterval=$INTERVAL $NOMAILBOX $QUORUM \
+com.sun.honeycomb.cm.VerifierMain
+
+
+

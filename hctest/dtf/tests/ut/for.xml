@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="for">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>Unit test for the for tag.</description>
+    </info>
+   
+    <local>
+    	<createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+    	<createstorage id="TINPUT" path="${dtf.xml.path}"/>
+    	<import uri="storage://TINPUT/util.xml"/>
+
+        <loadproperties uri="storage://INPUT/ut.properties"/>
+    	
+        <echo>Loop from [0..5]</echo>
+    </local>
+    
+   	<record uri="storage://OUTPUT/for.results" type="txt" append="false"> 
+    	<for property="index" range="[0..5]">
+    		<event name="for.loop">
+    			<attribute name="iteration" value="${index}"/>
+    		</event>
+    	</for>
+    </record>
+
+	<call function="checkRecordCount">    
+    	<property name="recorder.location" value="storage://OUTPUT/for.results"/>	
+    	<property name="recorder.type" value="txt"/>	
+    	<property name="event.name" value="for.loop"/>
+    	<property name="record.count" value="6"/>
+   	</call>
+    
+    <local>
+        <echo>Loop from [a,b,c,d]</echo>
+    </local>
+   	<record uri="storage://OUTPUT/for.results" type="txt" append="false"> 
+    	<for property="index" range="[a,b,c,d]">
+    		<event name="for.loop">
+    			<attribute name="iteration" value="${index}"/>
+    		</event>
+    	</for>
+    </record>
+
+ 	<call function="checkRecordCount">    
+    	<property name="recorder.location" value="storage://OUTPUT/for.results"/>	
+    	<property name="recorder.type" value="txt"/>	
+    	<property name="event.name" value="for.loop"/>
+    	<property name="record.count" value="4"/>
+   	</call>
+   
+    <local>
+        <echo>Loop from [0..1][0..1][0..1]</echo>
+    </local>
+   	<record uri="storage://OUTPUT/for.results" type="txt" append="false"> 
+    	<for property="index" range="[0..1][0..1][0..1]">
+    		<event name="for.loop">
+    			<attribute name="iteration" value="${index}"/>
+    		</event>
+    	</for>
+    </record>
+    
+    <call function="checkRecordCount">    
+    	<property name="recorder.location" value="storage://OUTPUT/for.results"/>	
+    	<property name="recorder.type" value="txt"/>	
+    	<property name="event.name" value="for.loop"/>
+    	<property name="record.count" value="8"/>
+   	</call>
+    
+    <local>
+        <echo>Loop from [0..3][a,b,c,d,e]</echo>
+    </local>
+   	<record uri="storage://OUTPUT/for.results" type="txt" append="false"> 
+    	<for property="index" range="[0..3][a,b,c,d,e]">
+    		<event name="for.loop">
+    			<attribute name="iteration" value="${index}"/>
+    		</event>
+    	</for>
+    </record> 
+    
+    <call function="checkRecordCount">    
+    	<property name="recorder.location" value="storage://OUTPUT/for.results"/>	
+    	<property name="recorder.type" value="txt"/>	
+    	<property name="event.name" value="for.loop"/>
+    	<property name="record.count" value="20"/>
+   	</call>
+    
+</script>

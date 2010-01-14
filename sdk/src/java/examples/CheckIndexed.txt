@@ -1,0 +1,21 @@
+NAME
+       CheckIndexed - ensure an object is queryable
+
+SYNOPSIS
+       java CheckIndexed <IP | HOST> <OID>
+
+DESCRIPTION
+       Check with the @HoneycombProductName@ server to determine if the
+       specified OID has become queryable.  If not, attempt to make it
+       queryable. 
+       A short message about the supplied OID is printed to stdout:
+           Object [OID] was already queryable.
+           Object [OID] not yet queryable.
+           Object [OID] has now been made queryable.
+OPTIONS
+       -h
+              print this message
+
+EXAMPLES
+       java CheckIndexed server @SampleOID@
+       java CheckIndexed 10.152.0.12  @SampleOID@

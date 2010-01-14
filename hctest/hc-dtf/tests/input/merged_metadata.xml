@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="metadata">
+    <info>
+        <author> 
+        	<name>Rodney Gomes</name>
+        	<email>rodney.gomes@sun.com</email>
+        </author>
+        <description>
+        	Metadata reference file.
+        </description>
+    </info>
+    
+    <local>
+        <metadata id="MDREF">
+        
+            <!-- perf_qafirst namespace -->
+            <element name="perf_qafirst.first"
+                     value="${hc.directory.shortnames}" 
+                     type="string"
+                     length="64"/>
+
+            <element name="perf_qafirst.second"
+                     value="${hc.directory.shortnames}" 
+                     type="string"
+                     length="64"/>
+
+            <element name="perf_qafirst.third"
+                     value="${hc.directory.shortnames}" 
+                     type="string"
+                     length="64"/>
+
+            <element name="perf_qafirst.fourth"
+                     value="${hc.directory.shortnames}" 
+                     type="string"
+                     length="64"/>
+
+            <element name="perf_qafirst.fifth"
+                     value="${hc.directory.shortnames}" 
+                     type="string"
+                     length="64"/>
+
+            <element name="perf_qafirst.sixth"
+                     value="${hc.directory.shortnames}" 
+                     type="string"
+                     length="64"/>
+
+            <element name="perf_qafirst.timestart"
+                     value="${dtf.timestamp}"
+                     type="long"/>
+
+            <element name="perf_qafirst.client"
+                     value="${client}"
+                     type="string"
+                     length="64"/>
+
+            <!-- perf_qa namespace -->
+            <element name="perf_qa.date"
+                     value="${dtf.timestamp}"
+                     type="long" />
+
+            <element name="perf_qa.User_Comment"
+                     value="${hc.perf_qa.user_comment.value}" 
+                     type="string"
+                     length="64"/>
+
+            <element name="perf_qa.iteration"
+                     value="${iteration}" 
+                     type="long" />
+
+            <element name="perf_qa.test_id"
+                     value="${runid}"
+                     type="string"
+                     length="64"/>
+
+            <element name="perf_qa.user"
+                     value="${hc.perf_qa.user.value}" 
+                     type="string"
+                     length="64"/>
+                     
+            <!-- perf_qafirst namespace -->
+            <element name="perf_qatypes.doublefixed"
+                     value="${dtf.randomDouble}"
+                     type="double" />
+
+            <element name="perf_qatypes.doublelarge"
+                     value="${dtf.randomDouble}"
+                     type="double" />
+
+            <element name="perf_qatypes.longsmall"
+                     value="${dtf.randomLong}"
+                     type="long" />
+
+            <element name="perf_qatypes.longlarge"
+                     value="${dtf.randomLong}"
+                     type="long" />
+
+            <element name="perf_qatypes.stringlarge"
+                     value="${hc.perf_qatypes.stringlarge.value}" 
+                     type="string"
+                     length="512"/>
+
+            <!-- perf_qafirst namespace -->
+            <element name="perf_types.type_double"
+                     value="${dtf.randomDouble}"
+                     type="double" />
+
+            <element name="perf_types.type_long"
+                     value="${dtf.randomLong}"
+                     type="long"/>
+<!-- 
+            <element name="perf_types.type_date"
+                     value="${hc.perf_types.type_date.value}" 
+                     type="date" />
+
+            <element name="perf_types.type_time"
+                     value="${hc.perf_types.type_time.value}" 
+                     type="time" />
+
+            <element name="perf_types.type_timestamp"
+                     value="${hc.perf_types.type_timestamp.value}" 
+                     type="timestamp"/>
+
+            <element name="perf_types.type_string"
+                     value="${hc.perf_types.type_string.value}" 
+                     type="string" 
+                     length="64"/>
+
+            <element name="perf_types.type_char"
+                     value="${hc.perf_types.type_char.value}" 
+                     type="char" 
+                     length="64"/>
+
+            <element name="perf_types.type_binary"
+                     value="${hc.perf_types.type_binary.value}" 
+                     type="binary" 
+                     length="64"/>
+                      -->
+        </metadata>
+        
+        <metadata id="MDCMP">
+            <!-- perf_qa namespace -->
+            <element name="perf_qa.date" 
+                     value="${object.perf_qa.date}"
+                     type="long" />
+                     
+            <element name="perf_qa.User_Comment" 
+                     value="${object.perf_qa.User_Comment" 
+                     type="string"
+                     length="64"/>
+
+            <element name="perf_qa.iteration"
+                     value="${object.perf_qa.iteration}"
+                     type="long" />
+
+            <element name="perf_qa.test_id"
+                     value="${perf_qa.test_id}"
+                     type="string"
+                     length="64"/>
+
+            <element name="perf_qa.user"
+                     value="${object.perf_qa.user}"
+                     type="string"
+                     length="64"/>
+
+            <!-- perf_qafirst namespace -->
+            <element name="perf_qafirst.client"
+                     value="${object.perf_qafirst.client}"
+                     type="string"
+                     length="64"/>
+
+            <element name="perf_qafirst.first"
+                     value="${object.perf_qafirst.first}"
+                     type="string"
+                     length="64"/>
+
+            <element name="perf_qafirst.second"
+                     value="${object.perf_qafirst.second}" 
+                     type="string"
+                     length="64"/>
+
+            <element name="perf_qafirst.third"
+                     value="${object.perf_qafirst.third}"
+                     type="string"
+                     length="64"/>
+
+            <element name="perf_qafirst.fourth"
+                     value="${object.perf_qafirst.fourth}"
+                     type="string"
+                     length="64"/>
+
+            <element name="perf_qafirst.fifth"
+                     value="${object.perf_qafirst.fifth}"
+                     type="string"
+                     length="64"/>
+
+            <element name="perf_qafirst.sixth"
+                     value="${object.perf_qafirst.sixth}"
+                     type="string"
+                     length="64"/>
+
+            <element name="perf_qafirst.timestart"
+                     value="${object.perf_qafirst.timestart}"
+                     type="long"/>
+
+            <!-- perf_qafirst namespace -->
+            <element name="perf_qatypes.doublefixed"
+                     value="${object.perf_qatypes.doublefixed"
+                     type="double" />
+
+            <element name="perf_qatypes.doublelarge"
+                     value="${object.perf_qatypes.doublelarge"
+                     type="double" />
+
+            <element name="perf_qatypes.longsmall"
+                     value="${object.perf_qatypes.longsmall"
+                     type="long" />
+
+            <element name="perf_qatypes.longlarge"
+                     value="${object.perf_qatypes.longlarge"
+                     type="long" />
+
+            <element name="perf_qatypes.stringlarge"
+                     value="${object.perf_qatypes.stringlarge"
+                     type="string"
+                     length="512"/>
+
+            <!-- perf_qafirst namespace -->
+            <element name="perf_types.type_double"
+                     value="${object.perf_types.type_double"
+                     type="double" />
+
+            <element name="perf_types.type_long"
+                     value="${object.perf_types.type_long"
+                     type="long"/>
+            
+            <!-- 
+            <element name="perf_types.type_date"
+                     value="${hc.perf_types.type_date.value}" 
+                     type="date" />
+
+            <element name="perf_types.type_time"
+                     value="${hc.perf_types.type_time.value}" 
+                     type="time" />
+
+            <element name="perf_types.type_timestamp"
+                     value="${hc.perf_types.type_timestamp.value}" 
+                     type="timestamp"/>
+
+            <element name="perf_types.type_string"
+                     value="${hc.perf_types.type_string.value}" 
+                     type="string" 
+                     length="64"/>
+
+            <element name="perf_types.type_char"
+                     value="${hc.perf_types.type_char.value}" 
+                     type="char" 
+                     length="64"/>
+
+            <element name="perf_types.type_binary"
+                     value="${hc.perf_types.type_binary.value}" 
+                     type="binary" 
+                     length="64"/>
+-->
+        </metadata>
+    </local>
+</script>

@@ -1,0 +1,14 @@
+NAME
+       RetrieveData - retrieve data (and metadata)
+SYNOPSIS
+       RetrieveData [OPTIONS] <IP | HOST> <OID> [FILE]
+DESCRIPTION
+       Retrieve data from Honeycomb.  The OID specifies what data to retrieve.
+       Metadata is printed to stdout.  Data is written to
+       FILE, if specified.
+OPTIONS
+       -h, --help
+              print this message
+EXAMPLES
+       RetrieveData archivehost 013f5239a3f95011d491dd00e08152a9f40000017f0200000000 /archive/log.1
+       RetrieveData 10.152.0.12 0141145c19f95011d491dd00e08152a9f40000025a0200000000

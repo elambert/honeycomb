@@ -1,0 +1,226 @@
+#!/bin/bash
+#
+# $Id: wipe.sh.in 11443 2007-08-29 02:15:04Z sc1444 $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+MYNAME=`hostname`
+DM="/config/diskmap"
+
+# Log a message to syslog and also print it to stdout
+log() {
+    logger -p local0.info "$@"
+    echo "${MYNAME}:" "$@"
+}
+
+# Erase a disk by destroying the filesystem on it
+wipedisk() {
+    d=$1
+    rawpart="${d}s4"
+    blockpart=`echo $rawpart | sed -e 's/\/rdsk\//\/dsk\//g'`
+    diskmapentry=`echo $d | sed -e 's/\/dev\/.*dsk\///g'`
+
+    if mount | egrep -s "$blockpart"; then
+        log "Partition $blockpart is mounted"
+        if [ "y" != "$FORCE" ]; then
+            log "Skipping $blockpart"
+            MOUNTED_PARTITIONS="$MOUNTED_PARTITIONS $blockpart"
+            continue
+        fi
+        quoted_bpart=`echo "${blockpart}" | sed -e 's/\//\\\\\\//g'`
+        mountpoint=`mount | awk "/${quoted_bpart}/"'{print $1}'`
+        log "Unsharing $mountpoint"
+        unshare -F nfs "$mountpoint"
+        log "Unmounting $blockpart <-> $mountpoint"
+        umount "$mountpoint" || {
+            log "Umount $mountpoint failed"
+            exit 1
+        }
+    fi
+
+    log "Wiping $rawpart"
+    CMD="dd of=$rawpart if=/dev/zero bs=512 count=2048"
+    log "$CMD"
+    $CMD
+
+    log "Wiping disk label"
+    CMD="dd if=/dev/zero of=${d}p0 bs=512 count=1 seek=62"
+    log "$CMD"
+    $CMD
+
+    log "Removing entry from diskmap"
+    CMD="cp $DM $DM.prev && grep -v $diskmapentry $DM.prev > $DM" 
+    log "$CMD"
+    eval $CMD
+}
+
+# Erase a disk by removing the OA directories and nothing else
+quickwipe() {
+    d=$1
+    index=$2
+    rawpart="${d}s4"
+    blockpart=`echo $rawpart | sed -e 's/\/rdsk\//\/dsk\//g'`
+    dir=`mount | fgrep $blockpart | awk '{print $1}'`
+    if [ -z "$dir" ]; then
+        dir="/data/$index"
+        mkdir -p "$dir"
+        mount "$blockpart" "$dir" || return 1
+    fi
+
+    log "Removing files from $dir"
+
+    for ((i=0; i<=9; i++)); do
+        for ((j=0; j<=9; j++)); do
+            find "$dir/$i$j" -type f -exec rm '{}' \; &
+        done
+        wait
+    done
+
+    log "Removing sys cache and HADB dirs from $dir"
+
+    rm -rf $dir/MD_cache
+    rm -rf $dir/hadb
+
+    log "Done erasing ${dir}."
+}
+
+
+printUsage() {
+    echo "Usage: -f     force"
+    echo "       -o N   wipe only disk N [0-3]"
+    echo "       -D     data (rm data only; no mkfs, no label wipe)"
+}
+
+#
+# main begins here
+#
+
+while getopts "o:hfD" opt; do
+    case $opt in
+        o ) SINGLEDISK=$OPTARG
+            ;;
+        f ) FORCE=y
+            ;;
+        D ) DATAONLY=y
+            ;;
+        h ) printUsage
+            exit 0
+            ;;
+        \? )  printUsage
+        exit 1
+    esac
+done
+
+#
+# Figure out which disks to wipe
+#
+
+DISKS=
+
+SYSDISKS=`ls /dev/rdsk/*p0 | sed 's/p0$//'`
+curDiskNum=0
+for d in $SYSDISKS; do
+
+    # If we're wiping just one disk and this is it, we're done
+    if [ "$curDiskNum" = "$SINGLEDISK" ]; then
+        DISKS="$d"
+        break
+    fi
+    curDiskNum=$((curDiskNum + 1))
+
+    DISKS="$DISKS $d"
+done 
+
+#
+# Allow user to back out
+#
+
+if [ -n "$SINGLEDISK" -o -z "$FORCE" ]; then
+    echo "${MYNAME}: All data on disk(s) $DISKS will be erased! You have 5 seconds to hit ^C..."
+    sleep 5
+fi
+
+log "Erasing disk(s) $DISKS"
+
+#
+# Wipe!
+#
+
+# If we're wiping everything, unmount any NFS mounts of data partitions
+if [ -z "$SINGLEDISK" ] ; then      
+    umountall -F nfs
+fi
+
+curDiskNum=0
+for d in $DISKS; do
+    # Disks are wiped in parallel
+    if [ -n "$DATAONLY" ]; then
+        quickwipe $d $curDiskNum &
+    else
+        wipedisk $d &
+    fi
+    curDiskNum=$((curDiskNum + 1))
+done
+
+wait
+
+#
+# Cleanup other directories
+#
+
+if [ -n "$DATAONLY" ]; then
+    # We're done; don't remove /netdisks and /data
+    exit 0
+fi
+
+if [ -n "$MOUNTED_PARTITIONS" ]; then
+    log "Partitions still mounted: ${MOUNTED_PARTITIONS}; not removing /netdisks and /data"
+    exit 2
+else
+    log "Removing the /netdisks, /data, and /hadb directories"
+
+    if [  -n "$SINGLEDISK" ] ; then
+        # Only remove the mount point
+        rm -rf /data/$SINGLEDISK
+    else
+        # Remove everything that Honeycomb makes
+        rm -rf /netdisks /data /hadb
+    fi
+fi
+
+#
+# All done.
+#
+
+exit 0

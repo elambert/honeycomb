@@ -1,0 +1,30 @@
+
+NAME
+       SetRetentionTime - set a retention time on a previously 
+       stored object
+
+SYNOPSIS
+       java SetRetentionTime <IP | HOST> <OID> <RETENTION_TIME_STRING> [OPTIONS]
+
+DESCRIPTION
+       Set a retention time on a stored object. RETENTION_TIME_STRING 
+       describes the retention time to be placed against the object, and 
+       must be of the format:
+
+       MMM dd HH:mm:ss z yyyy
+       "Nov 20 16:42:10 PST 2008"
+
+       Alternately, the string "infinite" can be given for
+       RETENTION_TIME_STRING in order to set a retention time that
+       never expires and prevent deletion of the object. Once this
+       has been set, the object can subsequently be deleted by
+       updating its retention time with a future time which will
+       expire.
+
+OPTIONS
+       -h, --help
+              print this message
+
+EXAMPLES
+       java SetRetentionTime server @SampleOID@ "Nov 20 16:42:10 PST 2008"
+       java SetRetentionTime server @SampleOID@ infinite

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Sun StorageTek 5800 System Metadata Configuration Rules. (Sun Microsystems, Inc.) -->
+<!ELEMENT metadataConfig (schema, fsViews?, tables?)>
+<!ELEMENT schema (namespace*, field*)>
+<!ELEMENT namespace (namespace*, field*)>
+<!ELEMENT field EMPTY>
+<!ELEMENT fsViews (fsView*)>
+<!ELEMENT fsView (attribute+)>
+<!ELEMENT attribute EMPTY>
+<!ELEMENT tables (table*)>
+<!ELEMENT table (column+)>
+<!ELEMENT column EMPTY>
+<!ATTLIST namespace
+	name CDATA #REQUIRED
+	writable (true | false) "true"
+	extensible (true | false) "true"
+>
+<!ATTLIST field
+	name CDATA #REQUIRED
+	type (long | double | string | char | binary | date | time | timestamp | objectid) #REQUIRED
+	length CDATA #IMPLIED
+	queryable (true | false) "true"
+>
+<!ATTLIST fsView
+	name CDATA #REQUIRED
+	filename CDATA #REQUIRED
+	namespace CDATA #IMPLIED
+	readonly (true | false) "false"
+	filesonlyatleaflevel (true | false) "true"
+	zopen CDATA #IMPLIED
+	fsattrs (true | false) "false"
+>
+<!ATTLIST attribute
+	name CDATA #REQUIRED
+>
+<!ATTLIST table
+	name CDATA #REQUIRED
+>
+<!ATTLIST column
+	name CDATA #REQUIRED
+>
+

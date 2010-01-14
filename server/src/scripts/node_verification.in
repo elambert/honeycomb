@@ -1,0 +1,225 @@
+#!/bin/sh 
+#
+# $Id: node_verification.in 11987 2008-05-09 06:59:50Z ds158322 $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+# Defaults
+CLUSTERCONF=/config/config.properties
+CLUSTERDEFAULTS=/config/config_defaults.properties
+WGET=/usr/sfw/bin/wget
+NAWK=/bin/nawk
+SWITCHIP=10.123.45.1
+NETMASK=255.255.255.0
+NETERROR=
+DIAGERROR=
+
+# Retrieve a property value from the cluster configuration
+getproperty() {
+    FILE=$1
+    PROPNAME=$2
+
+    if [ "$FILE" = "defaults" ]; then
+        FILENAME=$CLUSTERDEFAULTS
+    elif [ "$FILE" = "config" ]; then
+        FILENAME=$CLUSTERCONF
+    else
+        echo "Error: invalid properties file specified"
+        exit 1
+    fi
+
+    echo `grep $PROPNAME $FILENAME | sed -e 's/ //g' | cut -f2 -d'=' | sed -e 's/\@/\\\@/g'`
+}
+
+# Set the diagnostic ip
+set_diag(){
+    DIP="hcb1"$NODEID"-diag"
+    ifconfig $NIC down
+    ifconfig $NIC $DIP netmask $NETMASK up
+    DIAGERROR="Honeycomb node 1$NODEID is currently booted with the internal\ndiagnostic network address of $DIP. Login to the service\nprocessor in order to access the node through this address.\n"
+    echo $DIAGERROR
+}
+
+# Send an alert
+send_alert(){
+    MESSAGE=$1
+
+    # Set in config_defaults.properties
+    SMTPSERVER=`getproperty defaults honeycomb.cell.smtp.server_internal`
+    SENDER=`getproperty defaults honeycomb.alerts.smtp.from_name`
+    # Set in config.properties
+    TO=`getproperty config honeycomb.alerts.smtp.to`
+    perl -we "use Net::SMTP; my \$smtp = Net::SMTP->new(\"$SMTPSERVER\", Hello => 'sun.com');\$smtp->mail(\"$SENDER\"); \$smtp->to(\"$TO\"); \$smtp->data(); \$smtp->datasend(\"Subject: Honeycomb configuration error\"); \$smtp->datasend(\"\n\"); \$smtp->datasend(\"$MESSAGE\"); \$smtp->dataend(); \$smtp->quit;"
+}
+
+
+# Check the network connectivity
+check_network() {
+    NODENAME=`cat /etc/nodename`
+    ARP=`arp -a | grep $NODENAME`
+    MAC=`echo $ARP | cut -d' ' -f5`
+    NIC=`echo $ARP | cut -d' ' -f1`
+
+    # Look for this mac address in the switch table
+    PORT=`$WGET -O - -q -t 5 -T 5 http://$SWITCHIP/http/cgi-bin/zl2-sun | grep $MAC`
+ 
+    # Exit in error if the mac address lookup fails
+    if [ $? != 0 ]; then
+        echo "Failed to retrieve my switch port"
+		sleep 10
+		check_network
+    fi
+ 
+    # Create the hostname and ip address
+    PORT=`echo $PORT | cut -d' ' -f5 | sed -e 's/zre//'`
+
+    NODEID=`echo $NODENAME | cut -c5-6`
+
+    # Debug
+    #  echo "Port number: $PORT"
+    # echo "Nic: $NIC"
+    # echo "Mac: $MAC"
+    # echo "Nodeid: $NODEID"
+
+    if [ $NODEID != $PORT ]; then
+        NETERROR="\nHoneycomb node 1$NODEID is currently connected to port $PORT on the\nmaster switch from network adapter $NIC. It should instead be\nconnected to port $NODEID. Replace the network connection to the\nmaster switch and reboot the node.\n"
+        echo $NETERROR
+ 
+        if [ "$DIAG" = "1" ]; then
+            set_diag
+        fi  
+
+        if [ "$ALERTS" = "1" ]; then
+            send_alert "$NETERROR\n$DIAGERROR"
+        fi  
+
+        exit 1
+    fi
+}
+
+check_disks()
+{
+    # The output of disklabel.sh looks like this:
+    #
+    # 0,0,104,0;1 /dev/rdsk/c0d0p0
+    # 0,0,104,1;1 /dev/rdsk/c1d0p0
+    # 0,0,104,2;1 /dev/rdsk/c2d0p0
+    # 0,0,104,3;1 /dev/rdsk/c3d0p0
+
+    CELLID="0"
+    SILOID="0"
+    NODEID=`tr -d [a-z] < /etc/nodename`
+
+    /opt/honeycomb/bin/disklabel.sh | $NAWK \
+        -v "node_id=$NODEID"  -v "cell_id=$CELLID" -v "silo_id=$SILOID" '
+    {
+        if ($1 != "-") {
+            diskname = $2
+            split($1, args, "[,;]")
+            cell = args[1]
+            silo = args[2]
+            node = args[3]
+            disk = args[4]
+            incar = args[5]
+    
+            if (cell != cell_id || silo != silo_id || node != node_id) {
+                printf("Error: disk %s is from node [%s:%s:%s]\n",
+                        diskname, cell, silo, node)
+                error = "true"
+            }
+            if (incarnation == "") {
+                incarnation = incar
+                idisk = diskname
+            } else if (incarnation != incar) {
+                printf("Error: disk %s has incarnation %s, but disk %s has %s\n",
+                       idisk, incarnation, diskname, incar)
+                error = "true"
+            }
+        }
+    }
+    END {
+        if (error == "true") {
+            system("logger -p user.alert node_verification: some disks inconsistent")
+            system("logger -p user.alert run svcs -x to see warnings ")
+        }
+    }'
+}
+
+check_ecc() {
+BYTE=`pcitool /pci@0,0 -d bdf=00.18.2 -o 92 -s 1`
+
+if [ "$BYTE" = "0x7" ]; then
+    echo ECC-capable
+else
+    # 05
+    echo ECC-incapable: $BYTE expected 0x7
+    exit 1 
+fi
+
+BYTE=`pcitool /pci@0,0 -d bdf=00.18.3 -o 46 -s 1`
+
+if [ "$BYTE" = "0x40" ]; then
+    echo ECC-checked
+else
+    # 00
+    echo ECC-unchecked: $BYTE expected 0x40
+    exit 1 
+fi
+}
+
+# Main
+set -- `getopt ad $*`
+if [ $? != 0 ]
+then
+    echo
+    echo "Usage: $0 [-a] [-d]"
+    echo
+    echo "       -a Send an alert email when an error is found" 
+    echo "       -d Set node to the diagnostic network address when an error is found" 
+    exit 2
+fi
+
+for i in $*
+do
+    case $i in
+        -a) ALERTS=1; shift;;
+        -d) DIAG=1;shift;;
+        --) shift; break;;
+    esac
+done
+
+# Perform the checks
+check_network
+check_disks
+check_ecc

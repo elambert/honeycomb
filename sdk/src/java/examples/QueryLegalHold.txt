@@ -1,0 +1,23 @@
+
+NAME
+       QueryLegalHold - Query for objects with the given legal hold
+
+SYNOPSIS
+       java QueryLegalHold <IP | HOST> <LEGAL HOLD> [OPTIONS]
+
+DESCRIPTION
+       Query for objects assigned the given legal hold.
+       LEGAL HOLD is a string to query with. The OIDs of
+       any objects which contain the given hold are printed
+       to stdout.
+
+OPTIONS
+       -n   <number of results>
+              The maximum number of OIDs that will be returned.
+              The default is 1000.
+
+       -h   
+            print this message
+
+EXAMPLES
+       java QueryLegalHold server "Dogs vs. Cats"

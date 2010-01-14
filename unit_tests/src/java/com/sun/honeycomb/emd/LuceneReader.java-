@@ -1,0 +1,144 @@
+/*
+ * Copyright © 2008, Sun Microsystems, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+
+
+/**********************************************************************
+ *
+ * Command to execute the reader :
+ * java -classpath /opt/honeycomb/tests/lib/honeycomb-test.jar:/opt/honeycomb/lib/md_caches/lucene-1.4-rc3.jar com.sun.honeycomb.emd.LuceneReader <PATH> <EXTRA FIELDS>
+ * <PATH> can be for example /data/2/MD_cache/extended
+ *
+ **********************************************************************/
+
+package com.sun.honeycomb.emd;
+
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import java.io.IOException;
+import java.util.Enumeration;
+
+public class LuceneReader {
+    private static final boolean PRINT_EXTRA_INFO = false;
+
+    private LuceneReader() {
+    }
+
+    private void read(String directory,
+                      String[] attributes) 
+        throws IOException {
+
+        IndexSearcher searcher = null;
+
+        try {
+            searcher = new IndexSearcher(directory);
+            Field[] atts = null;
+            if (attributes != null) {
+                atts = new Field[attributes.length+1];
+            } else {
+                atts = new Field[1];
+            }
+            
+            for (int i=0; i<searcher.maxDoc(); i++) {
+                Document doc = searcher.doc(i);
+
+                atts[0] = doc.getField("object_id");
+                for (int j=0; j<atts.length-1; j++) {
+                    atts[j+1] = doc.getField(attributes[j]);
+                }
+
+                System.out.print("Entry "+i+" : ");
+                for (int j=0; j<atts.length; j++) {
+                    if (j>0) {
+                        System.out.print(" - ");
+                    }
+                    if (atts[j] != null) {
+                        System.out.print(atts[j].stringValue());
+                    } else {
+                        System.out.print("null");
+                    }
+                }
+
+                if (PRINT_EXTRA_INFO) {
+                    System.out.print(" [");
+                    Enumeration fields = doc.fields();
+                    while (fields.hasMoreElements()) {
+                        System.out.print(" "+fields.nextElement());
+                    }
+                    System.out.println("]");
+                } else {
+                    System.out.println("");
+                }
+            }
+
+        } finally {
+            if (searcher != null) {
+                searcher.close();
+            }
+        }
+    }
+
+    /**********************************************************************
+     *
+     * Application
+     *
+     **********************************************************************/
+    
+    private static void usage() {
+        System.out.println("You have to give 2 parameters :\n"
+                           +"- the directory containing the Lucene files\n"
+                           +"- the attribute(s) to print per record [optional]");
+        System.exit(1);
+    }
+
+    public static void main(String[] arg) {
+        if (arg.length < 1) {
+            usage();
+        }
+
+        String directory = arg[0];
+        String[] attributes = null;
+        if (arg.length > 1) {
+            int nbAtts = arg.length-1;
+            attributes = new String[nbAtts];
+            for (int i=0; i<nbAtts; i++) {
+                attributes[i] = arg[i+1];
+            }
+        }
+
+        try {
+            new LuceneReader().read(directory, attributes);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}

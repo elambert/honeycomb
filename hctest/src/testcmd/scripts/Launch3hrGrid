@@ -1,0 +1,376 @@
+#!/bin/bash
+#
+# $Id: Launch3hrGrid 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# note - uses single data node, virtual or real
+
+MATRIX="short.grid"
+
+USAGE="$0 [-q] <data-vip|node> <rundir> <outfile>  <clnt1> <clnt2> ..."
+
+if test $# -lt 4 ; then
+    echo $USAGE
+    exit 1
+fi
+
+################################## same for all Launch scripts:
+
+PROG=$0
+HOST=$1
+RUNDIR=$2
+OUT=$3
+shift; shift; shift
+
+# trim '-data' from target
+CLUSTER=`echo $HOST | cut -d- -f1`
+if test "$CLUSTER" == "$HOST" ; then
+    echo "need <cluster>-<node> for <data-vip|node> arg"
+    echo $USAGE
+    exit 1
+fi
+CHEAT=${CLUSTER}-cheat
+
+BRANCH="unknown"
+if test -z "$QUIET" ; then
+    echo "WHAT HC BRANCH? (E.G. HEAD, CHARTER)"
+    read BRANCH
+else
+    BRANCH="HEAD"
+fi
+
+WIPED="no"
+if test -z "$QUIET" ; then
+    echo "WAS SYSTEM WIPED FIRST?"
+    while [ 1 == 1 ] ; do
+        echo -n "  C, D, N [cli,dd,no] ? "
+        read A
+        if [ "$A" == "C" ] ; then
+            WIPED="cli"
+            break
+        fi
+        if [ "$A" == "D" ] ; then
+            WIPED="dd"
+            break
+        fi
+        if [ "$A" == "N" ] ; then
+            break
+        fi
+    done
+else
+    WIPED="dd"
+fi
+
+t=`echo $RUNDIR | grep /mnt/test`
+if test -z "$QUIET" ; then
+    if test -z "$t" ; then
+        echo "DO YOU WANT RUNDIR $RUNDIR IN /mnt/test?"
+        while [ 1 == 1 ] ; do
+            echo -n "  (y/n): "
+            read A
+            if [ "$A" == "y" ] ; then
+                RUNDIR="/mnt/test/$RUNDIR"
+                break
+            fi
+            if [ "$A" == "Y" ] ; then
+                RUNDIR="/mnt/test/$RUNDIR"
+                break
+            fi
+            if [ "$A" == "n" ] ; then
+                break
+            fi
+            if [ "$A" == "N" ] ; then
+                break
+            fi
+        done
+    fi
+else
+    if test -z "$t" ; then
+        RUNDIR="/mnt/test/$RUNDIR"
+    fi
+fi
+
+
+echo
+if test -z "$QUIET" ; then
+    echo "CHECKING CLUSTER AND CLIENTS... PLEASE WAIT TO CONFIRM RUN"
+else
+    echo "CHECKING CLUSTER AND CLIENTS..."
+fi
+echo
+
+host_up()
+{
+    if test -z "$1" ; then
+        echo "host_up() - need arg"
+        exit 1
+    fi
+
+    host=$1
+    if test -z "$2" ; then
+        wait=0
+    else
+        wait=1
+    fi
+
+    echo Checking availability of $host..
+
+    while [ 1 ] ; do
+
+        RES=`ping -q -c 1 $host |  grep '^rtt' | awk '{print $1}'`
+        if test "$RES" == "rtt" ; then
+            break
+        elif test $wait -eq 0 ; then
+            echo "    " $host is unavailable
+            return 1
+        fi
+        echo "  $host doesn't ping - sleep 5"
+        sleep 5
+
+    done
+    echo "    " $host is available
+    return 0
+}
+
+START=`date`
+# wait for HOST to be up
+host_up $HOST retry
+host_up ${CLUSTER}-admin retry
+
+################################# end of same-for-all-Launch
+
+echo ssh admin@${CLUSTER}-admin "version"
+BUILD=`ssh admin@${CLUSTER}-admin "version"`
+if test -z "$BUILD" ; then
+    echo "CAN'T GET BUILD INFO"
+    exit 1
+fi
+
+# see which clients are up
+N_CLNT=0
+while test $# -gt 0 ; do
+    host_up $1
+    if test $? -eq 0 ; then
+        CLNTS[$N_CLNT]=$1
+        N_CLNT=$(( $N_CLNT + 1 ))
+    fi
+    shift
+done
+
+if test $N_CLNT -eq 0 ; then
+    echo "NO CLIENTS UP - EXITING"
+    echo
+    exit 1
+fi
+
+echo ; echo
+echo "CLUSTER IS $CLUSTER"
+echo "BUILD:"
+echo $BUILD
+echo "BRANCH: $BRANCH"
+echo "WIPED:  $WIPED"
+echo
+echo "CLIENTS: " ${CLNTS[@]}
+echo "RUNNING ON $N_CLNT CLIENT(S) IN $RUNDIR/"
+echo
+if test -z "$QUIET" ; then
+    while [ 1 == 1 ] ; do
+        echo -n "  OK? (y/n): "
+        read A
+        if [ "$A" == "y" ] ; then
+                break
+        fi
+        if [ "$A" == "Y" ] ; then
+                break
+        fi
+        if [ "$A" == "n" ] ; then
+                exit
+        fi
+        if [ "$A" == "N" ] ; then
+                exit
+        fi
+    done
+fi
+echo
+
+START_CONFIG=START_CONFIG.$$
+echo "ssh admin@${CLUSTER}-admin hwstat > $START_CONFIG"
+ssh admin@${CLUSTER}-admin hwstat > $START_CONFIG
+start_nodes=`egrep "IN-CLUSTER" $START_CONFIG | wc -l | awk '{print $1}'`
+echo "ssh admin@${CLUSTER}-admin sysstat >> $START_CONFIG"
+ssh admin@${CLUSTER}-admin sysstat >> $START_CONFIG
+
+# launch a job to each client
+#JOBS[0]=GridS1
+JOBS[0]=GridS2
+JOBS[1]=GridS2m1
+JOBS[2]=GridS2p1
+JOBS[3]=GridS3
+JOBS[4]=GridS3m1
+JOBS[5]=GridS3p1
+JOBS[6]=GridS4
+JOBS[7]=GridS4m1
+JOBS[8]=GridS4p1
+N_JOBS=9
+
+c=0
+j=0
+while test $c -lt $N_CLNT ; do
+    if test $j -eq $N_JOBS ; then
+        j=0
+    fi
+#   echo ssh root@${CLNTS[$c]}  \"pkill java\"
+#   ssh root@${CLNTS[$c]} "pkill java"
+    echo ssh root@${CLNTS[$c]} mkdir -p $RUNDIR 
+    ssh root@${CLNTS[$c]} "/bin/mkdir -p $RUNDIR "
+    job=${JOBS[$j]}
+    C_JOBS[$c]=$job
+    cmd=/opt/client/testcmd/bin/$job
+    echo ssh root@${CLNTS[$c]} cd $RUNDIR \; $cmd $HOST $cmd.$OUT
+    ssh root@${CLNTS[$c]} "cd $RUNDIR ; $cmd $HOST $job.$OUT " &
+#   ssh root@${CLNTS[$c]} "cd $RUNDIR ; sleep 15 ; echo slept"  &
+#   ssh root@${CLNTS[$c]} "cd $RUNDIR ; pwd "  &
+    c=$(( $c + 1 ))
+    j=$(( $j + 1 ))
+done
+echo WAITING..
+c=0
+while test $c -lt $N_CLNT ; do
+    wait
+    echo got one..
+    c=$(( $c + 1 ))
+done
+
+FINISH=`date`
+
+END_CONFIG=END_CONFIG.$$
+echo "ssh admin@${CLUSTER}-admin hwstat > $END_CONFIG"
+ssh admin@${CLUSTER}-admin hwstat > $END_CONFIG
+end_nodes=`egrep "IN-CLUSTER" $END_CONFIG | wc -l | awk '{print $1}'`
+if test -z "$end_nodes" ; then
+    end_nodes=0
+fi
+echo "ssh admin@${CLUSTER}-admin sysstat >> $END_CONFIG"
+ssh admin@${CLUSTER}-admin sysstat >> $END_CONFIG
+
+echo FINISHED RUN
+
+# collect results
+/bin/rm -f *.fill *.check
+c=0
+while test $c -lt $N_CLNT ; do
+    echo scp root@${CLNTS[$c]}:$RUNDIR/${C_JOBS[$c]}.${OUT}.fill ./${CLNTS[$c]}.${C_JOBS[$c]}.${OUT}.fill
+    scp root@${CLNTS[$c]}:$RUNDIR/${C_JOBS[$c]}.${OUT}.fill ./${CLNTS[$c]}.${C_JOBS[$c]}.${OUT}.fill
+    echo scp root@${CLNTS[$c]}:$RUNDIR/${C_JOBS[$c]}.${OUT}.check ./${CLNTS[$c]}.${C_JOBS[$c]}.${OUT}.check
+    scp root@${CLNTS[$c]}:$RUNDIR/${C_JOBS[$c]}.${OUT}.check ./${CLNTS[$c]}.${C_JOBS[$c]}.${OUT}.check
+    c=$(( $c + 1 ))
+done
+
+# analyze
+
+COMMENTS=/tmp/comm.$$
+echo CLUSTER: $CLUSTER > $COMMENTS
+echo "CLIENTS: " ${CLNTS[@]} >> $COMMENTS
+echo "==========================================" >> $COMMENTS
+${TESTCMD_BIN}/AnalyzeFillCheck >> $COMMENTS
+
+PASS=`grep PASS $COMMENTS`
+if test -z "$PASS" ; then
+    PASS=0
+else
+    PASS=1
+fi
+
+if test "$end_nodes" == "0" ; then 
+    PASS=0
+fi
+
+# gather selected metrics for xml
+
+retrieve_failures=`egrep '^check_retrieve_failures' $COMMENTS | awk '{print $NF}'`
+md_retrieve_failures=`egrep '^check_md_retrieve_failures' $COMMENTS | awk '{print $NF}'`
+fill_data_rate=`egrep fill_data_rate $COMMENTS | awk '{print $6}'`
+check_data_rate=`egrep check_data_rate $COMMENTS | awk '{print $6}'`
+check_thruput_md=`egrep check_thruput_md $COMMENTS | awk '{print $3}'`
+
+nohost_ex=0
+for i in `grep "nohost_ex" $COMMENTS | awk '{print $2}'` ; do
+	nohost_ex=$(( $nohost_ex + $i ))
+done
+other_ex=0
+for i in `grep "other_ex" $COMMENTS | awk '{print $2}'` ; do
+        other_ex=$(( $other_ex + $i ))
+done
+
+XML=3hrGrid.$$
+echo "<test_results>" > $XML
+echo "  <test_result" >> $XML
+echo "    test_name=\"$MATRIX\"" >> $XML
+echo "    result=\"$PASS\"" >> $XML
+echo "    cluster=\"$CLUSTER\"" >> $XML
+echo "    start_time=\"$START\"" >> $XML
+echo "    end_time=\"$FINISH\"" >> $XML
+echo "    build=\"$BUILD\"" >> $XML
+echo "    branch=\"$BRANCH\"" >> $XML
+echo "    performer=\"$USER\">" >> $XML
+echo "    <metric name=\"wiped\">$WIPED</metric>" >> $XML
+echo "    <metric name=\"retrieve_failures\">$retrieve_failures</metric>" >> $XML
+echo "    <metric name=\"md_retrieve_failures\">$md_retrieve_failures</metric>" >> $XML
+echo "    <metric name=\"cluster_nodes_start\">$start_nodes</metric>" >> $XML
+echo "    <metric name=\"cluster_nodes_end\">$end_nodes</metric>" >> $XML
+echo "    <metric name=\"client_hosts\">$N_CLNT</metric>" >> $XML
+echo "    <metric name=\"store_rate_bytes_sec\">$fill_data_rate</metric>" >> $XML
+echo "    <metric name=\"retrieve_rate_bytes_sec\">$check_data_rate</metric>" >> $XML
+echo "    <metric name=\"md_msec_record\">$check_thruput_md</metric>" >> $XML
+echo "    <metric name=\"nohost_exceptions\">$nohost_ex</metric>" >> $XML
+echo "    <metric name=\"other_exceptions\">$other_ex</metric>" >> $XML
+echo "    <start_config>" >> $XML
+echo "STARTING CONFIG:" >> $XML
+cat $START_CONFIG >> $XML
+echo "    </start_config>" >> $XML
+echo "    <end_config>" >> $XML
+echo "ENDING CONFIG:" >> $XML
+cat $END_CONFIG >> $XML
+echo "    </end_config>" >> $XML
+echo "    <notes>" >> $XML
+cat $COMMENTS >> $XML
+echo "    </notes>" >> $XML
+echo "  </test_result>" >> $XML
+echo "</test_results>" >> $XML
+
+/bin/rm -f $START_CONFIG $END_CONFIG
+
+$TESTCMD_BIN/qa add $XML
+
+echo RESULT IS $XML

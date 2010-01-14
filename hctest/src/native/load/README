@@ -1,0 +1,78 @@
+#
+#  $Id: README 11445 2007-08-29 03:03:42Z dr129993 $
+#
+#  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+#  Use is subject to license terms.
+#
+
+Hcload is a multithreaded program to generate load on Honeycomb
+using the C API. Usage is quoted below. By default it requires the perf_types 
+namespace to run. Another namespace can be specified on the commnad
+line but the perf_types namespace is used by default. You should
+used a namespace whose fields all belong to a single table. This
+limits the complexity of the queries generated and brings hcload
+in line with honeycomb best practices.
+
+The metadata_config_perf.xml file contains the perf_types schema. This
+schema should be loaded on the test cluster or emulator before running
+hcload.
+
+Hcload can run single-type ops (store, add_md, query, queryplus, retrieve) 
+or either of two types of mixes of operations (mix, mix2). A temp dir is 
+used for writing state shared by different ops (except for mix2). 
+
+== mix and mix2
+
+'mix' does a weighted random mix of operations, while in 'mix2' each 
+thread does a sequence of {store, query, retrieve} repeatedly. 'mix' 
+has been the most problematic mode. However it has now been modified
+to generate queries based on a single namespace. The default namespace
+used is perf_types. All the fields defined in the perf_types namespace
+reside in a single table. You may use another namespace but if the fields
+exist in several tables it can cause HADB query failures like relalg.
+While relalg query failures are treated as warnings there are other
+errors due to query complexity that will cause the test to fail.
+
+(Note that users are instructed in the Admin Guide's chapter Configuring 
+Metadata and Virtual File System Views to group fields that will occur in
+a query in a single table.) 'mix2' targets attributes in one table so 
+doesn't have this problem. It also exits on failure, whereas the other 
+options only exit with '-f true'.  Note the -D option is specific to mix2 
+(delete Nth file).
+
+The two sets of options used for regression testing are
+
+  ./hcload -v <datavip> -l /tmp/e -n 8 -o mix -s 1024,2048  \
+                                -t 43200 -f true
+  ./hcload -v <datavip> -l /tmp/e -n 8 -o mix2 -s 1024,2048 \
+                                -t 43200 -f true
+
+The script capi-load.sh can be used to drive hcload. See its usage for
+more info. It is installed in trunk/build/hctest/dist/bin/. 
+
+Hcload and its sister programs hctestharness and queryall are made by
+typing 'make' in trunk/hctest/src/native/build/, and are installed in
+trunk/build/hctest/dist/bin/<OS>/.
+
+usage: hcload
+ -t <duration in seconds> (mix, mix2, store, add_md, query, queryplus,
+    retrieve only)
+    or specify -1 to run continuously for mix and mix2 only
+    Note that retrieve and add_md will only continue to run
+    while there are records to read from the store output file
+ -n <nb_threads>
+ -N <namespace> default is perf_types
+ -o <store|retrieve|query|queryplus|delete|addmd|mix|mix2>
+ -p <port>
+ -v <dataVIP>
+ -s <file_size1, file_size2, ..., file_sizeN> (store, addmd only)
+ -S <metadata_size> max size of metadata string, char and binary fields
+     Default is 512 for cluster and 64 for an emulator. Value must be
+     in the 10 - 512 range.
+ -e <true|false|metadata_str_length_limit> (emulator)
+ -f <true|<num>> (failearly)
+ -l <tmpdir>
+ -D <n> (delete nth file for mix2, default 100, 0=none)
+ -d <debug> (non-zero prints debug info)
+ -h (print this message)
+

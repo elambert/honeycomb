@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="parallel">
+	<info>
+		<author>
+			<name>Rodney Gomes</name>
+			<email>rodney.gomes@sun.com</email>
+		</author>
+		<description>DTF parallel unit test.</description>
+	</info>
+
+	<parallel>
+		<for property="j" range="[1..4]">
+			<local>
+				<echo>Echo ${j}</echo>
+			</local>
+		</for>
+		<for property="j" range="[5,6]">
+			<local>
+				<echo>Echo ${j}</echo>
+			</local>
+		</for>
+		<for property="j" range="[7,8,9,10]">
+			<local>
+				<echo>Echo ${j}</echo>
+			</local>
+		</for>
+	</parallel>
+
+	<local>
+		<lockcomponent id="DTFA1">
+			<attrib name="type" value="dtfa"/>
+		</lockcomponent>
+	</local>
+
+	<local>
+		<echo>Echoing some values on the previously locked agent.</echo>
+	</local>
+
+	<parallel>
+		<component id="DTFA1">
+			<echo>Echo a</echo>
+		</component>
+		<component id="DTFA1">
+			<echo>Echo b</echo>
+		</component>
+		<component id="DTFA1">
+			<echo>Echo c</echo>
+		</component>
+		<component id="DTFA1">
+			<echo>Echo d</echo>
+		</component>
+		<component id="DTFA1">
+			<echo>Echo e</echo>
+		</component>
+		<component id="DTFA1">
+			<echo>Echo f</echo>
+		</component>
+	</parallel>
+
+	<component id="DTFA1">
+		<echo>Echo a</echo>
+		<echo>Echo b</echo>
+		<echo>Echo c</echo>
+		<echo>Echo d</echo>
+		<echo>Echo e</echo>
+		<echo>Echo f</echo>
+	</component>
+</script>

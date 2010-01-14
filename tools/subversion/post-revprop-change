@@ -1,0 +1,84 @@
+#!/usr/bin/perl -w
+#
+# $Id: post-revprop-change 10853 2007-05-19 02:50:20Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# POST-REVPROP-CHANGE HOOK
+#
+# The post-revprop-change hook is invoked after a revision property
+# has been changed. Subversion runs this hook by invoking a program
+# (script, executable, binary, etc.) named 'post-revprop-change'
+# (for which this file is a template), with the following ordered
+# arguments:
+#
+#   [1] REPOS-PATH   (the path to this repository)
+#   [2] REV          (the revision that was tweaked)
+#   [3] USER         (the username of the person tweaking the property)
+#   [4] PROPNAME     (the property that was changed)
+#
+# Because the propchange has already completed and cannot be undone,
+# the exit code of the hook program is ignored.  The hook program
+# can use the 'svnlook' utility to help it examine the
+# new property value.
+#
+# On a Unix system, the normal procedure is to have 'post-revprop-change'
+# invoke other programs to do the real work, though it may do the
+# work itself too.
+#
+# Note that 'post-revprop-change' must be executable by the user(s) who will
+# invoke it (typically the user httpd runs as), and that user must
+# have filesystem-level permission to access the repository.
+#
+# On a Windows system, you should name the hook program
+# 'post-revprop-change.bat' or 'post-revprop-change.exe',
+# but the basic idea is the same.
+#
+
+# XXX Don't edit this directly on hc-subversion!
+# Edit this in your copy of the repository
+# in honeycomb/tools/subversion and then scp 
+# it over to hc-subversion after commiting the change.
+
+#
+# Most commonly, this script would be run as a result of modifying a
+# previous commit message via the "svnadmin setlog" command.
+#
+
+use strict;
+
+# get args
+my $repo = $ARGV[0];
+my $rev = $ARGV[1];
+
+`/usr/local/viewcvs-1.0-dev/svndbadmin rebuild $repo $rev`;

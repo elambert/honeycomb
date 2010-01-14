@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="performancemonitor">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>Performance monitor testsuite to stress test the starting
+                     and stopping of performance monitoring.</description>
+    </info>
+
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input" />
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+        <createstorage id="TINPUT" path="${dtf.xml.path}" />
+
+        <loadproperties uri="storage://INPUT/hc.properties" />
+        <import uri="storage://INPUT/${hc.metadata.filename}" />
+    </local>
+
+    <local>
+        <lockcomponent id="CLUSTER" timeout="${hc.lockcomponent.timeout}">
+            <attrib name="hc.cluster.type" value="${hc.cluster.type}" />
+        </lockcomponent>
+    </local>
+
+    <for property="iter" range="1..50">
+        <component id="CLUSTER">
+            <perfmonitor command="start" sample="1"/>
+            <sleep time="1s"/>
+            <perfmonitor command="stop" />
+            <perfmonitor command="collectlogs" uri="storage://OUTPUT/server-${iter}.logs"/>
+        </component>
+    </for>
+    
+</script>

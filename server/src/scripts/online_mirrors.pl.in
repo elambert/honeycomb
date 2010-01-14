@@ -1,0 +1,158 @@
+#!/usr/bin/perl
+#
+# $Id: online_mirrors.pl.in 11265 2007-07-25 03:23:00Z sc1444 $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+# Online any zpool mirrors associated with the device
+#
+# arguments: /dev/dsk/c?t?d?s?
+#
+# Returns 0 if mirrors were brought online successfully (or were already
+# online), non-zero otherwise.
+#
+
+use warnings;
+
+# make sure we have /usr/sbin in our path for zpool
+$path = $ENV{'PATH'};
+$ENV{'PATH'} = "/usr/sbin:$path";
+
+#
+# log messages
+# usage: &log(level_string, message)
+#
+sub log {
+  my $level = shift @_;
+  my $logger_string = shift @_;
+  my $pid = open(LOGGER, "|logger -f - -t online_mirrors -p local0.$level") or
+        die "coudn't open logger";
+  print LOGGER "$logger_string";
+  close LOGGER;
+}
+
+# log at "info" level
+sub log_info { &log("info", shift @_); }
+
+# log at "warning" level
+sub log_warn { &log("warning", shift @_); }
+
+# online both mirrors
+sub online_mirrors {
+  my $dev_name = shift @_;
+  my $retval = 0;
+
+  $retval += &online_mirror($dev_name, "s3");
+  $retval += &online_mirror($dev_name, "s5");
+
+  return $retval;
+}
+
+#
+# Put any zpool mirrors corresponding to the device online.
+# There may not be any such mirrors, in which case this subroutine
+# should return success.
+#
+sub online_mirror {
+  my $dev_nm = shift @_;
+  my $slice_nm = shift @_;
+
+  my $exist_slice = "";
+  my $junk = "";
+  my $zpool_status = "";
+  my $zpool_cmd_out = "";
+  my $zpool_cmd_status = 0;
+  my $status = "";
+
+  &log_info("online_mirror $dev_nm $slice_nm");
+  $zpool_status=`zpool status`;
+  &log_info($zpool_status);
+
+  # find an existing slice in the mirror
+  $zpool_status = $_ = `zpool status tank 2>&1 | grep $slice_nm | head -1`;
+  ($exist_slice, $junk) = split;
+
+  &log_info("zpool_status <$zpool_status>; exist_slice $exist_slice");
+
+  if (! ($exist_slice =~ /c\dt\dd\ds\d/)) {
+    &log_warn(
+	"error: no existing slice for $dev_nm $slice_nm: zpool output $_");
+    return 1;
+  }
+  
+  # we want to capture any stderr output for logging purposes
+  my $zpool_cmd = "zpool attach tank $exist_slice ${dev_nm}${slice_nm} 2>&1";
+
+  $zpool_cmd_out = `$zpool_cmd`;
+  $zpool_cmd_status = $?;
+
+  if ($zpool_cmd_status != 0) {
+    &log_warn(
+	 "error: $zpool_cmd failed errno $?, output: $zpool_cmd_out\n");
+    return $zpool_cmd_status;
+  }
+  
+  # 
+  # paranoia: double-check to see that they are really online
+  #
+  $zpool_cmd_out = $_ = `zpool status tank 2>&1 |grep ${dev_nm}${slice_nm}`;
+  $zpool_cmd_status = $?;
+
+  if ($zpool_cmd_status) {
+	  &log_warn("zpool attach worked, but can't confirm slice is online");
+	  &log_warn(`zpool status tank 2>&1`);
+	  return 1;
+  }
+
+  if (! ($zpool_cmd_out =~ /ONLINE/)) {
+    &log_warn("error: ${dev_nm}${slice_nm} isn't ONLINE: $zpool_cmd_out");
+    return 2;
+  }
+
+  return 0;
+}
+
+###### main #######
+
+$_ = $ARGV[0];
+
+# extract devname from argument;
+# use m|...| so that we do not need to use a lot of "\/" 
+my ($dev_name) = "";
+($dev_name) = m|.*(c\dt\dd\d).*|;
+
+die "usage: $0: devicename" unless ($dev_name ne "");
+
+my $retval = &online_mirrors($dev_name);
+exit($retval);

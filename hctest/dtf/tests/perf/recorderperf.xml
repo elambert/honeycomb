@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="recorder_perf">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF recorder unit test.</description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+        <createstorage id="TINPUT" path="${dtf.xml.path}"/>
+
+        <loadproperties uri="storage://INPUT/test.properties" />
+
+        <echo>Recorder Performance Tests</echo>
+
+        <createrange name="quote" value="${einstein.quotes}" recycle="true"/>
+        <property name="timestring" 
+                  value="*** The time is [${dtf.timestamp}] ***"/>
+                 
+        <import uri="storage://TINPUT/eventutil.xml"/>
+    </local>
+
+    <local>
+        <property name="mode" value="insert" overwrite="true"/>
+    </local> 
+   
+    <for property="event.name" range="perf.event.big,perf.event.small"> 
+        <for property="recorder.type" range="txt,database"> 
+        	<record type="${recorder.type}" 
+                    uri="storage://OUTPUT/recorder-${recorder.type}" 
+                    append="false"> 
+                <for property="iter" range="1..5000">
+                    <event refid="${event.name}"/>
+                </for>
+            </record>
+    
+            <query type="${recorder.type}" 
+                   uri="storage://OUTPUT/recorder-${recorder.type}" 
+                   event="dtf.perf.event"
+                   cursor="cursor"/>
+                   
+            <record type="object" uri="property://dbperf"> 
+            	<stats cursor="cursor" event="stats"/>
+            </record> 
+            <local>
+           		<echo>
+                      Single Thread ${recorder.type} Performance Stats with ${event.name} event.
+                      -----------------------------------
+                      Events per second: ${dbperf.avg_occ}
+                      Total of Events:   ${dbperf.tot_occ}
+                      Total Duration:    ${dbperf.tot_dur}s
+                </echo> 
+            </local>
+        </for> 
+    </for> 
+</script>

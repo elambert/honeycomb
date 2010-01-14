@@ -1,0 +1,105 @@
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+
+@HoneycombProductName@ Software Development Kit
+
+Table of Contents
+
+1 Introduction
+2 Sample Applications
+3 Writing Your Own @HoneycombProductName@ Applications
+    3.1 Import Statements
+    3.2 Building Your Applications
+        3.2.1 Using `ant`
+    3.3 Running Your Applications
+
+
+
+1 Introduction
+@
+  The @HoneycombProductName@ SDK is delivered to customers to 
+  support the implementation of the @HoneycombProductName@ client applications.
+
+2 Sample Applications
+
+  A set of code samples is shipped with the SDK in the 
+  src directory.
+
+* StoreFile.java - store a single file 
+
+* AddMetadata.java - add a metadata record to an existing object
+
+* RetrieveData.java - retrieve a single file and its meta-data
+
+* RetrieveMetadata.java - retrieve a single metadata record
+
+* Delete.java - delete a metadata record
+
+* Query.java - search the @HoneycombProductName@ for metadata records 
+  which match a query string
+
+* Schema.java - print the meta-data attributes 
+  available in your @HoneycombProductName@
+
+  The sample applications come pre-built and ready to 
+  run via scripts in the lib directory: store, 
+  retrieve, delete, query and schema. For example,
+
+$ bin/store --help
+
+...
+
+$ bin/store honeycomb /etc/hosts
+
+@SampleOID@
+
+  Each script checks to make sure the that Java version 
+  being run is "1.4" or higher and sets up the correct CLASSPATH.
+
+  (In the example above "honeycomb" is the hostname of a 
+live Honeycomb system's Data IP Address. In a future 
+release of the SDK, we will include a Honeycomb 
+simulator which software developers can use to debug 
+their Honeycomb applications.)
+
+3 Writing Your Own Honeycomb Applications
+
+3.1 Import Statements
+
+  The honeycomb client package must be imported into your 
+  Java source file.
+
+import com.sun.honeycomb.client.*;
+
+3.2 Building Your Applications
+
+Compile, specifying the client library jar and (optionally) the SDK jar:
+
+javac -classpath sdk/lib/honeycomb-sdk.jar:sdk/lib/honeycomb-client.jar MyApp.java
+
+3.2.1 Using `ant`
+
+  The sdk comes with a build.xml which makes it easy to 
+  compile your applications using the `ant` utility 
+  (ant is available for free download at http://ant.apache.org).
+
+1. place your source files into the sdk/src/ directory
+
+2. cd into the sdk/ directory.
+
+3. run `ant clean`
+
+4. run `ant`
+
+  This will create the honeycomb-sdk.jar file in the 
+  sdk/lib/ directory as well as generate javadoc from 
+  the source files and place them in the 
+  sdk/doc/apps/javadoc/ directory.
+
+3.3 Running Your Applications
+
+  When running your applications be sure to include 
+  both all of the jar files in the lib directory in 
+  your CLASSPATH. See the scripts in the sdk/bin/ 
+  directory as examples.

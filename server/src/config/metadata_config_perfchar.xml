@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 
+
+  $Id:$
+
+  Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+  Use is subject to license terms.
+
+Use /opt/honeycomb/bin/metadata_merge_config.sh to add this config to
+the existing one -->
+
+<!-- This file contains the performance schema, used to pass the performance and
+blockstore suite tests. Merge accordingly before running those ! -->
+
+<metadataConfig>
+  <schema>
+
+    <!--namespace name="qa" writable="true" extensible="true"-->
+      
+      <field name="date" type="long" />
+      <field name="User_Comment" type="char" length="64" />
+      <field name="iteration" type="long" />
+      <field name="test_id" type="char" length="64" />
+      <field name="user" type="char" length="64" />
+
+      <field name="client" type="char" length="64" />
+      <field name="first" type="char" length="64" />
+      <field name="second" type="char" length="64" />
+      <field name="third" type="char" length="64" />
+      <field name="fourth" type="char" length="64" />
+      <field name="fifth" type="char" length="64" />
+      <field name="sixth" type="char" length="64" />
+      <field name="timestart" type="long" />
+
+      <field name="doublefixed" type="double" />
+      <field name="doublelarge" type="double" />
+      <field name="longsmall" type="long" />
+      <field name="longlarge" type="long" />
+
+      <field name="stringlarge" type="char" length="512" />
+    <!--/namespace-->
+
+  </schema>
+  
+  <fsViews>
+
+    <fsView name="byUser" filename="${system.object_id}">
+      <attribute name="user"/>
+    </fsView>
+
+    <fsView name="alphabeticalOidTwo" filename="${system.object_id}">
+      <attribute name="first"/>
+      <attribute name="second"/>
+    </fsView>
+
+    <fsView name="alphabeticalOidThree" filename="${system.object_id}">
+      <attribute name="first"/>
+      <attribute name="second"/>
+      <attribute name="third"/>
+    </fsView>
+
+    <fsView name="alphabeticalOidFour" filename="${system.object_id}">
+      <attribute name="first"/>
+      <attribute name="second"/>
+      <attribute name="third"/>
+      <attribute name="fourth"/>
+    </fsView>
+
+    <fsView name="alphabeticalOidFive" filename="${system.object_id}">
+      <attribute name="first"/>
+      <attribute name="second"/>
+      <attribute name="third"/>
+      <attribute name="fourth"/>
+      <attribute name="fifth"/>
+    </fsView>
+
+    <fsView name="alphabeticalOidSix" filename="${system.object_id}">
+      <attribute name="first"/>
+      <attribute name="second"/>
+      <attribute name="third"/>
+      <attribute name="fourth"/>
+      <attribute name="fifth"/>
+      <attribute name="sixth"/>
+    </fsView>
+
+    <fsView name="stringOid" filename="${system.object_id}">
+      <attribute name="system.test.type_string"/>
+    </fsView>
+
+  </fsViews>
+
+  <tables>
+    <table name="qa">
+      <column name="date"/>
+      <column name="User_Comment"/>
+      <column name="iteration"/>
+      <column name="test_id"/>
+      <column name="user"/>
+    </table>
+
+    <table name="qafirst">
+      <column name="client"/>
+      <column name="first"/>
+      <column name="second"/>
+      <column name="third"/>
+      <column name="fourth"/>
+      <column name="fifth"/>
+      <column name="sixth"/>
+      <column name="timestart"/>
+    </table>
+
+    <table name="qatypes">
+      <column name="doublefixed"/>
+      <column name="doublelarge"/>
+      <column name="longsmall"/>
+      <column name="longlarge"/>
+      <column name="stringlarge"/>
+    </table>
+  </tables>
+
+</metadataConfig>

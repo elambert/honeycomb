@@ -1,0 +1,394 @@
+# -*- icon-mode -*-
+
+# $Id: stats.icn 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright 2007 Sun Microsystems, Inc. All rights reserved.
+# Use is subject to license terms.
+
+# A very simple stats program for tables of numbers in plain-text
+# files. Values should be whitespace separated. Helpful gnuplot
+# commands are also printed if you want to display freq. distribution
+# data of the columns of interest.
+#
+# Operation: Read a table, one row per line, columns separated by
+# whitespace For each specified column caclulate basic stats;
+# distribute values into n buckets, and output the frequency
+# distribution table suitable for feeding to gnuplot (all columns are
+# normalized so they can be plotted on the same axis, and the scale
+# factor is specified in the label of the plot).
+#
+# Column labels (usually for gnuplot) can be specified in the first
+# line of the file. It should be a comment (starts with a '#'), and
+# titles are separated by ':'.
+#
+# Usage: stats [-c c1,c2,c3...] [-n num_buckets] [-o outfile] [file]
+#     defaults: -c 1 -n 100
+#
+# Example:
+#     stats -c 2,3,4,5 -n 500 -o ~/Dev315.dat ~/Dev315.stats
+#
+# Columns are numbered starting from 1. Dev315.stats looks something
+# like this:
+#
+# # ID No. : Test1 : Test2 : Mid-Term : Final : SS# : Mother's Maiden Name
+# 20034-A   25     40      50         -      555-888-0101 Einstein
+# 23874-F   82     95      -          94     555-888-0101 Einstein
+# 82640-B   33     83      94         100    666-666-9090 Bonds
+# etc.
+#
+# Shamim Mohamed May 2006
+
+# The input and output files
+global inp, outp, in_fname, out_fname
+
+# cols is a set (or sorted list) of integers, the column numbers
+global cols
+
+# nbuckets is an integer, the no. of buckets. Each bucket is a table.
+global buckets, nbuckets
+
+link options
+
+record stats(num, first_q, median, third_q, max,
+             mean, std_dev, scale, bsize, title)
+
+procedure main(args)
+    local data                  # list of list of values
+    local fields                # temp for input
+    local scale_factors
+
+    scale_factors := [ 0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 2, 10,
+                      20, 100, 200, 1000, 2000, 10000, 20000, 100000,
+                      200000, 1000000, 2000000, 10000000, 20000000,
+                      100000000, 200000000 ]
+
+    parse_args(args) | usage()
+
+    titles := list()
+    data := table()
+    every i := 1 to *cols do
+        data[i] := list()
+
+    # Read data
+    while line := read(inp) do {
+        if /first_line := "" & line[1] == "#" then
+            every put(titles, parse_titles(line[2:0]))
+
+        fields := split(line)
+        col_no := 0
+        col_index := 0
+        every value := !fields do {
+            col_no +:= 1
+            if member(cols, col_no) then {
+                col_index +:= 1
+
+                if value := numeric(value) then
+                    push(data[col_index], value)
+            }
+        }
+    }
+
+    cols := sort(cols)          # Convert to sorted list
+
+    # Analyze each column
+    allstats := table()
+    max_range := 0
+    nlargest := 0               # num values in largest column
+    every i := 1 to *cols do {
+        if S := get_stats(data[i]) then {
+            if S.num > nlargest then
+                nlargest := S.num
+
+            S.title := titles[cols[i]] | ("C" || cols[i])
+        }
+        else {
+            write(&errout, "Empty data-set " || i ||
+                  " (col. #", cols[i], ")")
+            S := &null
+        }
+        allstats[i] := S
+    }
+
+    # Calculate range: largest range, but don't consider columns that
+    # have too few values (10% of the largest)
+    range := 0
+    every i := 1 to *cols do {
+        S := \allstats[i] | next
+        S.num > nlargest/10 | next
+        S.max > range | next
+
+        range := S.max
+        ctl_col := i
+    }
+
+    # Scale factor and bucket size for each column
+    every i := 1 to *cols do {
+        S := \allstats[i] | next
+        scale := range/S.max
+
+        S.scale := 1
+        every sc := !scale_factors do
+            if sc <= scale then
+                S.scale := sc
+            else
+                break
+
+        # bucket size
+        S.bsize := (range / nbuckets) / S.scale
+    }
+
+    # Count the values into buckets.
+
+    step_size := range/nbuckets
+    buckets := table()
+    every i := 1 to nbuckets do
+        buckets[i] := table(0)
+
+    every i := 1 to *cols do {
+        col_data := data[i]
+        bucket_size := (\allstats[i]).bsize | next
+
+        every value := !col_data do {
+            bucket_no := 1 + integer(0.5 + value/bucket_size)
+            if bucket_no > nbuckets then
+                bucket_no := nbuckets
+
+            bucket := buckets[bucket_no]
+            bucket[i] +:= 1
+        }
+    }
+
+    # Print out the bucket table for gnuplot
+    write(outp, "#\n# Statistics for ", image(inp), "\n# ", &dateline)
+    write(outp, "#\n# Col ", img())
+
+    # Print the stats
+    every i := 1 to *cols do
+        write(outp, "# ", to_width(cols[i], -3), " ", img(\allstats[i]))
+
+    # Print the gnuplot command-line
+    write(outp, "#\n# To plot with gnuplot, try:")
+    write(outp, "#    set title \"Important Data\"")
+    write(outp, "#    set xlabel \"ms\"")
+    write(outp, "#    set ylabel \"Frequency\"")
+    writes(outp, "#    plot [0:", range, "] ")
+    ctlling_scale := allstats[ctl_col].scale
+    every i := 1 to *cols do {
+        c := cols[i]
+        S := \allstats[i] | next
+
+        (/comma_printed := 0) | writes(outp, ", ")
+
+        writes(outp, "'", out_fname, "' using 1:", i+1,
+               " title '", S.title)
+        if S.scale > ctlling_scale then
+            op := "*" || (S.scale / ctlling_scale)
+        else
+            op := "/" || integer(0.5 + ctlling_scale / S.scale)
+        if op ~== "/1" then
+            writes(outp, op)
+        writes(outp, " (", S.num, ": ", fstr(S.median, 2), ",",
+               fstr(S.std_dev, 2), ")'")
+        writes(outp, " with lines")
+       
+    }
+    write(outp, "\n")
+
+    x := step_size/2
+    every i := 1 to nbuckets do {
+        writes(outp, integer(0.5 + x), " ")
+        x +:= step_size
+
+        bucket := buckets[i]
+        every j := 1 to *cols do
+            writes(outp, bucket[j], " ")
+        write(outp)
+    }
+
+end
+
+procedure usage(s)
+    write(&errout, "Error! " || \s)
+    write(&errout, "Usage: stats [-c c1,c2,...] [-n num_buckets]",
+          " [-o outfile] [file]")
+    stop()
+end
+
+# Parse command-line arguments and set globals inp, cols, nbuckets
+procedure parse_args(args)
+    # Defaults
+    cols := list()
+    push(cols, 1);
+    nbuckets := 100
+    inp := &input
+    outp := &output
+    in_fname := "<stdin>"
+    out_fname := "<this_file>"
+
+    *args > 0 | return ""
+
+    opts := options(args, "-n+ -c: -o:", usage)
+
+    cols := parse_cols(opts["c"])
+    nbuckets := integer(opts["n"])
+
+    (out_fname := \opts["o"]) & 
+        ((outp := open(out_fname, "w")) |
+         stop("Couldn't open ", image(out_fname)))
+
+    if *args > 0 then
+        inp := open(args[1]) | stop("Couldn't open ", image(args[1]))
+
+    return ""
+end
+
+procedure parse_cols(col_str)
+    \col_str | fail
+
+    L := list()
+    col_str ||:= ","
+    col_str ? while col := tab(upto(',')) do {
+        push(L, integer(col))
+        tab(many(','))
+    }
+    return set(L)
+end
+
+# Parse a line and find : separated words
+procedure parse_titles(s)
+    local word
+    s ? while word := tab(upto(':')|0) do {
+        suspend strip(word)
+        move(1) | fail
+    }
+end
+
+# Strip whitespace from either end
+procedure strip(s)
+    static ws
+    initial ws := ' \t'
+    s ? {
+        tab(many(ws))
+        return trim(tab(0))
+    }
+end
+
+# Split the string on whitespace and return a list
+procedure split(s)
+    static wchar
+    initial wchar := ~' \t\r'
+
+    s := (s ? tab(upto('#')))
+
+    L := list()
+    s ? while tab(upto(wchar)) do
+        put(L, tab(many(wchar)))
+    return L
+end
+
+# Given a list of values, return a stats record
+procedure get_stats(values)
+    local max, median, first_q, third_q, mean, std_dev
+    local n, k, sum, ssum
+
+    *values > 0 | fail
+
+    values := sort(values)
+    n := *values
+
+    k := n/2
+    if n % 2 = 1 then
+        median := values[1 + k]
+    else
+        median := (values[k] + values[1+k]) / 2.0
+
+    k := n/4
+    if n % 4 = 1 then {
+        first_q := values[1 + k]
+        third_q := values[1 + 3*k]
+    }
+    else {
+        first_q := (values[k] + values[1 + k]) / 2.0
+        third_q := (values[3*k] + values[1 + 3*k]) / 2.0
+    }
+
+    sum := 0
+    every value := !values do
+        sum +:= value
+    mean := sum/n
+
+    ssum := 0
+    every value := !values do {
+        diff := value - mean
+        ssum +:= diff * diff
+    }
+    std_dev := sqrt(ssum/n)
+
+    # Remove outliers
+    max := median + 3.0 * std_dev
+
+    return stats(n, first_q, median, third_q, max, mean, std_dev)
+end
+
+procedure img(s)
+    local i, ret
+    static header, widths
+    initial {
+        header := stats("N", "Q1", "median", "Q3", "max",
+                        "mean", "std_dev", "scal", "bsize", "title")
+        widths := [6, 7, 7, 7, 7, 7, 8, 4, 8, 0, 0]
+    }
+    /s := header
+
+    i := 0
+    ret := ""
+    every ret ||:= " " || to_width(fstr(!s, 2), widths[i +:= 1])
+    return ret[2:0]
+end
+
+procedure to_width(v, i, c)
+    local s, left, pad
+    /c := " "
+
+    \v | return v
+
+    s := string(v)
+
+    (i ~= 0) | return s
+
+    if i < 0 then
+        i := -i
+    else
+        rt_just := ""
+
+    if *s >= i then
+$ifndef junk
+        return s
+$else
+        if \rt_just then
+            return s[1:i] || "*"
+        else
+            return "*" || s[-i+1:0]
+$endif
+
+    pad := i - *s
+    if \left then
+        return s || repl(c, pad)
+    else
+        return repl(c, pad) || s
+end
+
+# Return a string from floating point number with n digits after .
+procedure fstr(f, n)
+    case type(f) of {
+        "real" : string(f) ? {
+            tab(upto('.')) | return .&subject
+            move(1)
+            # Are there n after the decimal point?
+            move(n) | return .&subject 
+            return tab(1)
+        }
+        "string" : return f
+        default : return image(f)
+    }
+end

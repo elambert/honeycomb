@@ -1,0 +1,176 @@
+#!/bin/sh
+#
+# $Id: irules.sh.in 10855 2007-05-19 02:54:08Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+WGET=/usr/sfw/bin/wget
+GAWK=/opt/sfw/bin/gawk
+
+echo '     Mask  Act. | P.type SPort DPort     Src        Dest       h  | OPort'
+
+$WGET -q -O - http://10.123.45.1/http/cgi-bin/zirule-all | \
+    egrep -v '^-------' | \
+    $GAWK '{l1 = $0; getline l2; print l1 l2}'| \
+    egrep -v '^Idx' | \
+    tr '-' ' ' | \
+    $GAWK '
+
+function ip(s) {
+    # convert a string (in hex) to dotted octets
+    num = atoi("0x" s)
+
+    if (num < 1000) {
+        CONVFMT = "%x"
+        return num ""
+    }
+
+    ret = ""
+    for (i = 1; i < 8; i += 2) {
+        o = substr(s, i, 2)
+        ret = ret atoi("0x" o) "."
+    }
+
+    return substr(ret, 0, length(ret) - 1)
+}
+
+function get_action(num) {
+    if (num == atoi("0x2088"))
+        return " cpu "
+    if (num == atoi("0x28a8"))
+        return " cpu "
+    if (num == atoi("0x0090"))
+        return " drop"
+    if (num == atoi("0x2080") || num == atoi("0x2090"))
+        return "accpt"
+    if (num == atoi("0x28a0"))
+        return "forwd"
+    if (num == atoi("0x0800"))
+        return " arp?"
+    return "  *  "
+}
+
+# Main loop
+{
+    action = get_action(atoi("0x" $3))
+
+    printf("%3d  %3s  %5s |", 0+$1, $20, action)
+
+    ptype = "ip"
+    if (atoi("0x" $23) == 2054) {
+        ptype = "arp"
+        src = ""
+        dest = ip($24)
+        arp_op = atoi("0x" substr($27, 1, 4))
+        h = ""
+    } else if (atoi("0x" substr($25,1,4)) == 2048) {
+        # packet type == IP
+        src = ip($27)
+        dest = ip($22)
+        proto = atoi("0x" substr($24,7,2))
+        sport = atoi("0x" substr($23,1,4))
+        dport = atoi("0x" substr($23,5,4))
+        h = substr($27, 8, 1) ":" substr($23, 4, 1)
+        if (proto == 17) 
+            ptype = "udp" 
+        if (proto == 6)
+            ptype = "tcp"
+        if (sport == 0 && dport == 0 && proto == 1) {
+            ptype = "icmp"
+            src = ""
+            h = ""
+        }
+        if (action == " drop" && src == 0)
+            src = ""
+    }
+
+    eport = $11 * 12 + $12
+    if ((eport % 2) == 0)
+        eport += 2;
+
+    if (ptype == "arp")
+        printf(" arp %1x             ", arp_op)
+    else if (ptype == "icmp")
+        printf(" icmp              ")
+    else if (ptype == "tcp")
+        printf(" tcp    %4d %5d ", sport, dport)
+    else if (ptype == "udp")
+        printf(" udp    %4d %5d ", sport, dport)
+    else
+        printf(" %-4s              ", ptype);
+
+    printf("%8s %15s ", src, dest)
+
+    if (action == "forwd")
+        printf(" %3s | %2d\n", h, eport)
+    else
+        printf("\n")
+}
+
+function atoi(str, ret, chars, n, i, k, c) {
+    if (str ~ /^0[0-7]*$/) {
+        # octal
+        n = length(str)
+        ret = 0
+        for (i = 1; i <= n; i++) {
+            c = substr(str, i, 1)
+            if ((k = index("01234567", c)) > 0)
+                k-- # adjust for 1-basing in awk
+ 
+            ret = ret * 8 + k
+        }
+    } else if (str ~ /^0[xX][0-9a-fA-f]+/) {
+        # hexadecimal
+        str = substr(str, 3)    # lop off leading 0x
+        n = length(str)
+        ret = 0
+        for (i = 1; i <= n; i++) {
+            c = substr(str, i, 1)
+            c = tolower(c)
+            if ((k = index("0123456789", c)) > 0)
+                k-- # adjust for 1-basing in awk
+            else if ((k = index("abcdef", c)) > 0)
+                k += 9
+
+            ret = ret * 16 + k
+        }
+    } else if (str ~ /^[-+]?([0-9]+([.][0-9]*([Ee][0-9]+)?)?|([.][0-9]+([Ee][-+]?[0-9]+)?))$/) {
+        # decimal number, possibly floating point
+        ret = str + 0
+    } else
+        ret = "NOT-A-NUMBER"
+
+    return ret
+}
+' 

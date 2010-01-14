@@ -1,0 +1,190 @@
+<!--
+ $Id: build.xml 12002 2008-05-13 22:30:56Z ds158322 $
+ 
+ Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ Use is subject to license terms.
+ 
+--> 
+
+<project name="emulator" default="openedition">
+  <description>
+    Simple build file that builds the emulator
+  </description>
+
+  <!-- first, local, user specified .ant.properties files take precedence -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <!-- second, use the build.properties for this package -->
+  <property file="${basedir}/../emulator/build.properties"/>
+
+  <!-- lastly, use the top-level builds properties file -->
+  <property file="${basedir}/../build/build.properties"/>
+
+  <!-- reference environment variables as env.X -->
+  <!-- ie. ${env.USER} -->
+  <property environment="env"/>
+
+  <path id="emulator.build.classpath">
+    <pathelement location="${external.dist.libdir}/concurrent.jar"/>
+    <pathelement location="${external.dist.libdir}/bsh-2.0b2.jar"/>
+    <pathelement location="${external.dist.libdir}/jetty-4.2.20.jar"/>
+    <pathelement location="${external.dist.libdir}/jug.jar"/>
+    <pathelement location="${server.libdir}/javacc.jar"/>
+<!-- BAD: should not use server.jar for compile -->
+    <pathelement location="${server.dist.libdir}/${jarname.server}"/>
+    <pathelement location="${common.dist.libdir}/${jarname.common}"/>
+    <pathelement location="${mgmt.dist.libdir}/${jarname.mgmt}"/>
+    <pathelement location="${adm.dist.libdir}/${jarname.adm}"/>
+    <pathelement location="${external.servicetags.libdir}/servicetags-api.jar"/>
+  </path>
+
+  <path id="emulator.derbyCache.classpath">
+    <pathelement location="${common.dist.libdir}/${jarname.common}"/>
+    <pathelement location="${emulator.build.classes}"/>
+  </path>
+
+  <path id="emulator.derbySystemCache.classpath">
+    <pathelement location="${common.dist.libdir}/${jarname.common}"/>
+    <pathelement location="${emulator.build.classes}"/>
+  </path>
+
+  <target name="prepare">
+    <tstamp/>
+    <mkdir dir="${emulator.build.basedir}"/>
+    <mkdir dir="${emulator.build.importedsrc}"/>
+    <mkdir dir="${emulator.build.classes}"/>
+    <mkdir dir="${emulator.dist.basedir}"/>
+    <mkdir dir="${emulator.dist.lib}"/>
+    <mkdir dir="${emulator.dist.md_caches}"/>
+    <mkdir dir="${emulator.dist.bin}"/>
+    <mkdir dir="${emulator.dist.config}"/>
+    <mkdir dir="${emulator.build.parser.srcdir}"/>
+    <mkdir dir="${emulator.build.parser.outputdir}"/>
+    <mkdir dir="${emulator.build.derbyCache}"/>
+    <mkdir dir="${emulator.build.derbySystemCache}"/>
+  </target>
+
+  <target name="import" depends="prepare">
+    <copy todir="${emulator.build.importedsrc}">
+      <fileset dir="${server.java.srcdir}"
+
+      includes="com/sun/honeycomb/protocol/*
+ * Copyright © 2008, Sun Microsystems, Inc.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *
+ *    * Redistributions in binary form must reproduce the above copyright
+ * notice, this list of conditions and the following disclaimer in the
+ * documentation and/or other materials provided with the distribution.
+ *
+ *    * Neither the name of Sun Microsystems, Inc. nor the names of its
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+"
+                   replace="${openedition.copyright}"
+                   encoding="ISO-8859-1"
+                   flags="s"
+                   byline="false">
+       <fileset dir="${openedition.build.src}">
+         <exclude name="**/*gz"/>
+         <exclude name="**/*zip"/>
+         <exclude name="**/*jar"/>
+         <exclude name="**/*tar"/>
+         <exclude name="**/*so"/>
+         <exclude name="**/*jnilib"/>
+         <exclude name="**/external/**/*"/>
+         <exclude name="**/ethereal-*/**/*"/>
+         <exclude name="**/curl-*/**/*"/>
+         <exclude name="**/expat-*/**/*"/>
+         <exclude name="**/neon-*/**/*"/>
+       </fileset>
+    </replaceregexp>
+
+    <replaceregexp match="# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.\n# Use is subject to license terms."
+                   replace="${openedition.script.copyright}"
+                   encoding="ISO-8859-1"
+                   flags="s"
+                   byline="false">
+       <fileset dir="${openedition.build.src}">
+         <exclude name="**/*java"/>
+         <exclude name="**/*gz"/>
+         <exclude name="**/*zip"/>
+         <exclude name="**/*jar"/>
+         <exclude name="**/*tar"/>
+         <exclude name="**/*so"/>
+         <exclude name="**/*jnilib"/>
+         <exclude name="**/external/**/*"/>
+         <exclude name="**/ethereal-*/**/*"/>
+         <exclude name="**/curl-*/**/*"/>
+         <exclude name="**/expat-*/**/*"/>
+         <exclude name="**/neon-*/**/*"/>
+       </fileset>
+    </replaceregexp>
+
+    <replaceregexp match=" Copyright 2007 Sun Microsystems, Inc.  All rights reserved.\n Use is subject to license terms."
+                   replace="${openedition.xml.copyright}"
+                   encoding="ISO-8859-1"
+                   flags="s" 
+                   byline="false">
+       <fileset dir="${openedition.build.src}">
+         <include name="**/*xml"/>
+       </fileset>
+    </replaceregexp>
+
+    <mkdir dir="${openedition.dist.basedir}"/>
+    <zip destfile="${openedition.dist.basedir}/${openedition.build.zipfilename}"
+         basedir="${openedition.build.basedir}"
+         excludes="dist/**"/>
+         <!-- This fails: exclude="${openedition.dist.basedir}/**" -->
+  </target>
+
+  <!-- ************************************************************** -->
+  <target name="pkg" depends="dist"/>
+
+  <!-- ************************************************************** -->
+  <target name="build_pkg" depends="pkg"
+    description="compile sources and create the solaris package" />
+
+  <!-- CLEAN ************************************************************** -->
+  <target name="clean" description="cleans workspace of all generated files">
+    <delete dir="${emulator.build.basedir}"/>
+    <delete dir="${openedition.build.basedir}"/>
+  </target>
+
+  <target name="foobar">    
+
+    <loadfile property="openedition.script.copyright"
+      srcFile="${emulator.basedir.config}/${openedition.script.copyrightfilename}"
+      encoding="ISO-8859-1"/>
+    <replaceregexp match="# Copyright 2007 Sun Microsystems, Inc.  All rights reserved.\n# Use is subject to license terms."
+                   replace="${openedition.script.copyright}"
+                   encoding="ISO-8859-1"
+                   flags="s"
+                   byline="false">
+       <fileset dir="src">
+         <include name="**/start-multicell.sh"/>
+       </fileset>
+     </replaceregexp>
+
+  </target>
+
+</project>

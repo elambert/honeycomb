@@ -1,0 +1,14 @@
+UpdateClients
+ResetSchema
+DistributedLoadSpreadingTest
+SwitchFailoverTests
+SwitchTwoSuite
+NTPTests
+NATTests
+DNSTestSuite
+AuthClientTests
+IpmiTests
+InstallWhitebox
+SetupDevMode
+CMTests
+UnsetDevMode

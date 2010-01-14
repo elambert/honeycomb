@@ -1,0 +1,81 @@
+<?xml version='1.0'?>
+<!DOCTYPE service_bundle SYSTEM "/usr/share/lib/xml/dtd/service_bundle.dtd.1">
+<!--
+	Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+	Use is subject to license terms.
+
+	$Id: honeycomb-net-filesystem.xml 10611 2007-04-10 05:17:10Z mgoff $
+
+	Honeycomb Network and Filesystem Configuration Service
+-->
+
+<service_bundle type='manifest' name='SUNWhcserver:honeycomb-net-filesystem'>
+
+<service
+	name='application/honeycomb-net-filesystem'
+	type='service'
+	version='1'>
+
+        <create_default_instance enabled='true' />
+
+        <single_instance />
+
+        <dependency
+                name='honeycomb_devices'
+                grouping='require_all'
+                restart_on='none'
+                type='service'>
+                <service_fmri value='svc:/system/device/local' />
+        </dependency>
+
+        <dependent
+                name='honeycomb_filesystem_minimal'
+                grouping='require_all'
+                restart_on='none'>
+                <service_fmri value='svc:/system/filesystem/minimal' />
+        </dependent>
+
+        <dependent
+                name='honeycomb_identity'
+                grouping='require_all'
+                restart_on='none'>
+                <service_fmri value='svc:/system/identity' />
+        </dependent>
+
+	<exec_method
+		type='method'
+		name='start'
+		exec='/opt/honeycomb/bin/honeycomb_net_filesystem'
+		timeout_seconds='600' />
+
+        <exec_method
+                type='method'
+                name='stop'
+                exec=':true'
+                timeout_seconds='5' />
+
+        <property_group name='startd' type='framework'>
+                <propval name='duration' type='astring' value='transient' />
+        </property_group>
+
+	<stability value='Unstable' />
+
+	<template>
+		<common_name>
+			<loctext xml:lang='C'>
+				Honeycomb Network and Filesystem Configuration
+			</loctext>
+		</common_name>
+		<description>
+			<loctext xml:lang='C'>
+This is the Honeycomb Network and Filesystem Configuration Service.
+			</loctext>
+		</description>
+		<documentation>
+			<manpage title='honeycomb-net-filesystem' section='1M'
+				manpath='/usr/share/man' />
+		</documentation>
+	</template>
+</service>
+
+</service_bundle>

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="eventutil">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF event util class contains events that can be loaded 
+        and used by other tests</description>
+    </info>
+
+    <event name="dtf.perf.event" id="perf.event.small">
+        <attribute name="runid" value="${dtf.timestamp}"/>
+        <attribute name="iteration" value="${iter}${iter}${iter}"/>
+        <attribute name="timestamp" value="${dtf.timestamp}" />
+    </event>
+    
+    <event name="dtf.perf.event" id="perf.event.big">
+        <attribute name="runid" value="${dtf.timestamp}"/>
+        
+        <attribute name="iteration" value="${iter}${iter}${iter}"/>
+        <attribute name="timestamp" value="${dtf.timestamp}" />
+        <attribute name="datetamp"  value="${dtf.datestamp}" />
+                 
+        <attribute name="timestring1" value="${timestring}" length="64"/>
+        <attribute name="timestring2" value="${timestring}" length="64"/>
+        <attribute name="timestring3" value="${timestring}" length="64"/>
+        <attribute name="timestring4" value="${timestring}" length="64"/>
+        <attribute name="timestring5" value="${timestring}" length="64"/>
+                    
+        <attribute name="int1" value="${dtf.randomInt}" length="64"/>
+        <attribute name="int2" value="${dtf.randomInt}" length="64"/>
+        <attribute name="int3" value="${dtf.randomInt}" length="64"/>
+        <attribute name="int4" value="${dtf.randomInt}" length="64"/>
+        <attribute name="int5" value="${dtf.randomInt}" length="64"/>
+
+        <attribute name="long1" value="${dtf.randomLong}" length="64"/>
+        <attribute name="long2" value="${dtf.randomLong}" length="64"/>
+        <attribute name="long3" value="${dtf.randomLong}" length="64"/>
+        <attribute name="long4" value="${dtf.randomLong}" length="64"/>
+        <attribute name="long5" value="${dtf.randomLong}" length="64"/>
+                  
+        <attribute name="longquote1" value="${quote}" length="512"/>
+        <attribute name="longquote2" value="${quote}" length="512"/>
+                   
+        <attribute name="stamp1" value="${dtf.timestamp}" />
+        <attribute name="stamp2" value="${dtf.timestamp}" />
+        <attribute name="stamp3" value="${dtf.timestamp}" />
+        <attribute name="stamp4" value="${dtf.timestamp}" />
+        <attribute name="stamp5" value="${dtf.timestamp}" />
+        
+        <attribute name="flag"   value="${mode}"/>
+    </event>
+  
+</script>

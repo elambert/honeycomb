@@ -1,0 +1,19 @@
+NAME
+       GetUniqueValues - query for unique fields
+
+SYNOPSIS
+       java GetUniqueValues [OPTIONS] <IP | HOST> <QUERY> <FIELD>
+
+DESCRIPTION
+       Query for unique fields.  QUERY is of the form...
+              '"<name1>" = "<value2>" AND "<name2>" = "<value2>" OR ...
+       The unique field names of files which match the query are printed to stdout.
+       FIELD is a field in the configured schema.
+
+OPTIONS
+       -h
+              print this message
+
+EXAMPLES
+       java GetUniqueValues archivehost '"author" = 'King' title
+       java GetUniqueValues 10.152.0.12 '"artist" = 'The Beatles' AND "album" = 'Abbey Road'' song

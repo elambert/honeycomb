@@ -1,0 +1,124 @@
+#!/usr/bin/perl
+#
+# $Id: attach_mirrors.pl.in 10855 2007-05-19 02:54:08Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+#
+#
+# Attach any zpool mirrors associated with the device
+#
+# arguments: /dev/dsk/c?t?d?s?
+#
+# Returns 0 if mirrors were attached successfully (or were already
+# attached), non-zero otherwise.
+#
+
+use warnings;
+
+# make sure we have /usr/sbin in our path for zpool
+$path = $ENV{'PATH'};
+$ENV{'PATH'} = "/usr/sbin:$path";
+
+#
+# log errors
+#
+sub log_error {
+  my $logger_string = shift @_;
+  `logger -t attach_mirrors -p local0.info $logger_string`
+}
+
+# attach both mirrors
+sub attach_mirrors {
+  my $dev_name = shift @_;
+
+  &attach_mirror($dev_name, "s3");
+  &attach_mirror($dev_name, "s5");
+
+  # XXX should we return a real return code depending on how the attach
+  # went?
+  return 0;
+}
+
+#
+# Attach any zpool mirrors corresponding to the device.
+# There may not be any such mirrors, in which case this subroutine
+# should return success.
+#
+sub attach_mirror {
+  my $dev_name = shift @_;
+  my $slice_name = shift @_;
+
+  # find an existing slice in the mirror
+  $_ = `zpool status tank |grep $slice_name | head -1`;
+  my ($existing_slice, $junk) = split;
+
+  if (! ($existing_slice =~ /c\dt\dd\ds\d/)) {
+    &log_error("error: no existing slice for $dev_name $slice_name: zpool output $_");
+    return;
+  }
+  
+  my $zpool_cmd = "zpool attach -f tank $existing_slice ${dev_name}${slice_name}";
+
+  `$zpool_cmd`;
+  if ($? != 0) {
+    &log_error("error: $zpool_cmd failed errno $?\n");
+    # in the face of inability to attach the mirror, we continue
+    # on regardless.  zfs must be able to handle the failure of such
+    # a disk in any case.
+  }
+  
+  # 
+  # paranoia: double-check to see that they are really attach
+  #
+  $_ = `zpool status tank |grep ${dev_name}${slice_name}`;
+  my ($zpool_dev, $status) = split;
+  if ($status ne "ONLINE") {
+    &log_error("error: ${dev_name}${slice_name} should be ONLINE, is $status");
+  }
+}
+
+###### main #######
+
+$_ = $ARGV[0];
+
+# extract devname from argument;
+# use m|...| so that we do not need to use a lot of "\/" 
+my ($dev_name) = "";
+($dev_name) = m|.*(c\dt\dd\d).*|;
+
+die "usage: $0: devicename" unless ($dev_name ne "");
+
+my $retval = &attach_mirrors($dev_name);
+exit($retval);

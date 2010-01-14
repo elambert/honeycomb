@@ -1,0 +1,112 @@
+#!/usr/bin/perl -w
+#
+# $Id: post-commit-docs 10853 2007-05-19 02:50:20Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+#
+# XXX Don't edit this directly on hc-subversion!
+# Edit this in your copy of the repository
+# in honeycomb/tools/subversion and then scp 
+# it over to hc-subversion after commiting the change.
+# Note that the target file name must omit the repository name:
+#
+# scp post-commit-docs root@subversion:/usr/local/svnrepos/docs/hooks/post-commit
+#
+
+#
+# This post-commit script is much simpler than the honeycomb module's
+# post-commit script in that it requires no bug ids, has no integration
+# with bugster, and merely sends mail with the diffs.
+#
+
+use strict;
+
+# Paths
+my $SVNLOOK = "/usr/local/bin/svnlook";
+my $HOOKSDIR="/usr/local/svnrepos/docs/hooks";
+my $POSTCOMMITLOGFILE="$HOOKSDIR/post-commit-log.txt";
+
+# get args
+my $repo = $ARGV[0];
+my $rev = $ARGV[1];
+
+# open commit log file
+open POSTCOMMITLOG, ">>$POSTCOMMITLOGFILE" or 
+    die "Can't open logfile $POSTCOMMITLOGFILE";
+
+print POSTCOMMITLOG "------------------------------------------------\n";
+print POSTCOMMITLOG "Processing new commit $repo $rev\n";
+
+`/usr/local/viewcvs-1.0-dev/svndbadmin rebuild $repo $rev`;
+
+# run svnlook to get information about just committed revision
+my $revop = "--revision $rev";
+my $reponame = `basename $repo`;
+chomp $reponame;
+my $log = `$SVNLOOK info $repo $revop`;
+chomp $log;
+
+my $diffs = `$SVNLOOK diff $repo $revop`;
+chomp $diffs;
+# print POSTCOMMITLOG "Found log and diffs $log\n$diffs\n";
+
+# split info about just comitted revision into pieces
+my @loglines = split(/\n/, $log);
+my ($user, $timestamp, $logcharlen, @comments) = split(/\n/, $log);
+
+# name of the attachment
+my $datestring = `date +%F_%H.%M.%S`;
+chomp $datestring;
+my $bt_attach_name = "$user" . "_" . "$datestring.txt";
+
+my $commit_comments = join "\n", @comments;
+my $comments = "\n\n------------------ $bt_attach_name --------------------\n\nCommit comment from $user:\n$commit_comments";
+# print POSTCOMMITLOG "Processed comments: $comments\n";
+
+# send mail about this update since bug report doesn't always have full diff
+open (MAIL, "|/usr/sbin/sendmail -t ");
+print MAIL "From: hc-diffs\@sun.com\n";
+print MAIL "To: hc-diffs\@sun.com\n";
+print MAIL "Content-Type: text/plain\n";
+print MAIL "Subject: DIFFS from $user for $reponame rev $rev\n\n";
+print MAIL "DIFFS from $user for repository $repo\n\n";
+print MAIL "http://subversion.sfbay.sun.com/viewcvs/view/?root=$reponame&rev=$rev&view=rev\n\n";
+print MAIL "$commit_comments\n\n$diffs\n\n";
+print MAIL "End of diffs for revision $rev: $bt_attach_name\n";
+close (MAIL);
+
+print POSTCOMMITLOG "Commit comment was:\n$commit_comments\n";
+print POSTCOMMITLOG "Sent diffs for commit from $user\n";
+exit 0;

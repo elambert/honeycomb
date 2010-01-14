@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="createrange">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>
+        Unit test for the createrange functionality that allows for creating of 
+        ranges that can be referenced by properties. When the property is 
+        referenced it will automatically move the range expression forward to 
+        the next element.
+        </description>
+    </info>
+
+	<local>
+    	<createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+    	<createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+	    <loadproperties uri="storage://INPUT/ut.properties"/>
+	</local> 
+
+	<local>
+	    <createrange name="range.var" value="1..100000" recycle="false"/>
+	</local>
+	<for property="var" range="1..100000">
+		<if>
+			<neq op1="${var}" op2="${range.var}"/>
+			<then>
+				<local>
+					<echo>Variable dismatch.</echo>
+				</local>
+			</then>	
+		</if>
+	</for>
+	
+</script>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="range">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF rang expression unit test.</description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <loadproperties uri="storage://INPUT/ut.properties"/>
+        
+        <createrange name="testrange" value="random(0..5)"/>
+    </local>
+
+    <for property="prop" range="[0..1][0..1][0..1]">
+   		<local>
+   			<property name="p${prop}" value=""/>
+   		</local> 
+    </for>
+
+    <for property="prop" range="[0,1][0,1][0,1]">
+   		<local>
+   		</local> 
+    </for>
+  
+    <for property="prop" range="1..10">
+   		<local>
+            <echo>Prop: ${testrange}</echo>
+   		</local> 
+    </for>
+    
+</script>

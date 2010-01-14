@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="recorder_perf">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF recorder limits test.</description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output"/>
+
+        <echo>Recorder Limits Tests</echo>
+    </local>
+
+    <local>
+        <echo>Generating data...</echo>
+        <property name="prop1" value="222222"/>
+        <property name="prop2" value="abababababababababababababababa"/>
+        <property name="iterations" value="20000"/>
+    </local> 
+    
+	<record type="txt" 
+            uri="storage://OUTPUT/recorder1.txt"
+            append="false"> 
+        <for property="iteration" range="1..${iterations}">
+            <event name="dtf.event">
+                <attribute name="value1" value="${iteration}"/>
+                <attribute name="value2" value="${prop1}"/>
+                <attribute name="value3" value="${prop2}"/>
+                <attribute name="value4" value="${iteration}-${prop1}"/>
+                <attribute name="value5" value="${prop1}${prop1}"/>
+                <attribute name="value6" value="${prop2}${prop2}"/>
+                <attribute name="value7" value="${prop2}${prop2}${prop1}"/>
+                <attribute name="value8" value="${prop2}${prop2}${prop1}"/>
+                <attribute name="value9" value="${prop2}${prop2}${prop1}"/>
+            </event>
+        </for>
+    </record>
+    
+    <query type="txt" 
+           uri="storage://OUTPUT/recorder1.txt" 
+           event="dtf.event"
+           cursor="cursor"/>
+           
+    <record type="object" uri="property://perf"> 
+    	<stats cursor="cursor" event="stats"/>
+    </record> 
+    <local>
+   		<echo>
+              TXT Recorder Performance Stats 
+              -----------------------------------
+              Events per second: ${perf.avg_occ}
+              Total of Events:   ${perf.tot_occ}
+              Total Duration:    ${perf.tot_dur}s
+        </echo> 
+    </local>
+    
+</script>

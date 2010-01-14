@@ -1,0 +1,207 @@
+#!/bin/bash
+#
+# $Id: runtest 11672 2007-11-29 23:34:18Z wr152514 $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# This script is meant to be run from the test/dist tree.
+# It sets up the CLASSPATH relative to its place in the tree and
+# executes the com.sun.honeycomb.test.TestBed class.
+#
+# It also passes its own command line as an env var to the java program,
+# so it can be accessed with System.getProperty("cmdline") and logged.
+#
+# Points at the location of private SSH key for passwordless SSH
+#############################################
+### Localization variables set for each site
+#
+# to trace these, see the names for these values on the java cmd below,
+# look up those in hctest/src/java/com/sun/honeycomb/hctest/util/HCLocale.java
+# and grep the property names from the code.
+# most are in com.sun.honeycomb.hctest.cases.AuthorizedClients
+#
+HC_DOMAIN=sfbay.sun.com
+HC_TOP_DOMAIN=sun.com
+
+# HC_DNS*: used for testing dns-setting cli cmds
+HC_DNS1=10.7.224.10
+HC_DNS2=129.146.11.21
+
+# HC_EXTRA_CLIENT_IP: some host to be an auth clnt to test the cli cmd
+HC_EXTRA_CLIENT_IP=10.7.228.10
+
+# HC_CLIENT_SUBNET: used for cli testing
+HC_CLIENT_SUBNET=10.7.224.0/22
+
+# HC_APC_SWITCH_CLUSTERS: clusters w/ apc-cntld switches, w/ switch ip's
+HC_APC_SWITCH_CLUSTERS=dev309,10.7.224.186,dev308,10.7.224.166,dev319,10.7.225.166
+
+# HC_RELEASES_URL: path where releases are stored (for curl)
+HC_RELEASES_URL=http://10.7.228.10/~hcbuild/repository/releases/1.1/
+# HC_RELEASES_PATH: path under url including 1st part of iso filename
+HC_RELEASES_PATH=/AUTOBUILT/pkgdir/st5800_
+
+# HC_LOG_ARCHIVE_*: describes where cluster logs are copied
+HC_LOG_ARCHIVE_USER=root
+HC_LOG_ARCHIVE_HOST=hclog301.sfbay.sun.com
+HC_LOG_ARCHIVE_PATH=/var/log/archive1/testlogs
+
+# HC_AUDIT_DBHOST: host where postgres audit db is located
+HC_AUDIT_DBHOST=hc-dev3.sfbay.sun.com
+
+################ end localization
+
+getArch () {
+    this_arch=`arch`
+    if [ "${this_arch}" = "i686" ]; then
+	this_arch="x86"
+    fi
+    if [ "${this_arch}" = "i86pc" ]; then
+	this_arch="x86"
+    fi
+    if [ "${this_arch}" = "sun4" ]; then
+	this_arch="sparc"
+    fi
+    echo ${this_arch}
+}
+
+getOS () {
+    this_os=`uname -s`
+    if [ "${this_os}" = "SunOS" ]; then
+	this_os="sol"
+    fi
+    echo ${this_os}
+}
+
+ROOT=`dirname $0`
+if [ "$ROOT" = "." ]; then
+    ROOT=`pwd`
+fi
+
+ROOT=`dirname $ROOT`
+LIB=$ROOT/lib
+ETC=$ROOT/etc
+
+# try to catch errors early
+if [ ! -f "${LIB}/honeycomb-test.jar" ]; then
+    echo "ERROR: could not find honeycomb-test.jar here: ${LIB}/honeycomb-test.jar"
+    echo "Maybe try running this command from dist/test/bin"
+    exit 1
+fi
+# not having honeycomb-hctest.jar is not necessarily an error,
+# unit tests will run without it, so no upfront check
+
+# ssh-private-key file for cluster access
+# copy to user's home dir, chown, chmod 600
+# this temp file is deleted on exit
+sshkeysrc=${ROOT}/etc/cluster_id_dsa
+sshkeyloc=${HOME}/cluster_id_dsa
+cp -f $sshkeysrc $sshkeyloc
+if [ ! -f "$sshkeyloc" ]; then
+    echo "ERROR: could not place cluster-ssh-key file here: $sshkeyloc"
+    echo "Verify that source file is accessible: $sshkeysrc"
+    echo "Verify that this directory is writeable (your HOME dir): $HOME"
+    exit 1
+fi
+chown $USER $sshkeyloc
+chmod 600 $sshkeyloc 
+
+security=${LIB}/security.policy
+
+classpath="$classpath:${LIB}/honeycomb-test.jar"
+classpath="$classpath:${LIB}/honeycomb-hctest.jar"
+classpath="$classpath:${LIB}/honeycomb-hctest.jar"
+classpath="$classpath:${LIB}/honeycomb-ndmp.jar"
+classpath="$classpath:${LIB}/honeycomb-client.jar"
+classpath="$classpath:${LIB}/honeycomb-common.jar"
+classpath="$classpath:${LIB}/getopt.jar"
+classpath="$classpath:${LIB}/honeycomb-server.jar"
+classpath="$classpath:${LIB}/emma.jar"
+classpath="$classpath:${LIB}/postgresql-8.1dev-400.jdbc3.jar"
+classpath="$classpath:${LIB}/jug.jar"
+classpath="$classpath:${LIB}/jetty-4.2.20.jar"
+classpath="$classpath:${LIB}/HTTPClient.zip"
+classpath="$classpath:${LIB}/xerces.jar"
+classpath="$classpath:${LIB}/jdom-1.0.jar"
+classpath="$classpath:${LIB}/tar.jar"
+classpath="$classpath:${LIB}/activation.jar"
+classpath="$classpath:$CLASSPATH"
+
+# check to see if jtoc option has been provided.
+# if so, place java-to-c API connector infront of classpath
+if [ "$1" = "-jtoc" ]; then
+    shift;
+    my_os=`getOS`
+    my_arch=`getArch`
+    classpath="${LIB}/honeycomb-hctest-cclient.jar:${classpath}"
+    LD_LIBRARY_PATH=${LIB}/build_${my_os}_${my_arch}
+    export LD_LIBRARY_PATH
+    vm_heap_size="-Xss512k"
+fi
+
+cmdline="$0 $*"
+
+# close stdin (because the HTTPClient library tries to read a password
+# from console if authentication is required)
+exec </dev/null
+
+java -cp $classpath \
+	-Duid.lib.path=${LIB} \
+	-Dcmdline="${cmdline}" \
+	-Dsshkeyloc="${sshkeyloc}" \
+	-Djava.security.policy=$security \
+	-Demma.coverage.out.file=${ETC}/runtest.ec \
+	-Dhctest.domain=$HC_DOMAIN \
+	-Dhctest.domain_name=$HC_TOP_DOMAIN \
+	-Dhctest.dns1=$HC_DNS1 \
+	-Dhctest.dns2=$HC_DNS2 \
+	-Dhctest.extra_client_ip=$HC_EXTRA_CLIENT_IP \
+	-Dhctest.client_subnet=$HC_CLIENT_SUBNET \
+	-Dhctest.apc_switch_clusters=$HC_APC_SWITCH_CLUSTERS \
+	-Dhctest.releases_url=$HC_RELEASES_URL \
+	-Dhctest.releases_iso_path=$HC_RELEASES_PATH \
+	-Dhctest.log_archive_user=$HC_LOG_ARCHIVE_USER \
+	-Dhctest.log_archive_host=$HC_LOG_ARCHIVE_HOST \
+	-Dhctest.log_archive_path=$HC_LOG_ARCHIVE_PATH \
+	-Dhctest.audit_dbhost=$HC_AUDIT_DBHOST \
+	$EXTRA_JVM_ARGS $vm_heap_size com.sun.honeycomb.test.TestRunner "$@"
+
+# save result so we can use it as the exit value for this script
+test_result=$?
+
+rm -f $sshkeyloc
+echo "For help using AuditSystem to analyze this run, see hc-twiki QA Home page."
+
+# exit value of zero means all tests passed, non-zero indicates failure
+exit $test_result
+# do not add any commands below this line

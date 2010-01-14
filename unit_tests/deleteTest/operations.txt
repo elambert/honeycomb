@@ -1,0 +1,248 @@
+$Id: operations.txt 11714 2008-01-03 00:09:10Z mc210319 $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+
+**********************************************************************
+
+                       List of supported operations
+                       for the delete test framework
+
+**********************************************************************
+
+LOGGING
+-------
+
+When you run a unit test, 2 logs are generated in dist/logs directory:
+scenario log (shows steps taken by the testcase) and framework/server
+log. Default log level is INFO and above; if you want to see finer
+server logging, add this into your scenario file:
+
+import java.util.logging.Logger;
+import java.util.logging.Level;
+
+private static final Logger rootLogger = Logger.getLogger("");
+rootLogger.setLevel(Level.FINEST);
+
+If you want fine logging for a particular class, set up a Logger
+object with desired class name. If your class extends another, use the
+base class name for the logger object, otherwise it won't work.
+
+private static final Logger classLogger =
+Logger.getLogger("com.sun.honeycomb.resources.ByteBufferPool");
+classLogger.setLevel(Level.FINEST);
+
+
+OID MAP
+-------
+
+Most of the honeycomb operations either require or generate an OID. Since
+you can not know in advance which oid will be generated, the test framework
+implements the notion of an oid Map.
+
+This is a map that makes the translation between a logical "oid tag" and
+its actual value. The tag is an arbitrary string that the user is free to
+define at will.
+Tests could also implement their own hashmap to implement this feature, but
+:
+1. since this is a common requirement, all tests would have to redo the
+same work ;
+
+2. having an implementation that scales over 1000 entries requires
+something more sophisticated than a simple HashMap. The current framework
+implementation relies on the pure Java implementation of berkeley DB (see
+http://www.sleepycat.com/products/je.shtml).
+
+All the APIs take in fact a "oid tag" in place of a real oid.
+
+NOTE
+----
+
+In all APIs, oid can be either an int or a string.
+
+LIST OF OPERATIONS
+------------------
+
+STORE(oid)
+  Performs a store and stores the result under the tag <oid>.
+  The file size is the default size defined in the Constants
+  file.
+
+STORE(oid, size)
+  Performs a store and stores the result under the tag <oid>.
+  The file is of size <size>.
+
+ADDM(link, oid)
+  Adds a new metadata description for the already stored object <link>. The
+  newly stored object is stored under the tag <oid>.
+
+DELETE(oid, boolean shouldSucceed)
+  Deletes the oid <oid>. The <shouldSucceed> parameter indicates if we
+  should expect success of failure (the object has already been deleled).
+
+RETRIEVE(oid, boolean shouldSucceed)
+  Retrieves data associated with oid <oid>. <shouldSucceed> indicates if we
+  should expect success of failure (object already deleted).
+
+RETRIEVEM(oid, boolean shouldSucceed)
+  Retrieves metadata associated with oid <oid>. <shouldSucceed> indicates if we
+  should expect success of failure (object already deleted).
+
+REMOVEM(oid)
+  Removes the system metadata for the object oid.
+
+GETCACHEDATA(oid)
+  Returns a SystemMetadata object for the oid.
+  
+RECOVER(oid, fragID)
+  Recovers fragment fragID of object oid.
+
+DEREF(mdOid, dataOid)
+  This gives a way to deference the metadata OID returned by STORE and/or
+  ADDM. The data oid is stored under the <dataOid> tag
+
+SCANFRAG(oid, fragID, chunkID)
+  Run bitrot scanner over given fragment.
+
+FRAGMOVE(oid, fragID[, chunkID])
+  Hide fragment <fragID> of object <oid> so OA can't find it at the
+  expected location, it will basicaly bump this fragment to the next
+  disk in the same layout. Forcing recovery and retrieve tasks to 
+  crawl in order to find it.
+  
+FRAGREMOVE(oid, fragID[, chunkID])
+  Hide fragment <fragID> of object <oid> so OA can't find it at the
+  expected location
+
+FEFREMOVE(oid, fragID[, chunkID])
+  Hide the fragment footer extension file which contains legal hold 
+  information.
+
+FRAGRESTORE(oid, fragID)
+  Place a previously "removed" fragment <fragID> of object <oid> in the
+  place where OA would expect to find it.
+
+FEFRESTORE(oid, fragID[, chunkID])
+  Place a previously "removed" footer extention file of in the place where
+  OA would expect to find it.
+
+FRAGNOTZERO(oid, fragID[, chunkID])
+  Verify fragment <fragID> of object <oid> does not have size 0.
+
+FRAGFILESIZE(oid, expectedsize, fragID[, chunkID])
+  Verify fragment file (on filesystem) for <fragID> of object <oid>
+  has size <expectedsize>.
+
+FRAGINTERNALSIZE(oid, expectedsize, fragID[, chunkID])
+  Verify fragment file (internally in MD and footer) for <fragID>
+  of object <oid> has size <expectedsize>.
+
+FRAGISDELETED(oid, fragID, shouldBeDeleted)
+  Verify fragment <fragID> of object <oid> is deleted if <shouldBeDeleted>
+  is true or not deleted if <shouldBeDeleted> is false.
+  Can pass Constants.ALL_FRAGS for <fragID> to indicate all frags of the
+  object should be in the given state.
+
+REFCNTCHECK(oid, fragID, curRefCnt, maxRefcnt)
+  Verify fragment <fragID> of object <oid> has refcnt <curRefCnt>
+  and maxrefcnt <maxRefcnt>.
+  Can pass Constants.ALL_FRAGS for <fragID> to indicate all frags of the
+  object should be in the given state.
+  Can pass Constants.REFCNT_UNKNOWN for <curRefCnt> or <maxRefcnt> to skip
+  that part of the check.
+
+LS(oid)
+  Print pathnames in "find -ls" format for all fragment files on disk
+  for given OID, incl. all chunks and temp fragments. Useful for
+  debugging your unit test, since you can peek into on-disk object
+  state between test steps.
+
+ECHO(string)
+  Print the string <string> to stdout and the test log.  
+  Useful for providing information about the test's actions
+  at interesting points in the test.
+
+SETRETENTION(oid, timestamp)
+  Add retention date/time to given oid.
+
+GETRETENTION(oid)
+  Get the rentention date/time for the given oid. Returns a java Long.
+
+ADDHOLD(oid, hold_tag)
+  Add a legal hold with <hold_tag> text to the given oid.
+
+RMHOLD(oid, hold_tag)
+  Remove the given legal hold <hold_tag> on the given oid.
+
+GETHOLDS(oid)
+  Returns all the legal holds on the given oid. Returns a java array of 
+  LegalHold objects.
+
+GETHELD(hold_tag)
+  Returns oids for all the objects with the given <hold_tag> legal hold.
+  Returns a javqa array of NewObjectIdentifier objects.
+
+REMOVETMP(int oid, int fragID)
+  Runs the removeTempFrags task on the specified OID and fragID.
+  
+EXECREMOVETMP(int removalTime)
+  Runs the removeTempFRags task on all of the current data stored in the UT disks, and uses
+  the timestamp removalTime as the expiration time for removal of temp frags.
+  
+EXISTSTMP(int oid, int fragID)
+  Simple way of verifying if a specified object has the specified fragment ID in the 
+  temporary storage. 
+  
+VERIFYTMPS(int howMany)
+  Verifies that there are howMany temporary fragments in the current UT disks.
+
+EXISTSDATA(int oid, int fragID)
+  Verfies there is a data fragment for the oid and fragID specified.
+  
+NOTEXISTSTMP(int oid, int fragID)
+  Verifies that the specified data,fragID is not in the temporary storage.
+
+DISABLEDISK(int disk)
+  Disables the specified disk number the number of disks available is specified by the
+  variable Constants.NB_DISKS.
+   
+ENABLEDISK(int disk)
+  Enables the specified disk number the number of disks available is specified by the
+  variable Constants.NB_DISKS.
+
+DUMPCACHES()
+  Used mainly for debugging purposes will dump the contents of the system cache to the 
+  stdout of the testcase.
+  
+WIPECACHES() throws ArchiveException {
+  This method will wipe the system caches and is mainly used by the bulk oa tests that need
+  to create a data set that is clean and doens't contain any previously stored data from
+  other unit tests.
+  
+BACKUP(String filename, int options)
+  Perform a full backup to the file specified as an argument and respect the options that 
+  are also passed as an argumento. MORE INFO soon on options.
+ 
+BACKUPINTERVAL(String filename, long t1, long t2, int options)
+  Perform a backup from t1 to t2, to the file specified as an argument and respect the options that 
+  are also passed as an argumento. MORE INFO soon on options.
+   
+INCBACKUP(String filename, int options)
+  Perform an incremental backup to the file specified as an argument and respect the 
+  options that are also passed as an argumento. The incremental backup takes place since
+  the last full backup or incremental backup to the current time. MORE INFO soon on options.
+  
+RESTORE (String filename, int options)
+  Restores the specified backup session.
+  
+MOVEALL() 
+  Moves all the current data on the UT disks over to a disks-moved directory, this is used
+  mainly by the Bulk OA tests.
+  
+RESTOREALL()
+  Moves all the previously mentioned data back in the correct place, this is used mainly by 
+  the Bulk OA tests.
+
+COMPARE()
+  Compares the current data on disk to a snapsnot, which must be captured using MOVEALL. This test is primarily used to verify that fragments are exactly the same before and after backup/restore

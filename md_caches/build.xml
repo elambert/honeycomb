@@ -1,0 +1,150 @@
+<!--
+    $Id: build.xml 10847 2007-05-19 02:37:34Z bberndt $
+    
+    Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+    Use is subject to license terms.
+    
+    ant buildfile for honeycomb.
+  --> 
+
+<project name="md_caches" default="compile.caches">
+  <description>
+    Honeycomb MD caches component.
+  </description>
+
+  <!-- first, local, user specified .ant.properties files take precedence -->
+  <property file="${user.home}/.ant.properties"/>
+
+  <!-- lastly, use the top-level builds properties file -->
+  <property file="../build/build.properties"/>
+
+  <property name="cache.classpath" 
+            value="${server.dist.libdir}/${jarname.server}:${common.dist.libdir}/${jarname.common}"/>
+
+  <!-- reference environment variables as env.X -->
+  <!-- ie. ${env.USER} -->
+  <property environment="env"/>
+  
+  <target name="prepare">
+
+    <!-- turn emma on if EMMA=1 -->
+    <!-- emma on the md_caches causes errors on the server.
+         code will not be instrumented for now...
+    <condition property="emma.enabled" value="true">
+      <and>
+        <isset property="env.EMMA"/>
+        <equals arg1="${env.EMMA}" arg2="1"/>
+      </and>
+    </condition> -->
+
+    <tstamp/>
+    <mkdir dir="${md_caches.build.basedir}"/>
+    <mkdir dir="${md_caches.build.classdir}"/>
+    <mkdir dir="${md_caches.build.pkgdir}"/>
+    <mkdir dir="${md_caches.build.unused}"/>
+    <mkdir dir="${md_caches.dist.basedir}"/>
+  </target>
+
+  <target name="makejar.singlecache"
+	  if="makejar">
+    <condition property="cache.dir" value="${md_caches.build.unused}">
+      <not>
+        <isset property="installjar"/>
+      </not>
+    </condition>
+    <condition property="cache.dir" value="${md_caches.dist.basedir}">
+      <isset property="installjar"/>
+    </condition>
+    <jar jarfile="${cache.dir}/${cache.directory}.jar"
+	 manifest="${md_caches.basedir}/${cache.directory}/MANIFEST.MF">
+      <fileset dir="${md_caches.build.classdir}/${cache.directory}"/>
+    </jar>
+  </target>
+  
+  <target name="compile.singlecache">
+    <mkdir dir="${md_caches.build.classdir}/${cache.directory}"/>
+    <javac classpath="${cache.classpath}${extra_classpath}"
+	   destdir="${md_caches.build.classdir}/${cache.directory}"
+	   debug="${javac.debug}"
+	   deprecation="${deprecation}"
+	   optimize="${optimize}"
+	   source="${javac.source}">
+      <src path="${md_caches.basedir}/${cache.directory}"/>
+    </javac>
+    
+    <antcall target="emma_instrument">
+      <param name="instrpath" value="${md_caches.build.classdir}/${cache.directory}"/>
+      <param name="metadatafile" value="${md_caches.build.classdir}/${cache.directory}/singlecache.em"/>
+    </antcall>
+
+    <antcall target="makejar.singlecache"/>
+  </target>
+
+  <!-- EMMA *************************************************************** -->
+  <target name="emma_instrument" if="emma.enabled">
+    <path id="emma.ant.classpath">
+      <pathelement location="${emma.antjar}"/>
+      <pathelement location="${emma.jar}"/>
+    </path>
+    <taskdef resource="emma_ant.properties" classpathref="emma.ant.classpath"/>
+    <emma enabled="${emma.enabled}">
+        <instr mode="overwrite" 
+               instrpath="${instrpath}"
+               metadatafile="${metadatafile}"/>
+    </emma>
+  </target>
+  
+  <target name="compile.caches" depends="prepare">
+    <antcall target="compile.singlecache">
+      <param name="cache.directory" value="bdb_common"/>
+      <param name="extra_classpath" 
+             value=":${md_caches.basedir}/lib/db-4.2.jar"/>
+      <param name="makejar" value="true"/>
+      <param name="installjar" value="true"/>
+    </antcall>
+    <antcall target="compile.singlecache">
+      <param name="cache.directory" value="bdb_system"/>
+      <param name="extra_classpath" 
+             value=":${md_caches.build.classdir}/bdb_common:${md_caches.basedir}/lib/db-4.2.jar"/>
+      <param name="makejar" value="true"/>
+      <param name="installjar" value="true"/>
+    </antcall>
+    <!--antcall target="compile.singlecache">
+      <param name="cache.directory" value="sqlite_extended"/>
+      <param name="extra_classpath" 
+             value=":${md_caches.basedir}/lib/sqlite.jar"/>
+      <param name="makejar" value="true"/>
+      <param name="installjar" value="true"/>
+    </antcall-->
+  </target>
+
+  <target name="install" depends="compile.caches">
+    <copy todir="${md_caches.dist.basedir}">
+      <fileset dir="${md_caches.basedir}/lib"
+               excludes="unused/**"/>
+    </copy>
+  </target>
+
+  <target name="clean">
+    <delete dir="${md_caches.build.basedir}"/>
+  </target>
+
+  <!-- PKG **************************************************************** -->
+  <target name="pkg"
+          depends="install"
+          description="build the solaris package">
+      <exec executable="${pkgmk.bin}" failonerror="yes">
+        <!-- arg value="" does not work here for some reason -->
+        <arg line="-o -d ${md_caches.build.pkgdir} -f ${md_caches.pkgdefs}/prototype -r ${md_caches.dist.basedir}"/>
+      </exec>
+
+      <exec executable="${pkgtrans.bin}" failonerror="yes">
+        <arg line="-s ${md_caches.build.pkgdir} ${sun.pkgname.md_caches}.pkg ${sun.pkgname.md_caches}"/>
+      </exec>
+  </target>
+
+  <!-- ************************************************************** -->
+  <target name="build_pkg" depends="pkg"
+    description="compile sources and create the solaris package" />
+
+</project>

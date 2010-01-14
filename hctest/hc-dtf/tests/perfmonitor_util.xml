@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding='UTF-8'?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="perfmonitor_util">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>Honeycomb performance monitor utility library.</description>
+    </info>
+
+    <!-- 
+        Startup the performance resource monitor.
+     --> 
+    <function name="startPerfMonitor">
+        <param name="cluster.id" type="required"/>
+        <if>
+            <eq op1="${hc.perfmonitor.enabled}" op2="true"/>
+            <then>
+                <component id="${cluster.id}">
+                    <perfmonitor command="start" />
+                </component>
+            </then>
+            <else>
+                <local>
+                    <echo>Performance monitoring disabled, not starting.</echo>
+                </local>
+            </else>
+        </if>
+    </function> 
+   
+    <!-- 
+        Collect the logs and restart the performance resource monitor.
+        
+        The property hc.perfmonitor.enabled can be used to disable the actual
+        performance resource monitoring.
+     --> 
+    <function name="collectLogs">
+        <param name="cluster.id" type="required"/>
+        <param name="towhere" type="required"/>
+        <if>
+            <eq op1="${hc.perfmonitor.enabled}" op2="true"/>
+            <then>
+                <component id="${cluster.id}">
+                    <perfmonitor command="stop" />
+                    <perfmonitor command="collectlogs" uri="${towhere}"/>
+                    <perfmonitor command="start" />
+                </component>
+            </then>
+            <else>
+                <local>
+                    <echo>Performance monitoring disabled, not collecting.</echo>
+                </local>
+            </else>
+       </if>
+    </function>
+ 
+ </script> 

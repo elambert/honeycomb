@@ -1,0 +1,155 @@
+<!-- $Id:$ -->
+
+<!-- Most of this is copied from the output of bonsai's cvsqueryform.cgi
+     This didn't seem to need to be a cgi, so I did the static thing.
+-->
+
+<html><head>
+<title>Flamebox Query Form</title>
+
+</head>
+<body   BGCOLOR="#FFFFFF" TEXT="#000000"
+LINK="#0000EE" VLINK="#551A8B" ALINK="#FF0000">
+<table BGCOLOR="#FFFFFF" WIDTH="100%" BORDER=0 CELLPADDING=0 CELLSPACING=0>
+<tr><td><!-- insert imagery here --></td></tr></table>
+<table BORDER=0 CELLPADDING=12 CELLSPACING=0 WIDTH="100%">
+ <tr>
+  <td>
+   <table BORDER=0 CELLPADDING=0 CELLSPACING=2>
+    <tr><td VALIGN=TOP ALIGN=CENTER NOWRAP>
+
+     <font SIZE="+3"><b><nobr>Flamebox Query Form</nobr></b></font>
+    </td></tr><tr><td VALIGN=TOP ALIGN=CENTER>
+    </td></tr>
+   </table>
+  </td>
+  <td>
+This is <b>Flamebox</b>: a box of flames</td></tr></table>
+
+<p>
+<form METHOD=GET ACTION='/fbox-cgi/getresult.cgi'>
+<INPUT TYPE=HIDDEN NAME=refresh VALUE=0>
+<p>
+<table BORDER CELLPADDING=8 CELLSPACING=0>
+
+<tr>
+  <th align=right valign=top><br>Date:</th>
+  <td colspan=2>
+    <table BORDER=0 CELLSPACING=0 CELLPADDING=0>
+      <tr>
+        <td><input type=radio name=pasttimeunit CHECKED value=hours></td>
+        <td>In the last <input type=text name=pasthours value=6 size=4>
+            hours</td>
+      </tr>
+      <tr>
+        <td><input type=radio name=pasttimeunit value=days></td>
+        <td>In the last <input type=text name=pastdays size=4>
+            days</td>
+      </tr>
+      <tr>
+        <td><input type=radio name=pasttimeunit value=explicit></td>
+        <td><table BORDER=0 CELLPADDING=0 CELLPSPACING=0>
+            <tr>
+              <td VALIGN=TOP ALIGN=RIGHT NOWRAP>
+                Between <input type=text name=starttime value='' size=25>
+              </td>
+              <td valign=top rowspan=2>You can use the form
+                <b><tt><nobr>mm/dd/yyyy hh:mm:ss</nobr></tt></b> or a
+                Unix <tt>time_t</tt> (seconds since the Epoch.)
+              </td>
+            </tr>
+            <tr>
+              <td VALIGN=TOP ALIGN=RIGHT NOWRAP>
+                and <input type=text name=endtime value='' size=25>
+              </td>
+            </tr>
+            </table>
+        </td>
+      </tr>
+    </table>
+</tr>
+
+<tr>
+  <th align=right valign=top><br>Status:</th>
+  <td colspan=2>
+    <table BORDER=0 CELLSPACING=0 CELLPADDING=0>
+      <tr>
+        <td><input type=radio name=statustype CHECKED value=all></td>
+        <td>All</td>
+      </tr>
+      <tr>
+        <td><input type=radio name=statustype value=failing></td>
+        <td>Failing</td>
+      </tr>
+      <tr>
+        <td><input type=radio name=statustype value=nonpass></td>
+        <td>Non-passing</td>
+      </tr>
+      <tr>
+        <td><input type=radio name=statustype value=core></td>
+        <td>Core-dumping</td>
+      </tr>
+    </table>
+</tr>
+
+<tr>
+  <th align=right>Task:</th>
+  <td> <input type=text name=taskpat size=25><br>
+  (You can use a machine name, like <tt>linux11</tt>, or a task name,
+  like <tt>unittest-dbg</tt>,
+  or a combination, <tt>linux1 unittest-dbg</tt>, or a substring,
+  like <tt>unit</tt>, or a regexp, like <tt>linux.*unit</tt>)
+</tr>
+
+
+<tr>
+  <th><br></th>
+  <td colspan=2>
+    <input TYPE=SUBMIT VALUE='Run Query'>
+  </td>
+</tr>
+</table>
+</form>
+
+<br clear=all>
+<hr>
+
+<h2>Test Status Notes</h2>
+
+<h3>Regression:</h3>
+Expected results of the regression suite, aka <b>JavaRegression</b> flamebox task.
+<ul>
+<li>Test count: RESULTS=326 PASS=304 SKIPPED=22 FAIL=0 
+Regression test result as of June 5th 2007. 
+<li>Any MD/query test can fail on 6547460: REGRESSION FAILS: Field X
+has no assigned config table (test picks nonqueryable field to query
+on). If your test tree is older than rev 10674, you will see this.
+<li>If your test tree is older than rev 10672, you will have one
+additional failure on 6546051:REGRESSION FAILS: Test
+MetadataTypeChar::StoreWithCharMetadata::case= fails on Bad chunk
+size. In later builds this test is disabled and skipped.
+<li>WebDAV tests can fail, depending on your cluster state, on
+6546123: REGRESSION FAILS: WebDAV regression tests fail on empty
+cluster due to not seeing /davtest1. This will add several FAIL
+results to your run.
+</ul>
+
+<h3>Performance Smoketest:</h3>
+Expected results of the performance smoketest, aka
+<b>SmokePerfRegression</b> flamebox task.
+<ul>
+<li>If run on empty cluster: should pass. However, Query numbers
+sometimes come up slower than expected, particularly Query EMPTY. If
+the number is lower, but close to expected, this is not a cause for
+concern.
+<li>If run on non-empty cluster (as few as 30,000 objects when the
+test starts): likely to fail on small MDStore and possibly small
+Retrieve. See bug 6546990: small object store/retrieve performance
+drops too fast even with as few as 55k objects in cluster.
+<li>When in doubt, run your results by Hairong and Ludo.
+</ul>
+
+<br clear=all>
+<hr>
+
+</html>

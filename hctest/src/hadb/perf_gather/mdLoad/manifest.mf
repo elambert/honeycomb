@@ -1,0 +1,3 @@
+Main-Class: MdLoad
+Class-Path: /opt/honeycomb/lib/honeycomb-server.jar /opt/honeycomb/lib/honeycomb-common.jar /opt/honeycomb/lib/honeycomb-hadb.jar /opt/honeycomb/lib/jug.jar /opt/honeycomb/share/ /opt/honeycomb/lib/jetty-4.2.20.jar /opt/SUNWhadb/4/lib/hadbjdbc4.jar /opt/SUNWhab/4/lib/hadbm.jar /opt/SUNWhadb/4/lib/hadbmgt.jar /opt/SUNWhadb/4/lib/jmx.jar /opt/SUNWhadb/4/lib/jmxremote.jar /opt/SUNWhadb/4/lib/jmxremote_optional.jar
+

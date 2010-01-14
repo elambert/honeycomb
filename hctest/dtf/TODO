@@ -1,0 +1,97 @@
+NEXT THINGS
+-----------
+
+TODO: test out the framework test with remoteevents and remote cursors and 
+      making sure it doesn't stop. (clean up work)
+
+	  I want the remoteRecorder and FEtchresults to behave very similarly so they
+      both push events down the wire whenever possible and not as batched... 
+      because this way they try to do as much as necessary and never more or less
+      
+	  remotevents and remotecursor needs a better design current implementation 
+      was just put together for the infoworld review and will need more attention
+      before moving forward with more complicated usage.
+      
+TODO: test out using admin/pass for authentication.
+
+TODO: clean up the ActionState logic to use ThreadLocals 
+
+TODO: analyze the big run of performance tests with monitoring on/off and verify 
+      on/off
+
+TODO: documentation needs:
+	  -- work on developer guide for the basic functionality necessary to write 
+	     the needed platform tags. 
+	  -- work on bettering the existing documentation
+      
+TODO: test out the performance attributes that were added. (analyze)
+
+TODO: read through the documentation and start adding features and also filling
+      in the honeycomb specific documentation.
+      
+TODO: Generating the information per tag for each tag :) remove this information
+      from the Doc and just link the doc to the external documenation for the 
+      API   
+
+TODO: make the txt query have NULLs for inexistent fields. check the test that
+      verifies this, also need query txt verification tests (not that great coverage 
+      at the moment) txt recorder needs to be able to do updates :(
+
+TODO: try out honeycomb query tag, package honeycomb query into DTF query module
+	  - setup 2 testscases
+	  		- query_uniq which queries results that will give unique singleton result
+	  		- query_plus_uniq which does the same as above but with query plus 
+	  		  which processes more than just oid.
+	  		- query_complex queries 
+
+TODO: the datatypes supported by DTF might have to be increased
+
+TODO: work on distribute tag to work nicely! (probably need graphing utility
+      to be able to visualize distributions ;))
+	  fix up distribute tag to have more flexibility
+
+
+TODO: make the exceptions not be part of the standard children. Make there be a
+      special <attrib></attrib> section for attributes that are of the Serializable
+      type. Nested Actions have to be transported correctly.
+      
+TODO: piece together a tutorial and also example ant-dtf project to run remote
+      ant tasks. 
+      
+TODO: create the first template C++ and C agents that can be used within the 
+      framework. Make them simple enough to run the current echo, event, etc. 
+      and also give those to the people needing to use them for free and also 
+      they'll express an example of how to extend API coverage through new 
+      DTFA's :)
+      
+TODO: run through all the documentation and fix up existing plus add all of the
+      newly created things to the dtf
+      
+TODO: start piecing together the developer guide for all of this stuff.
+
+- Continue documentation for all other stuff associated with DTF.
+  --> dtf query
+  --> results tag!
+  --> stats documentation
+  --> finish aggregations section so I can finish up the usage of the events stuff 
+
+- http://code.google.com/p/dtf/
+
+FUTURE IDEAS
+------------
+
+- do not un-serialize completely the tag when transferring between DTFC (binary 
+  code accompanys message) 
+
+- EZInstaller for the framework
+
+- Agents written in other languages:
+	- C/C++ xmlrpc: http://xmlrpc-c.sourceforge.net/downloading.php
+
+Far Future Ideas:
+----------------
+
+- Self updating infrastructure with capability of just running new code from 
+  the dtfx and have it propagate across all elements of the dtf framework during
+  an init process of the framework
+ 

@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+
+<script name="concurrentdb">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF concurrent db recorder/query access to verify that 
+        there are no dead locks or errors from this type of access.</description>
+    </info>
+
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input" />
+        <createstorage id="OUTPUT" path="${dtf.xml.path}/output" />
+        
+        <loadproperties uri="storage://INPUT/ut.properties" />
+
+        <property name="runid" value="${dtf.timestamp}" />
+        <createrange name="longstring" value="${einstein.quotes}" recycle="true"/>
+    </local>
+    
+    <function name="verifyCount">
+        <param name="count" type="required"/>
+        
+        <query uri="storage://OUTPUT/concurrent.db"
+               type="database"
+               event="dtf.perf.event"
+               cursor="cursor"/>
+                   
+        <record type="object" uri="property://recorder"> 
+            <stats cursor="cursor" event="stats"/>
+        </record>
+        
+        <if>
+            <neq op1="${recorder.tot_occ}" op2="${count}"/>
+            <then>
+                <fail message="Total number of events mismatch ${recorder.tot_occ} != ${count}"/>
+            </then>
+            <else>
+                <local>
+                    <echo>Verified the total number of events is what we expected ${recorder.tot_occ}.</echo>
+                </local>
+            </else>
+        </if>
+    </function>
+    
+    <event name="dtf.perf.event" id="perf.event">
+        <attribute name="iteration"  value="${iter}" index="true"/>
+        <attribute name="runid"      value="${dtf.timestamp}"/>
+        
+        <attribute name="timestring" value="${dtf.timestamp}"  length="32"/>
+        <attribute name="datestring" value="${dtf.datestamp}"  length="32"/>
+        <attribute name="int"        value="${dtf.randomInt}"  length="64"/>
+        <attribute name="long"       value="${dtf.randomLong}" length="64"/>
+        <attribute name="longquote"  value="${longstring}"     length="512"/>
+        <attribute name="stamp"      value="${dtf.timestamp}"/>
+    </event>
+    
+    <record type="database"
+            uri="storage://OUTPUT/concurrent.db"
+            event="dtf.perf"
+            append="false">
+        <for range="1" property="iter">
+            <event name="dtf.perf.echo">
+                <attribute name="iteration" value="${iter}"/>
+            </event>
+        </for>
+    </record>
+
+    <query uri="storage://OUTPUT/concurrent.db"
+           type="database"
+           event="dtf.perf.echo"
+           cursor="cursor" />
+           
+    <parallel>
+        <record type="database"
+                uri="storage://OUTPUT/concurrent.db"
+                event="dtf.perf">
+            <parallelloop property="thread" range="1">
+                <for range="1..100" property="iter">
+                    <local>
+                        <event refid="perf.event"/>
+                    </local>
+                </for>
+            </parallelloop>
+        </record>
+        <parallelloop property="thread" range="1">
+            <for range="1..${iterations}" property="iter">
+                <nextresult cursor="cursor" recycle="true"/>
+            </for>
+        </parallelloop>
+    </parallel>
+
+    <record type="database"
+            uri="storage://OUTPUT/concurrent.db"
+            event="dtf.perf"
+            append="false">
+        <for range="1..${iterations}" property="iter">
+            <local>
+                <attribute name="flag" value="firstpass"/>
+                <event refid="perf.event"/>
+            </local>
+        </for>
+    </record>
+
+    <call function="verifyCount">
+        <property name="count" value="${iterations}"/>
+    </call> 
+    
+    <!-- update all previous inserts -->  
+    <record type="database"
+            uri="storage://OUTPUT/concurrent.db"
+            event="dtf.perf">
+        <for range="1..${iterations}" property="iter">
+            <local>
+                <attribute name="flag" value="secondpass"/>
+                <event refid="perf.event"/>
+            </local>
+        </for>
+    </record>
+
+    <call function="verifyCount">
+        <property name="count" value="${iterations}"/>
+    </call> 
+    
+    <query uri="storage://OUTPUT/concurrent.db"
+           type="database"
+           event="dtf.perf.event"
+           cursor="cursor"/>
+   
+    <parallel> 
+        <record type="database"
+                uri="storage://OUTPUT/concurrent.db"
+                event="dtf.perf">
+            <for range="1..${iterations}" property="iter">
+                <nextresult cursor="cursor" recycle="true"/>
+                <event name="dtf.perf.event">
+                    <attribute name="iteration" value="${iter}" index="true"/>
+                    <attribute name="newint" value="${dtf.randomInt}"/>
+                </event>
+            </for>
+        </record>
+        <sequence>
+            <for range="1..${iterations}" property="iter">
+                <nextresult cursor="cursor" recycle="true"/>
+            </for>
+        </sequence>
+    </parallel>
+   
+    <call function="verifyCount">
+        <property name="count" value="${iterations}"/>
+    </call> 
+        
+</script>

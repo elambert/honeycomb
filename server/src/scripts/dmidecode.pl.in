@@ -1,0 +1,200 @@
+#!/usr/bin/env perl
+#
+# $Id: dmidecode.pl.in 10855 2007-05-19 02:54:08Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+
+use warnings;
+use strict;
+
+my $cmd;
+my $delim = "ID"; # "Handle";
+my $conf = "/opt/honeycomb/bin/.dmirc";
+my $default;
+my $start = 0;
+my $uname;
+my $bare = 0;
+my $line;
+my $num;
+my %dmi;
+my $name;
+my $oname;
+my $i;
+my %display;
+local *OUT;
+
+ARG: while (@ARGV && $ARGV[0] =~ s/^-(?=.)//) {
+  OPT: for (shift @ARGV) {
+	  m/^$/ && do { next ARG; };
+	  m/^-$/ && do { last ARG; };
+	  s/^c// && do { $cmd = string_init($1, \@ARGV); next OPT; };
+	  s/^C// && do { $conf = string_init($1, \@ARGV); next OPT; };
+	  s/^b// && do { $bare = 1; redo OPT; };
+	  say_usage("Unknown option: $_\n");
+  }
+}
+
+chop($uname = `uname`);
+
+if ($uname eq "Linux") {
+	$num = 1;
+	$default = "/usr/sbin/dmidecode";
+} else {
+	$num = 1;
+	$default = "/usr/bin/dmidecode";
+}
+
+if (-f $conf) {
+	parse_conf($conf, \%display);
+} else {
+	$conf = undef;
+}
+
+if (!defined($cmd)) {
+	$cmd = $default;
+}
+
+open(OUT, "$cmd |");
+
+while (<OUT>) {
+	chomp;
+
+	next if (!/^$delim/ && !$start);
+	if (/^$delim/) {
+		if (!$start) {
+			$start = 1;
+		}
+		$line = 0;
+		next;
+	} else {
+		$line++;
+	}
+
+	s/^\W+//;
+	if ($line == $num) {
+		if (defined($conf) && !defined($display{$_})) {
+			$start = 0;
+			next;
+		}
+
+		$oname = $name = $_;
+		$i = 0;
+
+		if (defined($dmi{$name})) {
+			if (!defined($dmi{$name}{"__cnt"})) {
+				$dmi{$name}{"__cnt"} = 1;
+			} else {
+				$dmi{$name}{"__cnt"}++;
+			}
+			$name .= " $dmi{$name}{'__cnt'}";
+		}
+	} elsif (/:/) {
+#		my $ln = $_;
+
+		if (defined($conf) && !defined($display{$oname}[$i])) {
+			$start = 0;
+			next;
+		}
+		my @res = split(/:/);
+		if (defined($res[1])) {
+			if (!defined($conf) || ($res[0] =~ /$display{$oname}[$i]/i)) {
+				$res[1] =~ s/^\W+//;
+				$dmi{$name}{$res[0]} = $res[1];
+				$i++;
+			}
+		}# else {
+#			print "line: $ln\n";
+#		}
+	}
+}
+
+foreach my $key (sort keys %dmi) {
+	print "$key:\n" if !$bare;
+	foreach (keys %{ $dmi{$key} }) {
+		next if ($_  eq '__cnt');
+		if (!defined($dmi{$key}{$_})) {
+			print "$key is missing entry\n";
+		} else {
+			if ($bare) {
+				print "$dmi{$key}{$_}\n";
+			} else {
+				print "\t$_: $dmi{$key}{$_}\n";
+			}
+		}
+	}
+}
+
+
+sub string_init {
+	my $string = shift;
+	my $args = shift;
+	my $ret;
+
+	if (defined($string)) {
+		$ret = $string;
+	} else {
+		$ret = shift @{$args};
+	}
+
+	return $ret;
+}
+
+sub parse_conf {
+	my $conf = shift;
+	my $display = shift;
+	local *CONF;
+	my @info;
+	my $name;
+
+	if (! -f $conf) {
+		print "conf file: $conf doesn't exist\n";
+		exit 1;
+	}
+
+	open(CONF, "<$conf");
+
+	while (<CONF>) {
+		chomp;
+
+		@info = split(/:/);
+
+		$name = shift @info;
+
+		foreach (@info) {
+			push(@{ $$display{$name} }, $_);
+		}
+	}
+
+	close(CONF);
+}

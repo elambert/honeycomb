@@ -1,0 +1,17 @@
+$Id: README 10856 2007-05-19 02:58:52Z bberndt $
+
+Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+Use is subject to license terms.
+
+
+QB REPORTS README
+
+This README applies to the install location under Apache cgi-bin root on the webserver machine (currently hc-web).
+
+This directory contains QB reports scripts. It is set up as a subversion checkout of trunk/test/src/db/qb. Do "svn info" to see more. Do not edit files here directly; instead make changes in your subversion workspace, try them out by creating a new subdirectory (say "/usr/local/apache/cgi-bin/qb/test") and accessing URL http://hc-web/cgi-bin/qb/test. When satisfied with changes, commit them to subversion from your workspace. Then run "svn update" in this directory to make your changes live.
+
+This directory also contains a symlink to /home/www/hc-web/svn/docs/Test/qbreports.xml which is a subversion checkout of docs repository. The XML file has report definitions. If you make changes to qbreports.xml, do so in your subversion workspace. When you commit changes, click on Reload links on QB Reports pages to see changes take effect.
+
+See usage information on twiki: http://hc-twiki/bin/view/Main/TestReporting
+
+

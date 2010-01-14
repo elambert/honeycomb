@@ -1,0 +1,389 @@
+#!/bin/bash
+#
+# $Id: LaunchCedarsForever2 10858 2007-05-19 03:03:41Z bberndt $
+#
+# Copyright © 2008, Sun Microsystems, Inc.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#   # Redistributions of source code must retain the above copyright
+# notice, this list of conditions and the following disclaimer.
+#
+#   # Redistributions in binary form must reproduce the above copyright
+# notice, this list of conditions and the following disclaimer in the
+# documentation and/or other materials provided with the distribution.
+#
+#   # Neither the name of Sun Microsystems, Inc. nor the names of its
+# contributors may be used to endorse or promote products derived from
+# this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+# IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+# OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+
+#
+# note - uses single data node, virtual or real
+# runs Cedars2 for load
+
+MATRIX="cedars2.forever"
+
+USAGE="$0 [-n n_files] <data-vip|node> <nfs-mount> <rundir> <outfile>  <clnt1> <clnt2> ..."
+
+START=`date`
+
+if test $# -lt 4 ; then
+    echo $USAGE
+    exit 1
+fi
+ 
+ROOT=`dirname $0`
+ROOT=`dirname $ROOT`
+TESTCMD_BIN=$ROOT/bin
+
+OPTIONS=""
+if test $1 == "-n" ; then
+    OPTIONS="$1 $2"
+    shift ; shift
+fi
+
+HOST=$1
+NFSDIR=$2
+RUNDIR=$3
+OUT=$4
+shift; shift; shift; shift
+
+BRANCH="unknown"
+echo "WHAT HC BRANCH? (E.G. HEAD, CHARTER)"
+read BRANCH
+
+WIPED="no"
+echo "WAS SYSTEM WIPED FIRST?"
+while [ 1 == 1 ] ; do
+    echo -n "  C, D, N [cli,dd,no] ? "
+    read A
+    if [ "$A" == "C" ] ; then
+        WIPED="cli"
+        break
+    fi
+    if [ "$A" == "D" ] ; then
+        WIPED="dd"
+        break
+    fi
+    if [ "$A" == "N" ] ; then
+        break
+    fi
+done
+
+t=`echo $RUNDIR | grep /mnt/test`
+if test -z "$t" ; then
+    echo "DO YOU WANT RUNDIR $RUNDIR IN /mnt/test?"
+    while [ 1 == 1 ] ; do
+        echo -n "  (y/n): "
+        read A
+        if [ "$A" == "y" ] ; then
+                RUNDIR="/mnt/test/$RUNDIR"
+                break
+        fi
+        if [ "$A" == "Y" ] ; then
+                RUNDIR="/mnt/test/$RUNDIR"
+                break
+        fi
+        if [ "$A" == "n" ] ; then
+                break
+        fi
+        if [ "$A" == "N" ] ; then
+                break
+        fi
+    done
+fi
+
+# trim '-data' from target
+CLUSTER=`echo $HOST | cut -d- -f1`
+CHEAT=${CLUSTER}-sp
+
+if test "$CLUSTER" == "$HOST" ; then
+    echo "need <cluster>-<node> for <data-vip|node> arg"
+    echo $USAGE
+    exit 1
+fi
+echo
+echo "CHECKING CLUSTER AND CLIENTS... PLEASE WAIT TO CONFIRM RUN"
+echo
+
+host_up()
+{
+    if test -z "$1" ; then
+        echo "host_up() - need arg"
+        exit 1
+    fi
+
+    host=$1
+    if test -z "$2" ; then
+        wait=0
+    else
+        wait=1
+    fi
+
+    echo Checking availability of $host..
+
+    while [ 1 ] ; do
+
+        RES=`ping -q -c 1 $host |  grep '^rtt' | awk '{print $1}'`
+        if test "$RES" == "rtt" ; then
+            break
+        elif test $wait -eq 0 ; then
+            echo "    " $host is unavailable
+            return 1
+        fi
+        echo "  $host doesn't ping - sleep 5"
+        sleep 5
+
+    done
+    echo "    " $host is available
+    return 0
+}
+
+# wait for HOST to be up
+host_up $HOST retry
+host_up ${CLUSTER}-admin retry
+
+# see which clients are up
+N_CLNT=0
+while test $# -gt 0 ; do
+    host_up $1
+    if test $? -eq 0 ; then
+        CLNTS[$N_CLNT]=$1
+        N_CLNT=$(( $N_CLNT + 1 ))
+    fi
+    shift
+done
+
+if test $N_CLNT -eq 0 ; then
+    echo "NO CLIENTS UP - EXITING"
+    echo
+    exit 1
+fi
+echo
+echo GETTING BUILD INFO
+echo
+echo ssh admin@${CLUSTER}-admin "sysstat"
+BUILD=`ssh admin@${CLUSTER}-admin "sysstat" | egrep 'built|kernel'`
+if test -z "$BUILD" ; then
+    echo "CAN'T GET BUILD INFO"
+    exit 1
+fi
+echo
+echo "CLUSTER IS $CLUSTER"
+echo "BUILD:"
+echo $BUILD
+echo "BRANCH: $BRANCH"
+echo "WIPED:  $WIPED"
+echo
+echo "CLIENTS: " ${CLNTS[@]}
+echo "RUNNING ON $N_CLNT CLIENT(S) IN $RUNDIR/ WITH OUTPUT $OUT"
+echo
+while [ 1 == 1 ] ; do
+        echo -n "  OK? (y/n): "
+        read A
+        if [ "$A" == "y" ] ; then
+                break
+        fi
+        if [ "$A" == "Y" ] ; then
+                break
+        fi
+        if [ "$A" == "n" ] ; then
+                exit
+        fi
+        if [ "$A" == "N" ] ; then
+                exit
+        fi
+done
+
+START_CONFIG=START_CONFIG.$$
+echo "ssh admin@${CLUSTER}-admin hwstat > $START_CONFIG"
+ssh admin@${CLUSTER}-admin hwstat > $START_CONFIG
+start_nodes=`egrep "IN-CLUSTER" $START_CONFIG | wc -l | awk '{print $1}'`
+echo "ssh admin@${CLUSTER}-admin sysstat >> $START_CONFIG"
+ssh admin@${CLUSTER}-admin sysstat >> $START_CONFIG
+
+echo Building FinishRun script..
+
+/bin/rm -f FinishRun
+
+cat << EOF > FinishRun
+#!/bin/bash
+
+echo killing CedarsForever2 and java procs on ${CLNTS[*]}
+for i in ${CLNTS[*]} ; do
+    echo Killing procs on \$i
+    ssh root@\$i "pkill CedarsForever2"
+    sleep 4
+    ssh root@\$i "pkill java"
+    sleep 4
+    ssh root@\$i "ps -eaf | grep java"
+#   ssh root@\$i "pkill java"
+done
+
+END=\`date\`
+
+END_CONFIG=END_CONFIG.\$\$
+echo "ssh admin@${CLUSTER}-admin hwstat > \$END_CONFIG"
+ssh admin@${CLUSTER}-admin hwstat > \$END_CONFIG
+end_nodes=\`egrep "IN-CLUSTER" \$END_CONFIG | wc -l | awk '{print \$1}'\`
+if test -z "\$end_nodes" ; then
+    end_nodes=0
+fi
+echo "ssh admin@${CLUSTER}-admin sysstat >> \$END_CONFIG"
+ssh admin@${CLUSTER}-admin sysstat >> \$END_CONFIG
+
+echo deleting old data..
+echo /bin/rm -f ce[12].*
+/bin/rm -f ce[12].*
+echo getting data..
+for i in ${CLNTS[*]} ; do
+    scp root@\${i}:$RUNDIR/ce1.$OUT ./ce1.${OUT}.\$i
+    scp root@\${i}:$RUNDIR/ce2.$OUT ./ce2.${OUT}.\$i
+done
+
+echo analyzing test logs..
+
+ALL_OUT=/tmp/cout.\$\$
+egrep '^#' ce[12].* > \$ALL_OUT
+
+COMMENTS=/tmp/comm.\$\$
+echo CLUSTER=$CLUSTER >> \$COMMENTS
+echo "CLIENTS: " ${CLNTS[@]} >> \$COMMENTS
+echo "=========================================" >> \$COMMENTS
+$TESTCMD_BIN/AnalyzeCedars2 \$ALL_OUT >> \$COMMENTS
+
+# get metrics
+
+PASS=\`grep PASS \$COMMENTS\`
+if test -z "\$PASS" ; then
+    PASS=0
+else
+    PASS=1
+fi
+
+if test "\$end_nodes" == "0" ; then
+    PASS=0
+fi
+
+total_files=\`grep total_files \$COMMENTS | awk '{print \$NF}'\`
+retrieve_failures=\`grep '^retrieve_failures' \$COMMENTS | awk '{print \$NF}'\`
+md_retrieve_failures=\`grep md_retrieve_failures \$COMMENTS | awk '{print \$NF}'\`
+bad_retrv=\`grep bad_retrv \$COMMENTS | awk '{print \$NF}'\`
+bad_md_retrv=\`grep bad_md_retrv \$COMMENTS | awk '{print \$NF}'\`
+nfs_missing=\`grep nfs_missing \$COMMENTS | awk '{print \$NF}'\`
+nfs_zero_size=\`grep nfs_zero_size \$COMMENTS | awk '{print \$NF}'\`
+nfs_bad_size=\`grep nfs_bad_size \$COMMENTS | awk '{print \$NF}'\`
+nfs_io_errors=\`grep nfs_io_errors \$COMMENTS | awk '{print \$NF}'\`
+nfs_access_errors=\`grep nfs_access_errors \$COMMENTS | awk '{print \$NF}'\`
+nfs_bad_data=\`grep nfs_bad_data \$COMMENTS | awk '{print \$NF}'\`
+nfs_mixed_view=\`grep nfs_mixed_view \$COMMENTS | awk '{print \$NF}'\`
+nohost_ex=\`grep nohost_ex \$COMMENTS | awk '{print \$2}'\`
+other_ex=\`grep other_ex \$COMMENTS | awk '{print \$2}'\`
+frag_ex=\`grep frag_ex \$COMMENTS | awk '{print \$2}'\`
+check_thruput_md=\`grep check_thruput_md \$COMMENTS | awk '{print \$3}'\`
+total_store_rate=\`grep total_store_rate \$COMMENTS | awk '{print \$2}'\`
+total_retrieve_rate=\`grep total_retrieve_rate \$COMMENTS | awk '{print \$2}'\`
+flawed_test=\`grep flawed_test \$COMMENTS | awk '{print \$2}'\`
+
+# get/analyze log
+ 
+echo getting cluster log..
+
+LOG=/tmp/rlmsg.\$\$
+echo "scp root@${CHEAT}:/var/log/messages \$LOG"
+scp root@${CHEAT}:/var/log/messages \$LOG
+LOG_SUM=/tmp/r2msg_a.\$\$
+echo analyzing cluster log to \$LOG_SUM
+${TESTCMD_BIN}/AnalyzeLog \$LOG > \$LOG_SUM
+
+# generate xml
+
+XML=CF.\$\$
+cat << EOF2 > \$XML
+<test_results>
+  <test_result
+    test_name="$MATRIX"
+    result="\$PASS"
+    cluster="$CLUSTER"
+    start_time="$START"
+    end_time="\$END"
+    build="$BUILD"
+    branch="$BRANCH"
+    performer="$USER">
+    <metric name="wiped">$WIPED</metric>
+    <metric name="cluster_nodes_start">$start_nodes</metric>
+    <metric name="cluster_nodes_end">\$end_nodes</metric>
+    <metric name="client_hosts">$N_CLNT</metric>
+    <metric name="total_files">\$total_files</metric>
+    <metric name="retrieve_failures">\$retrieve_failures</metric>
+    <metric name="md_retrieve_failures">\$md_retrieve_failures</metric>
+    <metric name="bad_retrv">\$bad_retrv</metric>
+    <metric name="bad_md_retrv">\$bad_md_retrv</metric>
+    <metric name="nfs_missing">\$nfs_missing</metric>
+    <metric name="nfs_zero_size">\$nfs_zero_size</metric>
+    <metric name="nfs_bad_size">\$nfs_bad_size</metric>
+    <metric name="nfs_io_errors">\$nfs_io_errors</metric>
+    <metric name="nfs_access_errors">\$nfs_access_errors</metric>
+    <metric name="nfs_mixed_view">\$nfs_mixed_view</metric>
+    <metric name="flawed_test">\$flawed_test</metric>
+    <metric name="nohost_ex">\$nohost_ex</metric>
+    <metric name="other_ex">\$other_ex</metric>
+    <metric name="frag_ex">\$frag_ex</metric>
+    <metric name="check_thruput_md">\$check_thruput_md</metric>
+    <metric name="total_store_rate">\$total_store_rate</metric>
+    <metric name="total_retrieve_rate">\$total_retrieve_rate</metric>
+    <start_config>
+STARTING CONFIG:
+EOF2
+cat          $START_CONFIG >> \$XML
+echo "    </start_config>" >> \$XML
+echo "    <end_config>" >> \$XML
+echo         "ENDING CONFIG:" >> \$XML
+cat         \$END_CONFIG >> \$XML
+echo "    </end_config>" >> \$XML
+echo "    <log_summary>" >> \$XML
+cat         \$LOG_SUM >> \$XML
+echo "    </log_summary>" >> \$XML
+echo "    <notes>" >> \$XML
+cat         \$COMMENTS >> \$XML
+echo "    </notes>" >> \$XML
+echo "  </test_result>" >> \$XML
+echo "</test_results>" >> \$XML
+
+/bin/rm -f $START_CONFIG \$END_CONFIG \$LOG_SUM \$LOG \$ALL_OUT
+
+$TESTCMD_BIN/qa add \$XML
+
+echo RESULT IS \$XML
+EOF
+chmod +x FinishRun
+
+CMD="/opt/client/testcmd/bin/CedarsForever2 $OPTIONS -h $HOST -m $NFSDIR"
+c=0
+while test $c -lt $N_CLNT ; do
+    echo ssh root@${CLNTS[$c]} \"mkdir -p $RUNDIR \"
+    ssh root@${CLNTS[$c]} "/bin/mkdir -p $RUNDIR "
+    echo 2x ssh root@${CLNTS[$c]} \"cd $RUNDIR \; $CMD -h $HOST -o ce1.$OUT \"
+    ssh root@${CLNTS[$c]} "cd $RUNDIR ; $CMD -o ce1.$OUT " &
+    ssh root@${CLNTS[$c]} "cd $RUNDIR ; $CMD -o ce2.$OUT " &
+    c=$(( $c + 1 ))
+done
+echo STARTED 2x $CMD ON EACH CLIENT
+echo DONE
+

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script PUBLIC "-//DTF/DTF XML Script V1.0//EN" "dtf.dtd">
+<script name="try_catch">
+    <info>
+        <author>
+            <name>Rodney Gomes</name>
+            <email>rodney.gomes@sun.com</email>
+        </author>
+        <description>DTF try/catch unit test.</description>
+    </info>
+    
+    <local>
+        <createstorage id="INPUT" path="${dtf.xml.path}/input"/>
+        <loadproperties uri="storage://INPUT/ut.properties"/>
+		<lockcomponent id="DTFA1">
+			<attrib name="type" value="dtfa"/>
+		</lockcomponent>
+        <echo>Try/Catch and Fail Unit Test</echo>
+    </local>
+    
+    <try>
+        <sequence>
+            <local>
+                <fail message="Failure should be caught by catch."/>
+                <fail message="This part should never be executed."/>
+            </local>
+        </sequence>
+        <catch exception="${dtf.FailException}">
+            <sequence>
+                <local>
+                    <echo>The previous statement has failed correctly.</echo>
+                </local>
+            </sequence>
+        </catch>
+    </try>
+    
+    <try>
+        <sequence>
+            <try>
+                <sequence>
+                    <local>
+                        <fail message="Failure should be caught by catch."/>
+                        <fail message="This part should never be executed."/>
+                    </local>
+                </sequence>
+                <catch exception="sun.com.dtf.exception.WrongException">
+                    <sequence>
+                        <local>
+                            <echo>This should never be seen.</echo>
+                        </local>
+                    </sequence>
+                </catch>
+            </try>
+        </sequence>
+        <catch exception="${dtf.FailException}" property="fail.message">
+            <sequence>
+                <local>
+                    <echo>Caught the exception on outter try/catch.</echo>
+                    <echo>Message: ${fail.message}</echo>
+                </local>
+            </sequence>
+        </catch>
+    </try>
+   
+    <try>
+        <sequence>
+		    <component id="DTFA1">
+		    	<fail message="Failing on component"/>
+		    </component>
+        </sequence>
+        <catch exception="${dtf.FailException}" property="fail.message">
+            <sequence>
+                <local>
+                    <echo>Caught exception from remote component.</echo>
+                    <echo>Message: ${fail.message}</echo>
+                </local>
+            </sequence>
+        </catch>
+    </try>
+    
+</script>

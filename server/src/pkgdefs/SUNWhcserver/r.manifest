@@ -1,0 +1,62 @@
+#!/bin/sh
+#
+# Copyright 2005 Sun Microsystems, Inc.  All rights reserved.
+# Use is subject to license terms.
+#
+#ident	"@(#)r.manifest	1.3	05/09/09 SMI"
+#
+# r.manifest - smf(5) manifest remove class action script
+#
+
+if [ "$PKG_INSTALL_ROOT" != "" -a "$PKG_INSTALL_ROOT" != "/" ]; then
+	#
+	# We can't safely disable the service in this case.
+	#
+	smf_alive=no
+else
+	#
+	# We can verify if the service is disabled prior to
+	# removal.
+	#
+	if [ -r /etc/svc/volatile/repository_door ]; then
+		smf_alive=yes
+	fi
+fi
+
+MFSTSCAN=/lib/svc/bin/mfstscan
+SVCCFG=/usr/sbin/svccfg
+SVCPROP=/usr/bin/svcprop
+
+while read mfst; do
+	if [ "$smf_alive" = "yes" ]; then
+		ENTITIES=`$SVCCFG inventory $mfst`
+
+		for fmri in $ENTITIES; do
+			#
+			# Determine whether any of our instances are
+			# enabled.
+			#
+			en_p=`$SVCPROP -C -p general/enabled $fmri 2>/dev/null`
+			en_o=`$SVCPROP -C -p general_ovr/enabled $fmri 2>/dev/null`
+
+			if [ "$en_p" = "true" -o "$en_o" = "true" ]; then
+				echo "$fmri remains enabled; aborting"
+				exit 1
+			fi
+
+			$SVCCFG delete $fmri
+		done
+
+                #
+                # Delete the manifest hash value.
+                #
+                pg_name=`$MFSTSCAN -t $mfst`
+                if $SVCPROP -q -p $pg_name smf/manifest; then
+                        $SVCCFG -s smf/manifest delpg $pg_name
+                fi
+	fi
+
+	/usr/bin/rm $mfst
+done
+
+exit 0
